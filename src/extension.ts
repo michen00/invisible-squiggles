@@ -1,26 +1,71 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
+async function toggleSquiggles() {
+    const config = vscode.workspace.getConfiguration();
+    const currentCustomizations = config.get<{ [key: string]: string | undefined }>("workbench.colorCustomizations") || {};
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "invisible-squiggles" is now active!');
+    const transparentColors: { [key: string]: string } = {
+        "editorError.foreground": "#00000000",
+        "editorWarning.foreground": "#00000000",
+        "editorInfo.foreground": "#00000000"
+    };
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('invisible-squiggles.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from invisible-squiggles!');
-	});
+    // Retrieve stored original colors from settings
+    const originalColors = currentCustomizations["invisibleSquiggles.originalColors"]
+        ? JSON.parse(currentCustomizations["invisibleSquiggles.originalColors"]!)
+        : {};
 
-	context.subscriptions.push(disposable);
+    // Check if squiggles are currently hidden (transparent)
+    const isTransparent = Object.entries(transparentColors).every(
+        ([key, value]) => currentCustomizations[key]?.toLowerCase() === value.toLowerCase()
+    );
+
+    let newCustomizations: { [key: string]: string | undefined };
+
+    if (isTransparent) {
+        // Restore original settings
+        newCustomizations = {
+            ...currentCustomizations,
+            ...originalColors
+        };
+
+        // Remove transparent settings and cleanup custom storage
+        Object.keys(transparentColors).forEach((key) => {
+            delete newCustomizations[key];
+        });
+        delete newCustomizations["invisibleSquiggles.originalColors"];
+    } else {
+        // Save current squiggle colors to custom storage
+        const savedColors: { [key: string]: string } = {};
+        Object.keys(transparentColors).forEach((key) => {
+            if (currentCustomizations[key]) {
+                savedColors[key] = currentCustomizations[key]!;
+            }
+        });
+
+        // Persist the original colors in `workbench.colorCustomizations`
+        newCustomizations = {
+            ...currentCustomizations,
+            "invisibleSquiggles.originalColors": JSON.stringify(savedColors),
+            ...transparentColors
+        };
+    }
+
+    // Apply the new customizations
+    await config.update(
+        "workbench.colorCustomizations",
+        newCustomizations,
+        vscode.ConfigurationTarget.Global
+    );
+
+    vscode.window.showInformationMessage(
+        isTransparent ? "Squiggles are now visible." : "Squiggles are now hidden."
+    );
 }
 
-// This method is called when your extension is deactivated
+export function activate(context: vscode.ExtensionContext) {
+    const disposable = vscode.commands.registerCommand('invisible-squiggles.toggle', toggleSquiggles);
+    context.subscriptions.push(disposable);
+}
+
 export function deactivate() {}

@@ -1,6 +1,7 @@
 {
   "name": "invisible-squiggles",
   "displayName": "invisible-squiggles",
+  "publisher": "michen",
   "description": "toggle the transparency of error/warning squiggles",
   "version": "0.0.1",
   "engines": {
@@ -14,8 +15,8 @@
   "contributes": {
     "commands": [
       {
-        "command": "invisible-squiggles.helloWorld",
-        "title": "Hello World"
+        "command": "invisible-squiggles.toggle",
+        "title": "Toggle Squiggles"
       }
     ]
   },

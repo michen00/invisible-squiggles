@@ -10,56 +10,51 @@ async function toggleSquiggles() {
         "editorInfo.foreground": "#00000000"
     };
 
-    // Retrieve stored original colors from settings
-    const originalColors = currentCustomizations["invisibleSquiggles.originalColors"]
-        ? JSON.parse(currentCustomizations["invisibleSquiggles.originalColors"]!)
-        : {};
+    let originalColors: { [key: string]: string } = {};
+    try {
+        originalColors = currentCustomizations["invisibleSquiggles.originalColors"]
+            ? JSON.parse(currentCustomizations["invisibleSquiggles.originalColors"]!)
+            : {};
+    } catch (error) {
+        console.error("Error parsing original colors:", error);
+        vscode.window.showErrorMessage("Failed to parse original colors. Restoring defaults.");
+    }
 
     const isTransparent = Object.entries(transparentColors).every(
         ([key, value]) => currentCustomizations[key]?.toLowerCase() === value.toLowerCase()
     );
 
-    let newCustomizations: { [key: string]: string | undefined };
+    const newCustomizations: { [key: string]: string | undefined } = { ...currentCustomizations };
 
     if (isTransparent) {
         // Restore original settings
-        newCustomizations = {
-            ...currentCustomizations,
-            ...originalColors
-        };
+        Object.assign(newCustomizations, originalColors);
 
         // Remove transparent settings and cleanup custom storage
-        Object.keys(transparentColors).forEach((key) => {
-            delete newCustomizations[key];
-        });
+        Object.keys(transparentColors).forEach((key) => delete newCustomizations[key]);
         delete newCustomizations["invisibleSquiggles.originalColors"];
     } else {
-        // Save current squiggle colors to custom storage
+        // Save current squiggle colors
         const savedColors: { [key: string]: string } = {};
-        Object.keys(transparentColors).forEach((key) => {
+        for (const key of Object.keys(transparentColors)) {
             if (currentCustomizations[key]) {
                 savedColors[key] = currentCustomizations[key]!;
             }
-        });
+        }
 
-        // Persist the original colors in `workbench.colorCustomizations`
-        newCustomizations = {
-            ...currentCustomizations,
-            "invisibleSquiggles.originalColors": JSON.stringify(savedColors),
-            ...transparentColors
-        };
+        newCustomizations["invisibleSquiggles.originalColors"] = JSON.stringify(savedColors);
+        Object.assign(newCustomizations, transparentColors);
     }
 
-    // Apply the new customizations
-    await config.update(
-        "workbench.colorCustomizations",
-        newCustomizations,
-        vscode.ConfigurationTarget.Global
-    );
-
-    vscode.window.showInformationMessage(
-        isTransparent ? "Squiggles are now visible." : "Squiggles are now hidden."
-    );
+    try {
+        await config.update("workbench.colorCustomizations", newCustomizations, vscode.ConfigurationTarget.Global);
+        vscode.window.showInformationMessage(
+            isTransparent ? "Squiggles are now visible." : "Squiggles are now hidden."
+        );
+    } catch (error) {
+        console.error("Error updating configuration:", error);
+        vscode.window.showErrorMessage("Failed to update squiggle settings.");
+    }
 }
 
 export function activate(context: vscode.ExtensionContext) {

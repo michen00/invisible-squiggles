@@ -15,7 +15,6 @@ async function toggleSquiggles() {
         ? JSON.parse(currentCustomizations["invisibleSquiggles.originalColors"]!)
         : {};
 
-    // Check if squiggles are currently hidden (transparent)
     const isTransparent = Object.entries(transparentColors).every(
         ([key, value]) => currentCustomizations[key]?.toLowerCase() === value.toLowerCase()
     );

@@ -8,9 +8,15 @@ async function toggleSquiggles() {
     ) || {};
 
   const transparentColors: { [key: string]: string } = {
-    "editorError.foreground": "#00000000",
-    "editorWarning.foreground": "#00000000",
+    "editorInfo.border": "#00000000",
+    "editorInfo.background": "#00000000",
     "editorInfo.foreground": "#00000000",
+    "editorError.border": "#00000000",
+    "editorError.background": "#00000000",
+    "editorError.foreground": "#00000000",
+    "editorWarning.border": "#00000000",
+    "editorWarning.background": "#00000000",
+    "editorWarning.foreground": "#00000000",
   };
 
   let originalColors: { [key: string]: string } = {};

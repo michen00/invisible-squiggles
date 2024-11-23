@@ -48,8 +48,9 @@ async function toggleSquiggles() {
 
     try {
         await config.update("workbench.colorCustomizations", newCustomizations, vscode.ConfigurationTarget.Global);
-        vscode.window.showInformationMessage(
-            isTransparent ? "Squiggles are now visible." : "Squiggles are now hidden."
+        vscode.window.setStatusBarMessage(
+            isTransparent ? "Squiggles are now visible." : "Squiggles are now hidden.",
+            2500
         );
     } catch (error) {
         console.error("Error updating configuration:", error);

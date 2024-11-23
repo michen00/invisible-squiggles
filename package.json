@@ -1,16 +1,16 @@
 {
   "name": "invisible-squiggles",
   "displayName": "invisible-squiggles",
+  "version": "0.0.1",
   "publisher": "michen",
   "description": "toggle the transparency of error/warning squiggles",
-  "version": "0.0.1",
-  "engines": {
-    "vscode": "^1.95.0"
-  },
   "categories": [
     "Other"
   ],
   "activationEvents": [],
+  "engines": {
+    "vscode": "^1.95.0"
+  },
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [

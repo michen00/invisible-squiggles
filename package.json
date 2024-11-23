@@ -2,11 +2,15 @@
   "name": "invisible-squiggles",
   "displayName": "invisible-squiggles",
   "version": "0.0.1",
-  "publisher": "michen",
-  "description": "toggle the transparency of error/warning squiggles",
+  "publisher": "michen00",
+  "description": "toggle the transparency of info/error/warning squiggles",
+  "author": {
+    "name": "Michael I Chen"
+  },
   "categories": [
-    "Other"
+    "Linters"
   ],
+  "pricing": "Free",
   "activationEvents": [],
   "engines": {
     "vscode": "^1.95.0"
@@ -46,5 +50,11 @@
     "typescript": "^5.6.3",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1"
-  }
+  },
+  "license": "SEE LICENSE IN LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/michen00/invisible-squiggles"
+  },
+  "homepage": "https://github.com/michen00/invisible-squiggles/blob/main/README.md"
 }

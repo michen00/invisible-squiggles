@@ -22,7 +22,28 @@
         "command": "invisible-squiggles.toggle",
         "title": "Toggle Squiggles"
       }
-    ]
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "Invisible Squiggles",
+      "properties": {
+        "invisibleSquiggles.hideErrors": {
+          "type": "boolean",
+          "default": true,
+          "description": "Toggle error squiggles."
+        },
+        "invisibleSquiggles.hideWarnings": {
+          "type": "boolean",
+          "default": true,
+          "description": "Toggle warning squiggles."
+        },
+        "invisibleSquiggles.hideInfo": {
+          "type": "boolean",
+          "default": true,
+          "description": "Toggle info squiggles."
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run package",

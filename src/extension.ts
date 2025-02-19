@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import fetch from "node-fetch";
 
 const TRANSPARENT_COLORS: { [key: string]: string } = {
   "editorInfo.border": "#00000000",
@@ -72,14 +73,12 @@ async function toggleSquiggles(): Promise<void> {
 
     const newCustomizations = { ...currentCustomizations };
     if (isTransparent) {
-      // Restore saved colors
       Object.assign(newCustomizations, originalColors);
       Object.keys(TRANSPARENT_COLORS).forEach(
         (key) => delete newCustomizations[key]
       );
       delete newCustomizations["invisibleSquiggles.originalColors"];
     } else {
-      // Save current state and apply transparency
       const savedColors = Object.keys(transparentColorsToApply).reduce(
         (acc, key) => {
           if (currentCustomizations[key]) {
@@ -118,12 +117,60 @@ async function toggleSquiggles(): Promise<void> {
   }
 }
 
+// AI-Powered Fix Suggestions
+async function getAIFixForError(errorMessage: string): Promise<string | null> {
+  const apiUrl = "https://api-inference.huggingface.co/models/Salesforce/codet5-large";
+  
+  try {
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ inputs: errorMessage }),
+    });
+
+    const data = await response.json();
+    
+    if (data && data[0] && data[0].generated_text) {
+      return data[0].generated_text;
+    } else {
+      return null;
+    }
+  } catch (error) {
+    console.error("Error fetching AI fix:", error);
+    return null;
+  }
+}
+
+async function showFixSuggestion(diagnostic: vscode.Diagnostic) {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) return;
+
+  const fixSuggestion = await getAIFixForError(diagnostic.message);
+  
+  if (fixSuggestion) {
+    vscode.window.showInformationMessage(`AI Suggestion: ${fixSuggestion}`);
+  }
+}
+
 export function activate(context: vscode.ExtensionContext) {
-  const disposable = vscode.commands.registerCommand(
+  const toggleCommand = vscode.commands.registerCommand(
     "invisible-squiggles.toggle",
     toggleSquiggles
   );
-  context.subscriptions.push(disposable);
+  context.subscriptions.push(toggleCommand);
+
+  const diagnosticCollection = vscode.languages.createDiagnosticCollection("typescript");
+
+  vscode.workspace.onDidChangeTextDocument(async (event) => {
+    if (event.document.languageId === "typescript") {
+      const diagnostics = vscode.languages.getDiagnostics(event.document.uri);
+      for (const diagnostic of diagnostics) {
+        if (diagnostic.severity === vscode.DiagnosticSeverity.Error) {
+          showFixSuggestion(diagnostic);
+        }
+      }
+    }
+  });
 }
 
 export function deactivate() {}

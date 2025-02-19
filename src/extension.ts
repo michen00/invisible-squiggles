@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 
 const TRANSPARENT_COLOR = "#00000000";
-const SQUIGGLE_TYPES = ["Error", "Info", "Warning"] as const;
+const SQUIGGLE_TYPES = ["Error", "Warning", "Info"] as const;
 
 const TRANSPARENT_COLORS = Object.fromEntries(
   SQUIGGLE_TYPES.flatMap((type) => [
@@ -11,22 +11,15 @@ const TRANSPARENT_COLORS = Object.fromEntries(
   ])
 );
 
-let statusBarItem: vscode.StatusBarItem;
-
-function setStatusVisible() {
-  statusBarItem.text = "Squiggles: $(eye)";
-  statusBarItem.tooltip = "Hide squiggles";
-}
-
-function setStatusHidden() {
-  statusBarItem.text = "Squiggles: $(eye-closed)";
-  statusBarItem.tooltip = "Show squiggles";
-}
-
 async function toggleSquiggles(): Promise<void> {
   const config = vscode.workspace.getConfiguration("workbench");
   const settings = vscode.workspace.getConfiguration("invisibleSquiggles");
 
+  const hideSquiggles = {
+    Error: settings.get<boolean>("hideErrors", true),
+    Warning: settings.get<boolean>("hideWarnings", true),
+    Info: settings.get<boolean>("hideInfo", true),
+  };
   const hideSquiggles = {
     Error: settings.get<boolean>("hideErrors", true),
     Warning: settings.get<boolean>("hideWarnings", true),
@@ -56,34 +49,50 @@ async function toggleSquiggles(): Promise<void> {
   const isAlreadyTransparent = Object.entries(transparentColorsToApply).every(
     ([key, value]) => currentCustomizations[key]?.toLowerCase() === value
   );
+  const storedColors = safelyParseJson(
+    currentCustomizations["invisibleSquiggles.originalColors"]
+  );
 
-    const newCustomizations = { ...currentCustomizations };
-    if (isAlreadyTransparent) {
-      // Restore saved colors
-      Object.assign(newCustomizations, storedColors);
-      Object.keys(TRANSPARENT_COLORS).forEach(
-        (key) => delete newCustomizations[key]
-      );
-      delete newCustomizations["invisibleSquiggles.originalColors"];
-      setStatusVisible();
-    } else {
-      // Save current state and apply transparency
-      const savedColors = Object.keys(transparentColorsToApply).reduce(
-        (acc, key) => {
-          if (currentCustomizations[key]) {
-            acc[key] = currentCustomizations[key]!;
-          }
-          return acc;
-        },
-        {} as { [key: string]: string }
-      );
+  const transparentColorsToApply = Object.fromEntries(
+    SQUIGGLE_TYPES.flatMap((type) =>
+      hideSquiggles[type]
+        ? [
+            [`editor${type}.border`, TRANSPARENT_COLOR],
+            [`editor${type}.background`, TRANSPARENT_COLOR],
+            [`editor${type}.foreground`, TRANSPARENT_COLOR],
+          ]
+        : []
+    )
+  );
 
-      newCustomizations["invisibleSquiggles.originalColors"] =
-        JSON.stringify(savedColors);
-      Object.assign(newCustomizations, transparentColorsToApply);
-      setStatusHidden();
-    }
+  const isAlreadyTransparent = Object.entries(transparentColorsToApply).every(
+    ([key, value]) => currentCustomizations[key]?.toLowerCase() === value
+  );
 
+  const newCustomizations = { ...currentCustomizations };
+
+  if (isAlreadyTransparent) {
+    // Restore previous colors
+    Object.assign(newCustomizations, storedColors);
+    Object.keys(TRANSPARENT_COLORS).forEach((key) => delete newCustomizations[key]);
+    delete newCustomizations["invisibleSquiggles.originalColors"];
+  } else {
+    // Save current state and apply transparency
+    const savedColors = Object.keys(transparentColorsToApply).reduce(
+      (acc, key) => {
+        if (currentCustomizations[key]) {
+          acc[key] = currentCustomizations[key]!;
+        }
+        return acc;
+      },
+      {} as { [key: string]: string }
+    );
+
+    newCustomizations["invisibleSquiggles.originalColors"] = JSON.stringify(savedColors);
+    Object.assign(newCustomizations, transparentColorsToApply);
+  }
+
+  try {
   try {
     await config.update(
       "colorCustomizations",
@@ -91,21 +100,17 @@ async function toggleSquiggles(): Promise<void> {
       vscode.ConfigurationTarget.Global
     );
 
-    if (
-      vscode.workspace
-        .getConfiguration("invisibleSquiggles")
-        .get<boolean>("showStatusBarMessage", true)
-    ) {
-      vscode.window.setStatusBarMessage(
-        isAlreadyTransparent
-          ? "Squiggles restored to previous visibility."
-          : "Selected squiggles are now transparent.",
-        2500
-      );
-    }
+    vscode.window.setStatusBarMessage(
+      isAlreadyTransparent
+        ? "Squiggles restored to previous visibility."
+        : "Selected squiggles are now transparent.",
+      2500
+    );
   } catch (error) {
     console.error("Error toggling squiggle visibility:", error);
+    console.error("Error toggling squiggle visibility:", error);
     vscode.window.showErrorMessage(
+      "An error occurred while toggling squiggle settings. Check logs for details."
       "An error occurred while toggling squiggle settings. Check logs for details."
     );
   }
@@ -120,34 +125,10 @@ function safelyParseJson(jsonString?: string): { [key: string]: string } {
   }
 }
 
-const COMMAND_TOGGLE_SQUIGGLES = "invisible-squiggles.toggle";
 export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
-    vscode.commands.registerCommand(COMMAND_TOGGLE_SQUIGGLES, toggleSquiggles)
+    vscode.commands.registerCommand("invisible-squiggles.toggle", toggleSquiggles)
   );
-
-  statusBarItem = vscode.window.createStatusBarItem(
-    vscode.StatusBarAlignment.Right,
-    100
-  );
-
-  const config = vscode.workspace.getConfiguration("workbench");
-  const currentCustomizations =
-    config.get<{ [key: string]: string | undefined }>("colorCustomizations") ||
-    {};
-  const isInitiallyTransparent = Object.entries(TRANSPARENT_COLORS).every(
-    ([key, value]) =>
-      (currentCustomizations[key]?.toLowerCase() || "") === value.toLowerCase()
-  );
-  if (isInitiallyTransparent) {
-    setStatusHidden();
-  } else {
-    setStatusVisible();
-  }
-
-  statusBarItem.command = COMMAND_TOGGLE_SQUIGGLES;
-  statusBarItem.show();
-  context.subscriptions.push(statusBarItem);
 }
 
 export function deactivate() {}

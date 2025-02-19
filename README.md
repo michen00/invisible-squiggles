@@ -1,25 +1,43 @@
-# Invisible Squiggles
+# Invisible Squiggles Extension
 
-**Invisible Squiggles** is a **VSCode extension** that provides a command to toggle the visibility of **error, warning, and info squiggles** in the editor.
+The **Invisible Squiggles** extension for Visual Studio Code lets you toggle the visibility of editor squiggles (errors, warnings, and informational messages). In addition, it leverages AI-powered suggestions to help you fix TypeScript errors using Hugging Face's **CodeT5** model.
 
-## 🚀 Features
-- **Toggle squiggles on/off** directly from the command palette.
-- Hides **error, warning, and info squiggles** for a cleaner workspace.
-- Lightweight and easy to use.
+## Features
 
-## 📥 Installation
-1. [Install the extension](https://marketplace.visualstudio.com/items?itemName=michen00.invisible-squiggles) from the **VSCode Extension Marketplace**.
-2. Open VSCode and press **`Ctrl/Cmd + Shift + P`** to launch the command palette.
-3. Search for **`Toggle Squiggles`** and select it.
-4. Enjoy a distraction-free coding experience!
+### Toggle Squiggles
+- **Hide** or **restore** error, warning, and info squiggles (underlines) in your editor with a simple command.
+- Squiggles are made transparent instead of being completely hidden, making it easier to focus on code while still having visual cues.
 
-## 🎯 Usage
-- Press **`Ctrl/Cmd + Shift + P`** and type:
+### AI-Powered Fix Suggestions
+- **AI fixes** are suggested for TypeScript errors using **Salesforce's CodeT5 model** hosted on Hugging Face.
+- Once a TypeScript error is detected, the extension fetches an AI-powered suggestion to help fix the issue.
+- Suggestions are shown as information messages in VSCode.
 
-- Select the command to toggle the visibility of **all squiggles** in the editor.
+## Installation
+
+1. **Install the Extension:**
+   - Open VSCode.
+   - Go to the **Extensions** view by clicking on the Extensions icon in the Activity Bar.
+   - Search for "**Invisible Squiggles**" and click **Install**.
+
+2. **Manual Installation:**
+   - Clone this repository to your local machine.
+   - Open the extension folder in VSCode.
+   - Press `F5` to launch a new VSCode window with the extension loaded.
+
+## Usage
+
+1. **Toggle Squiggles:**
+   - Press `Ctrl+Shift+P` to open the command palette.
+   - Search for `Invisible Squiggles: Toggle Squiggles`.
+   - This will toggle the squiggles' visibility on/off (transparent or restored).
+
+2. **AI Fix Suggestions:**
+   - Errors in TypeScript files will trigger an automatic AI suggestion, which will be displayed as an information message.
+   - The AI suggestion can help fix issues detected in your code by providing recommended changes.
 
 ## 🔄 Similar Extensions
-This extension is similar to [Disable Error and Warning Squiggles](https://marketplace.visualstudio.com/items?itemName=modan.disable-error-squiggles) ([repo](https://github.com/danMoksh/disable-error-and-warning-squiggles)), but it **also hides info squiggles** in addition to errors and warnings.
+This extension is similar to [Disable Error and Warning Squiggles](https://marketplace.visualstudio.com/items?itemName=modan.disable-error-squiggles) ([repo](https://github.com/danMoksh/disable-error-and-warning-squiggles)), but it **also hides info squiggles** in addition to errors and warnings and includes AI-powered fix suggestions.
 
 ## 🖥️ Demo
 ![Invisible Squiggles Demo](https://github.com/user-attachments/assets/50bce932-ee6a-4422-88d1-a500b81eac57)

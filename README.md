@@ -1,9 +1,34 @@
-# invisible-squiggles README
+# Invisible Squiggles - VSCode Extension  
 
-This is the README for the VSCode extension "invisible-squiggles". It provides a command to toggle the visibility of squiggles in the editor.
+🚀 **Invisible Squiggles** is a VSCode extension that allows users to toggle the visibility of error, warning, and info squiggles in the editor. With the latest update, it now includes **AI-powered error fix suggestions**, helping developers resolve errors faster!  
 
-To use the extension, [install it](https://marketplace.visualstudio.com/items?itemName=michen00.invisible-squiggles) from the VSCode extension marketplace. Then press `Ctrl/Cmd + Shift + P` to launch the command palette and type `Toggle Squiggles` to select the command. This will toggle the visibility of squiggles in the editor.
+## **✨ Features**  
+✅ **Toggle squiggles** (errors, warnings, and info messages).  
+✅ **AI-powered fix suggestions** for TypeScript errors using Hugging Face’s CodeT5 model.  
+✅ **Works without an API key** – easy to use for everyone.  
+✅ **Lightweight & fast** – improves the coding experience without slowing down VSCode.  
 
-It is similar to [Disable Error and Warning Squiggles](https://marketplace.visualstudio.com/items?itemName=modan.disable-error-squiggles) ([repo](https://github.com/danMoksh/disable-error-and-warning-squiggles)), but also hides info squiggles in addition to error and warning squiggles.
+---
 
-![demo](https://github.com/user-attachments/assets/50bce932-ee6a-4422-88d1-a500b81eac57)
+## **📌 Installation**  
+
+1. Open **VSCode**.  
+2. Go to **Extensions Marketplace** (`Ctrl + Shift + X`).  
+3. Search for **"Invisible Squiggles"**.  
+4. Click **Install**.  
+5. The extension is now ready to use!  
+
+---
+
+## **💡 How to Use**  
+
+### **Toggle Squiggles**  
+1. Press `Ctrl/Cmd + Shift + P` to open the **Command Palette**.  
+2. Type `"Toggle Squiggles"` and select it.  
+3. This will enable/disable the squiggles in your editor.  
+
+### **AI-Powered Error Fix Suggestions**  
+1. Write some TypeScript code with an error. Example:  
+   ```typescript
+   let num: string = 45; // TypeScript error
+

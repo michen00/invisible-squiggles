@@ -12,6 +12,8 @@ const TRANSPARENT_COLORS: { [key: string]: string } = {
   "editorWarning.foreground": "#00000000",
 };
 
+let statusBarItem: vscode.StatusBarItem; // Declare the status bar item globally
+
 async function toggleSquiggles(): Promise<void> {
   const config = vscode.workspace.getConfiguration("workbench");
   const settings = vscode.workspace.getConfiguration("invisibleSquiggles");
@@ -78,6 +80,8 @@ async function toggleSquiggles(): Promise<void> {
         (key) => delete newCustomizations[key]
       );
       delete newCustomizations["invisibleSquiggles.originalColors"];
+
+      statusBarItem.text = "$(eye) Show Squiggles"; // Update status bar text
     } else {
       // Save current state and apply transparency
       const savedColors = Object.keys(transparentColorsToApply).reduce(
@@ -93,6 +97,8 @@ async function toggleSquiggles(): Promise<void> {
       newCustomizations["invisibleSquiggles.originalColors"] =
         JSON.stringify(savedColors);
       Object.assign(newCustomizations, transparentColorsToApply);
+
+      statusBarItem.text = "$(eye-closed) Hide Squiggles"; // Update status bar text
     }
 
     await config.update(
@@ -119,11 +125,24 @@ async function toggleSquiggles(): Promise<void> {
 }
 
 export function activate(context: vscode.ExtensionContext) {
+  // Register the command for toggling squiggles
   const disposable = vscode.commands.registerCommand(
     "invisible-squiggles.toggle",
     toggleSquiggles
   );
   context.subscriptions.push(disposable);
+
+  // Create the Status Bar Button
+  statusBarItem = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Right,
+    100
+  );
+  statusBarItem.text = "$(eye) Toggle Squiggles";
+  statusBarItem.tooltip = "Click to toggle squiggles";
+  statusBarItem.command = "invisible-squiggles.toggle";
+  statusBarItem.show(); // Make sure this line is present to show the button
+
+  context.subscriptions.push(statusBarItem);
 }
 
 export function deactivate() {}

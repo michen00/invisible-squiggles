@@ -7,3 +7,10 @@ To use the extension, [install it](https://marketplace.visualstudio.com/items?it
 It is similar to [Disable Error and Warning Squiggles](https://marketplace.visualstudio.com/items?itemName=modan.disable-error-squiggles) ([repo](https://github.com/danMoksh/disable-error-and-warning-squiggles)), but also hides info squiggles in addition to error and warning squiggles.
 
 ![demo](https://github.com/user-attachments/assets/50bce932-ee6a-4422-88d1-a500b81eac57)
+
+Sneha - updated features:
+## 🔹 Features
+✅ **Toggle squiggles on/off** for a distraction-free coding experience  
+✅ **Supports errors, warnings, and info squiggles**  
+✅ **New! Status Bar Button** for easy access  
+✅ **New! Persistent Settings** so squiggles remain hidden even after restarting VSCode  

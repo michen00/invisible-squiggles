@@ -8,6 +8,8 @@ It is similar to [Disable Error and Warning Squiggles](https://marketplace.visua
 
 ![demo](https://github.com/user-attachments/assets/50bce932-ee6a-4422-88d1-a500b81eac57)
 
+
+
 Sneha - updated features:
 ## 🔹 Features
 ✅ **Toggle squiggles on/off** for a distraction-free coding experience  

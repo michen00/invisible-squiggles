@@ -21,109 +21,53 @@ async function applySquiggleSettings(): Promise<void> {
   const hideInfo = settings.get<boolean>("hideInfo", true);
 
   const currentCustomizations =
-    config.get<{ [key: string]: string | undefined }>("colorCustomizations") ||
-    {};
+    config.get<{ [key: string]: string | undefined }>("colorCustomizations") || {};
 
-  let originalColors: { [key: string]: string } = {};
-  try {
-    originalColors = JSON.parse(
-      currentCustomizations["invisibleSquiggles.originalColors"] || "{}"
-    );
-  } catch (parseError) {
-    console.error("Error parsing saved colors:", parseError);
-  }
+  let transparentColorsToApply: { [key: string]: string } = {};
 
-  try {
-    const transparentColorsToApply = {
-      ...(hideErrors
-        ? {
-            "editorError.border": TRANSPARENT_COLORS["editorError.border"],
-            "editorError.background":
-              TRANSPARENT_COLORS["editorError.background"],
-            "editorError.foreground":
-              TRANSPARENT_COLORS["editorError.foreground"],
-          }
-        : {}),
-      ...(hideWarnings
-        ? {
-            "editorWarning.border": TRANSPARENT_COLORS["editorWarning.border"],
-            "editorWarning.background":
-              TRANSPARENT_COLORS["editorWarning.background"],
-            "editorWarning.foreground":
-              TRANSPARENT_COLORS["editorWarning.foreground"],
-          }
-        : {}),
-      ...(hideInfo
-        ? {
-            "editorInfo.border": TRANSPARENT_COLORS["editorInfo.border"],
-            "editorInfo.background":
-              TRANSPARENT_COLORS["editorInfo.background"],
-            "editorInfo.foreground":
-              TRANSPARENT_COLORS["editorInfo.foreground"],
-          }
-        : {}),
-    };
-
-    const isTransparent = Object.entries(transparentColorsToApply).every(
-      ([key, value]) =>
-        (currentCustomizations[key]?.toLowerCase() || "") ===
-        value.toLowerCase()
-    );
-
-    const newCustomizations = { ...currentCustomizations };
-    if (isTransparent) {
-      // Restore saved colors
-      Object.assign(newCustomizations, originalColors);
-      Object.keys(TRANSPARENT_COLORS).forEach(
-        (key) => delete newCustomizations[key]
-      );
-      delete newCustomizations["invisibleSquiggles.originalColors"];
-    } else {
-      // Save current state and apply transparency
-      const savedColors = Object.keys(transparentColorsToApply).reduce(
-        (acc, key) => {
-          if (currentCustomizations[key]) {
-            acc[key] = currentCustomizations[key]!;
-          }
-          return acc;
-        },
-        {} as { [key: string]: string }
-      );
-
-      newCustomizations["invisibleSquiggles.originalColors"] =
-        JSON.stringify(savedColors);
-      Object.assign(newCustomizations, transparentColorsToApply);
-    }
-
-    await config.update(
-      "colorCustomizations",
-      newCustomizations,
-      vscode.ConfigurationTarget.Global
-    );
-
-    vscode.window.setStatusBarMessage(
-      isTransparent
-        ? "Squiggles restored to previous visibility."
-        : "Selected squiggles are now transparent.",
-      2500
-    );
-  } catch (error) {
-    console.error("Error toggling squiggle visibility. Current state:", {
-      currentCustomizations,
-      error,
+  if (hideErrors) {
+    Object.assign(transparentColorsToApply, {
+      "editorError.border": TRANSPARENT_COLORS["editorError.border"],
+      "editorError.background": TRANSPARENT_COLORS["editorError.background"],
+      "editorError.foreground": TRANSPARENT_COLORS["editorError.foreground"],
     });
-    vscode.window.showErrorMessage(
-      "An error occurred while toggling squiggle settings."
-    );
   }
+  if (hideWarnings) {
+    Object.assign(transparentColorsToApply, {
+      "editorWarning.border": TRANSPARENT_COLORS["editorWarning.border"],
+      "editorWarning.background": TRANSPARENT_COLORS["editorWarning.background"],
+      "editorWarning.foreground": TRANSPARENT_COLORS["editorWarning.foreground"],
+    });
+  }
+  if (hideInfo) {
+    Object.assign(transparentColorsToApply, {
+      "editorInfo.border": TRANSPARENT_COLORS["editorInfo.border"],
+      "editorInfo.background": TRANSPARENT_COLORS["editorInfo.background"],
+      "editorInfo.foreground": TRANSPARENT_COLORS["editorInfo.foreground"],
+    });
+  }
+
+  const newCustomizations = {
+    ...currentCustomizations,
+    ...transparentColorsToApply,
+  };
+
+  await config.update(
+    "colorCustomizations",
+    newCustomizations,
+    vscode.ConfigurationTarget.Global
+  );
+
+  vscode.window.setStatusBarMessage("Squiggle settings applied.", 2500);
 }
 
 export function activate(context: vscode.ExtensionContext) {
-  const disposable = vscode.commands.registerCommand(
+  const toggleDisposable = vscode.commands.registerCommand(
     "invisible-squiggles.toggle",
     applySquiggleSettings
   );
-  context.subscriptions.push(disposable);
+
+  context.subscriptions.push(toggleDisposable);
 }
 
 export function deactivate() {}

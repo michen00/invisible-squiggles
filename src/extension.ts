@@ -62,12 +62,12 @@ async function applySquiggleSettings(): Promise<void> {
 }
 
 export function activate(context: vscode.ExtensionContext) {
-  const toggleDisposable = vscode.commands.registerCommand(
-    "invisible-squiggles.toggle",
+  const applyDisposable = vscode.commands.registerCommand(
+    "invisible-squiggles.apply",
     applySquiggleSettings
   );
 
-  context.subscriptions.push(toggleDisposable);
+  context.subscriptions.push(applyDisposable);
 }
 
 export function deactivate() {}

@@ -12,7 +12,7 @@ const TRANSPARENT_COLORS: { [key: string]: string } = {
   "editorWarning.foreground": "#00000000",
 };
 
-async function toggleSquiggles(): Promise<void> {
+async function applySquiggleSettings(): Promise<void> {
   const config = vscode.workspace.getConfiguration("workbench");
   const settings = vscode.workspace.getConfiguration("invisibleSquiggles");
 
@@ -121,7 +121,7 @@ async function toggleSquiggles(): Promise<void> {
 export function activate(context: vscode.ExtensionContext) {
   const disposable = vscode.commands.registerCommand(
     "invisible-squiggles.toggle",
-    toggleSquiggles
+    applySquiggleSettings
   );
   context.subscriptions.push(disposable);
 }

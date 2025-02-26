@@ -145,4 +145,4 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(statusBarItem);
 }
 
-export function deactivate() {}
+export function deactivate() { }

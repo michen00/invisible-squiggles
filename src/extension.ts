@@ -117,12 +117,18 @@ async function toggleSquiggles(): Promise<void> {
       vscode.ConfigurationTarget.Global
     );
 
-    vscode.window.setStatusBarMessage(
-      isTransparent
-        ? "Squiggles restored to previous visibility."
-        : "Selected squiggles are now transparent.",
-      2500
-    );
+    if (
+      vscode.workspace
+        .getConfiguration("invisibleSquiggles")
+        .get<boolean>("showStatusBarMessage", true)
+    ) {
+      vscode.window.setStatusBarMessage(
+        isTransparent
+          ? "Squiggles restored to previous visibility."
+          : "Selected squiggles are now transparent.",
+        2500
+      );
+    }
   } catch (error) {
     console.error("Error toggling squiggle visibility. Current state:", {
       currentCustomizations,

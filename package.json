@@ -43,6 +43,11 @@
           "type": "boolean",
           "default": true,
           "description": "Toggle info squiggles."
+        },
+        "invisibleSquiggles.showStatusBarMessage": {
+          "type": "boolean",
+          "default": false,
+          "description": "Display a message in the status bar when squiggle visibility is toggled."
         }
       }
     }

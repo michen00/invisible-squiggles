@@ -81,7 +81,7 @@ async function toggleSquiggles(): Promise<void> {
       );
       delete newCustomizations["invisibleSquiggles.originalColors"];
 
-      statusBarItem.text = "$(eye) Show Squiggles";
+      statusBarItem.text = "Squiggles: $(eye)";
     } else {
       // Save current state and apply transparency
       const savedColors = Object.keys(transparentColorsToApply).reduce(
@@ -98,7 +98,7 @@ async function toggleSquiggles(): Promise<void> {
         JSON.stringify(savedColors);
       Object.assign(newCustomizations, transparentColorsToApply);
 
-      statusBarItem.text = "$(eye-closed) Hide Squiggles";
+      statusBarItem.text = "Squiggles: $(eye-closed)";
     }
 
     await config.update(
@@ -135,7 +135,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.StatusBarAlignment.Right,
     100
   );
-  statusBarItem.text = "$(eye) Toggle Squiggles";
+  statusBarItem.text = "Squiggles: $(eye)";
   statusBarItem.tooltip = "Click to toggle squiggles";
   statusBarItem.command = "invisible-squiggles.toggle";
   statusBarItem.show();

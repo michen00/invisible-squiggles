@@ -134,9 +134,10 @@ async function toggleSquiggles(): Promise<void> {
   }
 }
 
+const COMMAND_TOGGLE_SQUIGGLES = "invisible-squiggles.toggle";
 export function activate(context: vscode.ExtensionContext) {
   const disposable = vscode.commands.registerCommand(
-    "invisible-squiggles.toggle",
+    COMMAND_TOGGLE_SQUIGGLES,
     toggleSquiggles
   );
   context.subscriptions.push(disposable);
@@ -157,7 +158,7 @@ export function activate(context: vscode.ExtensionContext) {
     setStatusVisible();
   }
 
-  statusBarItem.command = "invisible-squiggles.toggle";
+  statusBarItem.command = COMMAND_TOGGLE_SQUIGGLES;
   statusBarItem.show();
   context.subscriptions.push(statusBarItem);
 }

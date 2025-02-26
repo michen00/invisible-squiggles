@@ -84,5 +84,8 @@
     "type": "git",
     "url": "https://github.com/michen00/invisible-squiggles"
   },
-  "homepage": "https://github.com/michen00/invisible-squiggles/blob/main/README.md"
+  "homepage": "https://github.com/michen00/invisible-squiggles/blob/main/README.md",
+  "bugs": {
+    "url": "https://github.com/michen00/bin/issues"
+  }
 }

@@ -82,7 +82,7 @@ async function toggleSquiggles(): Promise<void> {
       delete newCustomizations["invisibleSquiggles.originalColors"];
 
       statusBarItem.text = "Squiggles: $(eye)";
-      statusBarItem.tooltip = "Hide squiggles";
+      statusBarItem.tooltip = "Show squiggles";
     } else {
       // Save current state and apply transparency
       const savedColors = Object.keys(transparentColorsToApply).reduce(
@@ -100,7 +100,7 @@ async function toggleSquiggles(): Promise<void> {
       Object.assign(newCustomizations, transparentColorsToApply);
 
       statusBarItem.text = "Squiggles: $(eye-closed)";
-      statusBarItem.tooltip = "Show squiggles";
+      statusBarItem.tooltip = "Hide squiggles";
     }
 
     await config.update(

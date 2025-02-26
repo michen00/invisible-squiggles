@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 
 const TRANSPARENT_COLOR = "#00000000";
-const SQUIGGLE_TYPES = ["Error", "Warning", "Info"] as const;
+const SQUIGGLE_TYPES = ["Error", "Warning", "Info", "Hint"] as const;
 
 const TRANSPARENT_COLORS = Object.fromEntries(
   SQUIGGLE_TYPES.flatMap((type) => [

@@ -138,7 +138,7 @@ export function activate(context: vscode.ExtensionContext) {
     100
   );
   statusBarItem.text = "Squiggles: $(eye)";
-  statusBarItem.tooltip = "Click to toggle squiggles";
+  statusBarItem.tooltip = "Toggle squiggles";
   statusBarItem.command = "invisible-squiggles.toggle";
   statusBarItem.show();
 

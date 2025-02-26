@@ -145,11 +145,20 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.StatusBarAlignment.Right,
     100
   );
-  statusBarItem.text = "Squiggles: $(eye)";
-  statusBarItem.tooltip = "Toggle squiggles";
+
+  const config = vscode.workspace.getConfiguration("workbench");
+  const currentCustomizations = config.get<{ [key: string]: string | undefined }>("colorCustomizations") || {};
+  const isInitiallyTransparent = Object.entries(TRANSPARENT_COLORS).every(
+    ([key, value]) => (currentCustomizations[key]?.toLowerCase() || "") === value.toLowerCase()
+  );
+  if (isInitiallyTransparent) {
+    setStatusHidden();
+  } else {
+    setStatusVisible();
+  }
+
   statusBarItem.command = "invisible-squiggles.toggle";
   statusBarItem.show();
-
   context.subscriptions.push(statusBarItem);
 }
 

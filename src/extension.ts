@@ -148,9 +148,12 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   const config = vscode.workspace.getConfiguration("workbench");
-  const currentCustomizations = config.get<{ [key: string]: string | undefined }>("colorCustomizations") || {};
+  const currentCustomizations =
+    config.get<{ [key: string]: string | undefined }>("colorCustomizations") ||
+    {};
   const isInitiallyTransparent = Object.entries(TRANSPARENT_COLORS).every(
-    ([key, value]) => (currentCustomizations[key]?.toLowerCase() || "") === value.toLowerCase()
+    ([key, value]) =>
+      (currentCustomizations[key]?.toLowerCase() || "") === value.toLowerCase()
   );
   if (isInitiallyTransparent) {
     setStatusHidden();
@@ -163,4 +166,4 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(statusBarItem);
 }
 
-export function deactivate() { }
+export function deactivate() {}

@@ -25,19 +25,26 @@ async function toggleSquiggles(): Promise<void> {
   const currentCustomizations =
     config.get<{ [key: string]: string | undefined }>("colorCustomizations") || {};
 
-  const storedColors = safelyParseJson(
-    currentCustomizations["invisibleSquiggles.originalColors"]
-  );
+  const storedColors = (() => {
+    const storedJson = currentCustomizations["invisibleSquiggles.originalColors"];
+    if (!storedJson || typeof storedJson !== "string") return {};
+    try {
+      return JSON.parse(storedJson);
+    } catch (error) {
+      console.error("Error parsing saved colors JSON:", error);
+      return {};
+    }
+  })();
 
   const transparentColorsToApply = Object.fromEntries(
     SQUIGGLE_TYPES.flatMap((type) =>
       hideSquiggles[type]
         ? Object.entries(TRANSPARENT_COLORS).filter(([key]) =>
-            key.includes(type)
+            key.startsWith(`editor${type}`)
           )
         : []
     )
-  );  
+  );
 
   const isAlreadyTransparent = Object.entries(transparentColorsToApply).every(
     ([key, value]) => currentCustomizations[key]?.toLowerCase() === value
@@ -49,17 +56,16 @@ async function toggleSquiggles(): Promise<void> {
     // Restore previous colors
     Object.assign(newCustomizations, storedColors);
     Object.keys(TRANSPARENT_COLORS).forEach((key) => delete newCustomizations[key]);
-    delete newCustomizations["invisibleSquiggles.originalColors"];
+    
+    if (Object.keys(storedColors).length === 0) {
+      delete newCustomizations["invisibleSquiggles.originalColors"];
+    }
   } else {
     // Save current state and apply transparency
-    const savedColors = Object.keys(transparentColorsToApply).reduce(
-      (acc, key) => {
-        if (currentCustomizations[key]) {
-          acc[key] = currentCustomizations[key]!;
-        }
-        return acc;
-      },
-      {} as { [key: string]: string }
+    const savedColors = Object.fromEntries(
+      Object.keys(transparentColorsToApply)
+        .filter((key) => currentCustomizations[key])
+        .map((key) => [key, currentCustomizations[key]!])
     );
 
     newCustomizations["invisibleSquiggles.originalColors"] = JSON.stringify(savedColors);
@@ -84,15 +90,6 @@ async function toggleSquiggles(): Promise<void> {
     vscode.window.showErrorMessage(
       "An error occurred while toggling squiggle settings. Check logs for details."
     );
-  }
-}
-
-function safelyParseJson(jsonString?: string): { [key: string]: string } {
-  try {
-    return jsonString ? JSON.parse(jsonString) : {};
-  } catch (error) {
-    console.error("Error parsing saved colors JSON:", error);
-    return {};
   }
 }
 

@@ -1,17 +1,21 @@
 {
   "compilerOptions": {
-    "module": "Node16",
-    "target": "ES2022",
-    "lib": ["ES2022", "dom"],  // Added "dom" to support console and window objects
-    "sourceMap": true,
-    "rootDir": "src",
-    "strict": true,
+    "declaration": true,
     "esModuleInterop": true,
-    "resolveJsonModule": true,
-    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "lib": ["ES2023", "dom"],
+    "module": "Node16",
+    "moduleResolution": "node16",
+    "noUncheckedIndexedAccess": true,
     "outDir": "out",
-    "forceConsistentCasingInFileNames": true
+    "resolveJsonModule": true,
+    "rootDir": "src",
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "strict": true,
+    "target": "ES2023",
+    "types": ["mocha", "node", "vscode"]
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", ".vscode-test"]
+  "exclude": ["node_modules", ".vscode-test", "dist"],
+  "include": ["src/**/*.ts"]
 }

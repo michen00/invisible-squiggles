@@ -15,20 +15,15 @@ async function toggleSquiggles(): Promise<void> {
   const config = vscode.workspace.getConfiguration("workbench");
   const settings = vscode.workspace.getConfiguration("invisibleSquiggles");
 
-  const hideSquiggles = {
-    Error: settings.get<boolean>("hideErrors", true),
-    Warning: settings.get<boolean>("hideWarnings", true),
-    Info: settings.get<boolean>("hideInfo", true),
-  };
-  const hideSquiggles = {
-    Error: settings.get<boolean>("hideErrors", true),
-    Warning: settings.get<boolean>("hideWarnings", true),
-    Info: settings.get<boolean>("hideInfo", true),
-  };
+  const hideSquiggles = Object.fromEntries(
+    SQUIGGLE_TYPES.map((type) => [
+      type,
+      settings.get<boolean>(`hide${type}s`, true),
+    ])
+  ) as Record<typeof SQUIGGLE_TYPES[number], boolean>;
 
   const currentCustomizations =
-    config.get<{ [key: string]: string | undefined }>("colorCustomizations") ||
-    {};
+    config.get<{ [key: string]: string | undefined }>("colorCustomizations") || {};
 
   const storedColors = safelyParseJson(
     currentCustomizations["invisibleSquiggles.originalColors"]
@@ -37,33 +32,12 @@ async function toggleSquiggles(): Promise<void> {
   const transparentColorsToApply = Object.fromEntries(
     SQUIGGLE_TYPES.flatMap((type) =>
       hideSquiggles[type]
-        ? [
-            [`editor${type}.border`, TRANSPARENT_COLOR],
-            [`editor${type}.background`, TRANSPARENT_COLOR],
-            [`editor${type}.foreground`, TRANSPARENT_COLOR],
-          ]
+        ? Object.entries(TRANSPARENT_COLORS).filter(([key]) =>
+            key.includes(type)
+          )
         : []
     )
-  );
-
-  const isAlreadyTransparent = Object.entries(transparentColorsToApply).every(
-    ([key, value]) => currentCustomizations[key]?.toLowerCase() === value
-  );
-  const storedColors = safelyParseJson(
-    currentCustomizations["invisibleSquiggles.originalColors"]
-  );
-
-  const transparentColorsToApply = Object.fromEntries(
-    SQUIGGLE_TYPES.flatMap((type) =>
-      hideSquiggles[type]
-        ? [
-            [`editor${type}.border`, TRANSPARENT_COLOR],
-            [`editor${type}.background`, TRANSPARENT_COLOR],
-            [`editor${type}.foreground`, TRANSPARENT_COLOR],
-          ]
-        : []
-    )
-  );
+  );  
 
   const isAlreadyTransparent = Object.entries(transparentColorsToApply).every(
     ([key, value]) => currentCustomizations[key]?.toLowerCase() === value
@@ -93,7 +67,6 @@ async function toggleSquiggles(): Promise<void> {
   }
 
   try {
-  try {
     await config.update(
       "colorCustomizations",
       newCustomizations,
@@ -108,9 +81,7 @@ async function toggleSquiggles(): Promise<void> {
     );
   } catch (error) {
     console.error("Error toggling squiggle visibility:", error);
-    console.error("Error toggling squiggle visibility:", error);
     vscode.window.showErrorMessage(
-      "An error occurred while toggling squiggle settings. Check logs for details."
       "An error occurred while toggling squiggle settings. Check logs for details."
     );
   }

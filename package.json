@@ -44,6 +44,11 @@
           "default": true,
           "description": "Toggle info squiggles."
         },
+        "invisibleSquiggles.hideHint": {
+          "type": "boolean",
+          "default": true,
+          "description": "Toggle hint squiggles."
+        },
         "invisibleSquiggles.showStatusBarMessage": {
           "type": "boolean",
           "default": false,

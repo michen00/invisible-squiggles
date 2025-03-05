@@ -14,7 +14,7 @@ const TRANSPARENT_COLORS = Object.fromEntries(
 let statusBarItem: vscode.StatusBarItem;
 
 function setStatus(state: 'visible' | 'hidden') {
-  if (!statusBarItem) return;
+  if (!statusBarItem) {return;}
 
   const icon = state === 'visible' ? '$(eye)' : '$(eye-closed)';
   const action = state === 'visible' ? 'Hide' : 'Show';
@@ -39,7 +39,7 @@ async function toggleSquiggles(): Promise<void> {
 
   const storedColors = (() => {
     const storedJson = currentCustomizations["invisibleSquiggles.originalColors"];
-    if (!storedJson || typeof storedJson !== "string") return {};
+    if (!storedJson || typeof storedJson !== "string") {return {};}
     try {
       return JSON.parse(storedJson);
     } catch (error) {

@@ -5,8 +5,8 @@ const SQUIGGLE_TYPES = ["Hint", "Info", "Error", "Warning"] as const;
 
 const TRANSPARENT_COLORS = Object.fromEntries(
   SQUIGGLE_TYPES.flatMap((type) => [
-    [`editor${type}.border`, TRANSPARENT_COLOR],
     [`editor${type}.background`, TRANSPARENT_COLOR],
+    [`editor${type}.border`, TRANSPARENT_COLOR],
     [`editor${type}.foreground`, TRANSPARENT_COLOR],
   ])
 );

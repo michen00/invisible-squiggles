@@ -120,7 +120,7 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   statusBarItem.command = COMMAND_TOGGLE_SQUIGGLES;
-  
+
   const currentCustomizations = vscode.workspace
     .getConfiguration("workbench")
     .get<{ [key: string]: string | undefined }>("colorCustomizations") || {};

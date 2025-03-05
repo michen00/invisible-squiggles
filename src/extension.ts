@@ -100,7 +100,7 @@ async function toggleSquiggles(): Promise<void> {
         : "Selected squiggles are now transparent.";
       vscode.window.setStatusBarMessage(message, 2500);
     }
-  } catch (error) {    
+  } catch (error) {
     console.error("Error toggling squiggle visibility:", error);
     vscode.window.showErrorMessage(
       "An error occurred while toggling squiggle settings. Check logs for details."

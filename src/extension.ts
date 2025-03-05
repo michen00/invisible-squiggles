@@ -13,16 +13,14 @@ const TRANSPARENT_COLORS = Object.fromEntries(
 
 let statusBarItem: vscode.StatusBarItem;
 
-function setStatusVisible() {
+function setStatus(state: 'visible' | 'hidden') {
   if (!statusBarItem) return;
-  statusBarItem.text = "Squiggles: $(eye)";
-  statusBarItem.tooltip = "Hide squiggles";
-}
 
-function setStatusHidden() {
-  if (!statusBarItem) return;
-  statusBarItem.text = "Squiggles: $(eye-closed)";
-  statusBarItem.tooltip = "Show squiggles";
+  const icon = state === 'visible' ? '$(eye)' : '$(eye-closed)';
+  const action = state === 'visible' ? 'Hide' : 'Show';
+
+  statusBarItem.text = `Squiggles: ${icon}`;
+  statusBarItem.tooltip = `${action} squiggles`;
 }
 
 async function toggleSquiggles(): Promise<void> {
@@ -71,7 +69,6 @@ async function toggleSquiggles(): Promise<void> {
     Object.assign(newCustomizations, storedColors);
     Object.keys(TRANSPARENT_COLORS).forEach((key) => delete newCustomizations[key]);
     delete newCustomizations["invisibleSquiggles.originalColors"];
-    setStatusVisible();
   } else {
     // Save current state and apply transparency
     const savedColors = Object.fromEntries(
@@ -82,8 +79,8 @@ async function toggleSquiggles(): Promise<void> {
 
     newCustomizations["invisibleSquiggles.originalColors"] = JSON.stringify(savedColors);
     Object.assign(newCustomizations, transparentColorsToApply);
-    setStatusHidden();
   }
+  setStatus(isAlreadyTransparent ? 'visible' : 'hidden');
 
   try {
     await config.update(
@@ -130,7 +127,7 @@ export function activate(context: vscode.ExtensionContext) {
       (currentCustomizations[key]?.toLowerCase() || "") === value.toLowerCase()
   );
 
-  isInitiallyTransparent ? setStatusHidden() : setStatusVisible();
+  setStatus(isInitiallyTransparent ? 'hidden' : 'visible');
 
   statusBarItem.show();
   context.subscriptions.push(statusBarItem);

@@ -4,23 +4,19 @@ The **Invisible Squiggles** VSCode extension allows you to **toggle error, warni
 
 ![demo](https://github.com/user-attachments/assets/50bce932-ee6a-4422-88d1-a500b81eac57)
 
-<!-- TODO: Add a new demo with the new status icon. -->
+<!-- TODO: Add a new demo with the 👁️ status icon. -->
 
 ## 🔹 Features
 
 - ✅ **Toggle squiggles on/off** from the **status bar** or **command palette**
-- ✅ **Supports errors, warnings, and info squiggles**
+- ✅ **Supports hint, info, error, and warning squiggles**
 
 ---
 
-## 🔹 Installation
+## 🔹 Quickstart
 
 1. [Install the extension](https://marketplace.visualstudio.com/items?itemName=michen00.invisible-squiggles) from the VSCode marketplace.
 1. **Toggle squiggles** using one of these methods:
-
----
-
-## 🔹 Usage
 
 ### **Option 1: Using the Status Bar Button**
 

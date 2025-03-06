@@ -6,3 +6,4 @@
 - add CI
 - update the demo on README.md for the eyeball status bar feature
 - refactor code
+- update [CHANGELOG.md]

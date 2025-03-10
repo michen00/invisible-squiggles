@@ -1,0 +1,32 @@
+name: greet-new-contributors
+
+permissions:
+  issues: write
+  pull-requests: write
+
+on: [pull_request, issues]
+
+jobs:
+  greeting:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/first-interaction@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          issue-message: |
+            🎉 Welcome to the `invisible-squiggles` community! 🎉
+
+            Thank you for taking the time to report this issue! Quality is important to
+            us and we would never release anything with known defects, but
+            unfortunately, you encountered something we didn't expect. Let's figure out
+            what went wrong together so we can identify a remedy for it.
+
+            A maintainer will be with you soon! Thank you for your cooperation 🙏
+          pr-message: |
+            🎉 Welcome to the `invisible-squiggles` community! 🎉
+
+            Thank you for your contribution! We appreciate your time and effort in
+            submitting this pull request. A maintainer will review it soon. If you have
+            any questions, feel free to ask!
+
+            Thank you for your cooperation 🙏

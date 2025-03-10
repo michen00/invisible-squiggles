@@ -103,7 +103,7 @@ async function toggleSquiggles(): Promise<void> {
       "An error occurred while toggling squiggle settings. Check logs for details."
     );
   }
-  }
+}
 
 const COMMAND_TOGGLE_SQUIGGLES = "invisible-squiggles.toggle";
 export function activate(context: vscode.ExtensionContext) {

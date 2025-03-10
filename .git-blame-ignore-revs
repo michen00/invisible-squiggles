@@ -10,3 +10,4 @@ ba5a27b446db300ebd82c7cb5f79db84f8ea79fc
 88b7336ce6a8b3761c076e7247ff7d80cc8330e3
 4d3124317920f6c69c9eb80203573d8e1e8cfc8f
 90d792cf59bead010d50b0f476cf3ad9746a8099  # style(src/extension.ts): fix indentation
+c40aff3dd34d7c316eb2f92a9193e78c19b42eec  # chore: fix .git-blame-ignore-revs

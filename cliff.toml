@@ -102,7 +102,7 @@ commit_parsers = [
     { message = "^fix", group = "<!-- 01 -->🐛 Bug Fixes" },
     { message = "^perf", group = "<!-- 02 -->⚡ Performance" },
     { message = "^test", group = "<!-- 03 -->🧪 Testing" },
-    { message = "^ci", group = "<!-- 04 -->💚 Continuos Integration" },
+    { message = "^ci", group = "<!-- 04 -->💚 Continuous Integration" },
     { message = "^build", group = "<!-- 05 -->👷 Build" },
     { message = "^doc", group = "<!-- 06 -->📝 Documentation" },
     { message = "^refactor", group = "<!-- 07 -->♻️ Refactor" },

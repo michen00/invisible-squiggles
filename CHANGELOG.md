@@ -11,7 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com) and this p
 - add Hint squiggle - ([5126de5](https://github.com/michen00/invisible-squiggles/commit/5126de50d3e3c76adf6a08b9869fe0072b589420)) - [Parvati](mailto:parvatijay2901@gmail.com)
 - update package.json with a new 'Hint' setting - ([3c4e113](https://github.com/michen00/invisible-squiggles/commit/3c4e113d0a328c3d9b8b074f0b3409a4493b0109)) - [Parvati](mailto:parvatijay2901@gmail.com)
 
-### 💚 Continuos Integration
+### 💚 Continuous Integration
 
 - add dependabot.yml - ([3dae9b0](https://github.com/michen00/invisible-squiggles/commit/3dae9b042e3eec7e023673028126a0d118c7643b)) - [Michael I Chen](mailto:michael.chen.0@gmail.com)
 - improve new contributor greeting - ([26e40af](https://github.com/michen00/invisible-squiggles/commit/26e40af9d6e6d968c95b8e85468d888e294acd65)) - [Michael I Chen](mailto:michael.chen.0@gmail.com)

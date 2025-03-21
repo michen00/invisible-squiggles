@@ -17,6 +17,7 @@ The project has defined a [code of conduct](https://github.com/michen00/.github/
 - write tests
 - add CI
   - lint
+  - configure pre-commit
   - test
   - build/publish/release
 - update the demo on README.md for the eyeball status bar feature

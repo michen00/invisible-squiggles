@@ -35,5 +35,6 @@
   "files.trimFinalNewlines": true,
   "files.trimTrailingWhitespace": true,
   "prettier.endOfLine": "auto",
-  "prettier.htmlWhitespaceSensitivity": "strict"
+  "prettier.htmlWhitespaceSensitivity": "strict",
+  "prettier.printWidth": 88
 }

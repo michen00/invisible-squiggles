@@ -6,7 +6,6 @@
     "davidanson.vscode-markdownlint",
     "dbaeumer.vscode-eslint",
     "esbenp.prettier-vscode",
-    "esbenp.prettier-vscode",
     "github.vscode-github-actions",
     "ms-vscode.extension-test-runner",
     "redhat.vscode-yaml",

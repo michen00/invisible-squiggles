@@ -22,9 +22,7 @@ jobs:
           pr-message: |
             🎉 Welcome to the `invisible-squiggles` community! 🎉
 
-            Thank you for your contribution! We appreciate your time and effort in
-            submitting this pull request. A maintainer will review it soon. If you have
-            any questions, feel free to ask!
+            Thank you for your contribution! We appreciate your time and effort in submitting this pull request. A maintainer will review it soon. If you have any questions, feel free to ask!
 
             Thank you for your cooperation 🙏
       - name: identify issue type
@@ -54,10 +52,7 @@ jobs:
           issue-message: |
             🎉 Welcome to the `invisible-squiggles` community! 🎉
 
-            Thank you for taking the time to report this issue! 🐛 Quality is important
-            to us and we would never release anything with known defects, but
-            unfortunately, you encountered something we didn't expect. Let's figure out
-            what went wrong together so we can identify a remedy for it.
+            Thank you for taking the time to report this issue! 🐛 Quality is important to us and we would never release anything with known defects, but unfortunately, you encountered something we didn't expect. Let's figure out what went wrong together so we can identify a remedy for it.
 
             A maintainer will be with you soon! Thank you for your cooperation 🙏
       - name: greet feature requests
@@ -68,8 +63,6 @@ jobs:
           issue-message: |
             🎉 Welcome to the `invisible-squiggles` community! 🎉
 
-            Thank you for your feature request! 🚀 We love ideas that help improve this
-            project. Your suggestion will be reviewed by a maintainer soon. If you have
-            any additional thoughts, feel free to add them to this issue.
+            Thank you for your feature request! 🚀 We love ideas that help improve this project. Your suggestion will be reviewed by a maintainer soon. If you have any additional thoughts, feel free to add them to this issue.
 
             Looking forward to making `invisible-squiggles` even better together! ✨

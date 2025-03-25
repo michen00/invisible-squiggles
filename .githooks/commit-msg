@@ -1,0 +1,54 @@
+#!/bin/bash
+
+# File containing the commit message
+COMMIT_MSG_FILE=$1
+
+# Extract the first line (summary) and remaining lines
+COMMIT_SUMMARY=$(head -n 1 "$COMMIT_MSG_FILE")
+COMMIT_BODY=$(tail -n +2 "$COMMIT_MSG_FILE")
+
+# List of allowed types
+ALLOWED_TYPES="build|chore|ci|docs|feat|fix|perf|refactor|style|test"
+
+# Regex pattern to match commit message format
+PATTERN="^($ALLOWED_TYPES): .+"
+
+# Get the list of files touched in the commit
+FILES_TOUCHED=$(git diff --cached --name-only)
+
+# Count the number of files
+FILE_COUNT=$(echo "$FILES_TOUCHED" | wc -l)
+
+# If the commit doesn't touch exactly one file, exit without modification
+if [ "$FILE_COUNT" -ne 1 ]; then
+  exit 0
+fi
+
+# Get the single filename
+FILENAME=$(echo "$FILES_TOUCHED" | tr -d '\n')
+
+# Check if the first line of the commit message matches the allowed pattern
+if [[ $COMMIT_SUMMARY =~ $PATTERN ]]; then
+
+  # Check if the filename already appears in the summary
+  if [[ $COMMIT_SUMMARY == *"$FILENAME"* ]]; then
+    exit 0
+  fi
+
+  # Extract the original type (group 1 in the regex)
+  ORIGINAL_TYPE=${BASH_REMATCH[1]}
+
+  # Calculate the combined length of the modified summary line
+  MODIFIED_SUMMARY="$ORIGINAL_TYPE($FILENAME): ${COMMIT_SUMMARY#"$ORIGINAL_TYPE": }"
+  MODIFIED_LENGTH=${#MODIFIED_SUMMARY}
+
+  # Ensure the modified summary length is less than 51
+  if [ "$MODIFIED_LENGTH" -lt 51 ]; then
+    # Write the modified summary and original body back to the commit message file
+    echo "$MODIFIED_SUMMARY" > "$COMMIT_MSG_FILE"
+    if [ -n "$COMMIT_BODY" ]; then
+      echo "$COMMIT_BODY" >> "$COMMIT_MSG_FILE"
+    fi
+    echo "Modified commit message summary: $MODIFIED_SUMMARY"
+  fi
+fi

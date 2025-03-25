@@ -1,4 +1,5 @@
 <!-- omit in toc -->
+
 # Regarding contributions
 
 All types of contributions are encouraged and valued. See the [Table of Contents](#table-of-contents) for different ways to help and details about how this project handles them. Please make sure to read the relevant section before making your contribution. It will make it a lot easier for us maintainers and smooth out the experience for all involved. We look forward to your contributions!
@@ -17,7 +18,7 @@ The project has defined a [code of conduct](https://github.com/michen00/.github/
 - write tests
 - add CI
   - lint
-  - configure pre-commit
+  - finish configuring pre-commit
   - test
   - build/publish/release
 - update the demo on README.md for the eyeball status bar feature
@@ -26,6 +27,7 @@ The project has defined a [code of conduct](https://github.com/michen00/.github/
 - expose the status message duration as a configuration option (`vscode.window.setStatusBarMessage(message, 2500);`)
 
 <!-- omit in toc -->
+
 ## Table of Contents
 
 - [I have a question](#i-have-a-question)
@@ -77,7 +79,7 @@ We use GitHub issues to track bugs and errors. If you run into an issue with the
 
 - Open an [issue][issues_new].
 - Explain the behavior you would expect and the actual behavior.
-- Please provide as much context as possible and describe the *reproduction steps* that someone else can follow to recreate the issue on their own.
+- Please provide as much context as possible and describe the _reproduction steps_ that someone else can follow to recreate the issue on their own.
 - Provide the information you collected in the previous section.
 
 Once it's filed:

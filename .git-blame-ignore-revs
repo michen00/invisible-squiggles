@@ -11,3 +11,4 @@ ba5a27b446db300ebd82c7cb5f79db84f8ea79fc
 4d3124317920f6c69c9eb80203573d8e1e8cfc8f
 90d792cf59bead010d50b0f476cf3ad9746a8099  # style(src/extension.ts): fix indentation
 c40aff3dd34d7c316eb2f92a9193e78c19b42eec  # chore: fix .git-blame-ignore-revs
+c416a3ea1e30cd46e475eb91b8798f172d862cb2  # style: format two files

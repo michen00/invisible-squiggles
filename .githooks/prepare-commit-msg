@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Arguments passed to the hook
+commit_msg_file="$1"
+commit_source="$2"
+
+# Check if this is a merge commit
+if [[ $commit_source == "merge" ]]; then
+  # Read the default commit message
+  commit_msg=$(cat "$commit_msg_file")
+
+  # Modify the message: remove the capital 'M' and append 'chore: m'
+  modified_msg="${commit_msg/M/chore: m}"
+
+  # Write the modified message back to the commit message file
+  echo "$modified_msg" > "$commit_msg_file"
+fi

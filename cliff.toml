@@ -9,6 +9,8 @@ breaking_always_bump_major = false
 # header, body, and footer keys are Tera templates
 # https://keats.github.io/tera/docs/#introduction
 header = """
+<!-- markdownlint-configure-file { "no-duplicate-heading": false } -->\n
+\n
 # Changelog\n
 All notable changes will be documented in this file. See [conventional commits](https://www.conventionalcommits.org) for commit guidelines.\n
 The format is based on [Keep a Changelog](https://keepachangelog.com) and this project adheres to [Semantic Versioning](https://semver.org).\n

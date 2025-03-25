@@ -1,0 +1,62 @@
+ci:
+  autofix_commit_msg: |
+    chore: autofix via pre-commit hooks
+
+    for more information, see https://pre-commit.ci
+  autoupdate_commit_msg: |
+    chore: autoupdate pre-commit hooks
+
+    for more information, see https://pre-commit.ci
+
+repos:
+  # security
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.2
+    hooks:
+      - id: gitleaks
+        fail_fast: true
+  # formatters & fixers
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: requirements-txt-fixer
+      - id: trailing-whitespace
+  - repo: https://github.com/rbubley/mirrors-prettier
+    rev: v3.5.3
+    hooks:
+      - id: prettier
+        types_or: [yaml, markdown, html, css, scss, javascript, json]
+  - repo: https://github.com/scop/pre-commit-shfmt
+    rev: v3.11.0-1
+    hooks:
+      - id: shfmt
+  # configuration validation
+  - repo: https://github.com/python-jsonschema/check-jsonschema
+    rev: 0.31.3
+    hooks:
+      - id: check-dependabot
+      - id: check-github-workflows
+  # general checks & linting
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-case-conflict
+      - id: check-merge-conflict
+      - id: check-symlinks
+      - id: check-yaml
+      - id: debug-statements
+      - id: mixed-line-ending
+  - repo: https://github.com/crate-ci/typos
+    rev: v1.30.2
+    hooks:
+      - id: typos
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.17.2
+    hooks:
+      - id: markdownlint-cli2
+        args: ["--config", ".markdownlint.yml"]

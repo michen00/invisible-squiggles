@@ -47,7 +47,7 @@ help: ## Show this help message
 ###############
 
 .PHONY: enable-git-hooks
-enable-git-hooks: check-pre-commit ## Enable Git hooks
+enable-git-hooks: check-pre-commit configure-git-hooks ## Enable Git hooks
 	@set -e; \
         mv .gitconfig .gitconfig.bak && \
         trap 'mv .gitconfig.bak .gitconfig' EXIT; \

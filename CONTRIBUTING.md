@@ -16,6 +16,7 @@ The project has defined a [code of conduct](https://github.com/michen00/.github/
 ## TODO
 
 - write tests
+- get an icon for the marketplace listing
 - add CI
   - lint
   - finish configuring pre-commit

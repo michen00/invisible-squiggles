@@ -48,7 +48,7 @@ repos:
       - id: debug-statements
       - id: mixed-line-ending
   - repo: https://github.com/crate-ci/typos
-    rev: v1.31.1
+    rev: v1
     hooks:
       - id: typos
   - repo: https://github.com/shellcheck-py/shellcheck-py

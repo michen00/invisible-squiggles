@@ -16,7 +16,7 @@ jobs:
     steps:
       - name: greet pull requests
         if: github.event_name == 'pull_request'
-        uses: actions/first-interaction@v2
+        uses: actions/first-interaction@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           pr-message: |
@@ -46,7 +46,7 @@ jobs:
             return "unknown";
       - name: greet bug reports
         if: steps.check-labels.outputs.result == 'bug'
-        uses: actions/first-interaction@v2
+        uses: actions/first-interaction@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           issue-message: |
@@ -57,7 +57,7 @@ jobs:
             A maintainer will be with you soon! Thank you for your cooperation 🙏
       - name: greet feature requests
         if: steps.check-labels.outputs.result == 'enhancement'
-        uses: actions/first-interaction@v2
+        uses: actions/first-interaction@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           issue-message: |

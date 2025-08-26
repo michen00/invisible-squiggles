@@ -205,7 +205,7 @@ make enable-pre-commit-only
 
 ## File Structure Overview
 
-```
+```text
 ├── .github/           # GitHub configuration
 ├── .vscode/           # VSCode workspace configuration
 ├── src/

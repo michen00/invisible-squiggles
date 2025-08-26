@@ -131,7 +131,6 @@ make enable-pre-commit-only
 
 ## Common Issues & Solutions
 
-### Common Issues & Solutions
 
 ### Build Issues
 - **Missing dependencies**: Run `npm install` (takes ~3-15 seconds with normal network)

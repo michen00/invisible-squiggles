@@ -208,6 +208,7 @@ make enable-pre-commit-only
 ```
 
 **Common types:**
+
 - `feat:` - New features
 - `fix:` - Bug fixes
 - `docs:` - Documentation changes
@@ -219,6 +220,7 @@ make enable-pre-commit-only
 - `ci:` - CI/CD configuration changes
 
 **Examples:**
+
 - `feat: add toggle command for hiding all squiggles`
 - `fix: resolve status bar icon not updating correctly`
 - `docs: update README with new installation instructions`

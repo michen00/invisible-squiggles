@@ -195,6 +195,37 @@ make enable-pre-commit-only
 2. Test extension functionality manually
 3. Pre-commit hooks will run automatically if enabled
 
+### Commit Message Guidelines
+
+**Use Conventional Commit format for all commits:**
+
+```text
+<type>[optional scope]: <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+**Common types:**
+- `feat:` - New features
+- `fix:` - Bug fixes
+- `docs:` - Documentation changes
+- `style:` - Code style changes (formatting, missing semi-colons, etc.)
+- `refactor:` - Code refactoring
+- `test:` - Adding or updating tests
+- `chore:` - Maintenance tasks, dependency updates
+- `build:` - Build system changes
+- `ci:` - CI/CD configuration changes
+
+**Examples:**
+- `feat: add toggle command for hiding all squiggles`
+- `fix: resolve status bar icon not updating correctly`
+- `docs: update README with new installation instructions`
+- `build: add comprehensive Copilot coding agent instructions`
+
+**For coding agents:** Always use conventional commit format when making changes to maintain consistency with the project's commit history.
+
 ### Release Process
 
 1. Update version in `package.json`

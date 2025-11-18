@@ -1,0 +1,24 @@
+name: Crawl DeepWiki Documentation
+
+on:
+  schedule:
+    - cron: "0 0 18 * *" # Runs at midnight on the 18th of every month
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  crawl-deepwiki:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Crawl DeepWiki Documentation
+        uses: erayack/deepwiki-action@v1
+        with:
+          repository: ${{ github.repository }} # Optional: defaults to current repo
+          max_concurrency: "3" # Optional: default 3
+          request_timeout: "30000" # Optional: default 30000ms
+          retry_attempts: "3" # Optional: default 3

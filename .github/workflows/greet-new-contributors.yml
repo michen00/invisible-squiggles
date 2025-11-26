@@ -59,6 +59,7 @@ jobs:
         with:
           issue_message: |
             🎉 Welcome to the `invisible-squiggles` community! 🎉
+
             Thank you for your feature request! 🚀 We love ideas that help improve this project. Your suggestion will be reviewed by a maintainer soon. If you have any additional thoughts, feel free to add them to this issue.
 
             Looking forward to making `invisible-squiggles` even better together! ✨

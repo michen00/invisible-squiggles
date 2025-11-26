@@ -18,8 +18,7 @@ jobs:
         if: github.event_name == 'pull_request'
         uses: actions/first-interaction@v3
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          pr-message: |
+          pr_message: |
             🎉 Welcome to the `invisible-squiggles` community! 🎉
 
             Thank you for your contribution! We appreciate your time and effort in submitting this pull request. A maintainer will review it soon. If you have any questions, feel free to ask!
@@ -48,8 +47,7 @@ jobs:
         if: steps.check-labels.outputs.result == 'bug'
         uses: actions/first-interaction@v3
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          issue-message: |
+          issue_message: |
             🎉 Welcome to the `invisible-squiggles` community! 🎉
 
             Thank you for taking the time to report this issue! 🐛 Quality is important to us and we would never release anything with known defects, but unfortunately, you encountered something we didn't expect. Let's figure out what went wrong together so we can identify a remedy for it.
@@ -59,8 +57,7 @@ jobs:
         if: steps.check-labels.outputs.result == 'enhancement'
         uses: actions/first-interaction@v3
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          issue-message: |
+          issue_message: |
             🎉 Welcome to the `invisible-squiggles` community! 🎉
 
             Thank you for your feature request! 🚀 We love ideas that help improve this project. Your suggestion will be reviewed by a maintainer soon. If you have any additional thoughts, feel free to add them to this issue.

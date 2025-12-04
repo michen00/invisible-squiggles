@@ -14,16 +14,6 @@ jobs:
   greeting:
     runs-on: ubuntu-latest
     steps:
-      - name: greet pull requests
-        if: github.event_name == 'pull_request'
-        uses: actions/first-interaction@v3
-        with:
-          pr_message: |
-            🎉 Welcome to the `invisible-squiggles` community! 🎉
-
-            Thank you for your contribution! We appreciate your time and effort in submitting this pull request. A maintainer will review it soon. If you have any questions, feel free to ask!
-
-            Thank you for your cooperation 🙏
       - name: identify issue type
         if: github.event_name == 'issues'
         id: check-labels
@@ -63,3 +53,20 @@ jobs:
             Thank you for your feature request! 🚀 We love ideas that help improve this project. Your suggestion will be reviewed by a maintainer soon. If you have any additional thoughts, feel free to add them to this issue.
 
             Looking forward to making `invisible-squiggles` even better together! ✨
+
+      - name: greet pull requests
+        if: github.event_name == 'pull_request'
+        uses: actions/first-interaction@v3
+        with:
+          issue_message: |
+            🎉 Welcome to the `invisible-squiggles` community! 🎉
+
+            Thank you for your contribution! We appreciate your time and effort in submitting this issue. A maintainer will review it soon. If you have any questions, feel free to ask!
+
+            Thank you for your cooperation 🙏
+          pr_message: |
+            🎉 Welcome to the `invisible-squiggles` community! 🎉
+
+            Thank you for your contribution! We appreciate your time and effort in submitting this pull request. A maintainer will review it soon. If you have any questions, feel free to ask!
+
+            Thank you for your cooperation 🙏

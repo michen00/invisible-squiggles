@@ -27,3 +27,7 @@ Click the **👁️ Toggle Squiggles** button at the **bottom right**.
 1. Press **`Ctrl/Cmd + Shift + P`**.
 1. Type **`Toggle Squiggles`**.
 1. Select the command to hide/show squiggles.
+
+## 🔹 Documentation
+
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/michen00/invisible-squiggles)

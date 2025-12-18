@@ -38,7 +38,7 @@ jobs:
             return 'false';
 
       - name: identify issue type
-        if: github.event_name == 'issues' && steps.bot-author-check.outputs.result != 'true'
+        if: steps.bot-author-check.outputs.result != 'true' && github.event_name == 'issues'
         id: check-labels
         uses: actions/github-script@v8
         with:
@@ -57,7 +57,7 @@ jobs:
             }
             return "unknown";
       - name: greet bug reports
-        if: steps.check-labels.outputs.result == 'bug' && steps.bot-author-check.outputs.result != 'true'
+        if: steps.bot-author-check.outputs.result != 'true' && github.event_name == 'issues' && steps.check-labels.outputs.result == 'bug'
         uses: actions/first-interaction@v3
         with:
           issue_message: |
@@ -67,7 +67,7 @@ jobs:
 
             A maintainer will be with you soon! Thank you for your cooperation 🙏
       - name: greet feature requests
-        if: steps.check-labels.outputs.result == 'enhancement' && steps.bot-author-check.outputs.result != 'true'
+        if: steps.bot-author-check.outputs.result != 'true' && github.event_name == 'issues' && steps.check-labels.outputs.result == 'enhancement'
         uses: actions/first-interaction@v3
         with:
           issue_message: |
@@ -78,7 +78,7 @@ jobs:
             Looking forward to making `invisible-squiggles` even better together! ✨
 
       - name: greet pull requests
-        if: github.event_name == 'pull_request' && steps.bot-author-check.outputs.result != 'true'
+        if: steps.bot-author-check.outputs.result != 'true' && github.event_name == 'pull_request'
         uses: actions/first-interaction@v3
         with:
           issue_message: |

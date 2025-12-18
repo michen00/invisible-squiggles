@@ -57,7 +57,7 @@ jobs:
             }
             return "unknown";
       - name: greet bug reports
-        if: github.event_name == 'issues' && steps.bot-author-check.outputs.result != 'true' && steps.check-labels.outputs.result == 'bug'
+        if: steps.check-labels.outputs.result == 'bug' && steps.bot-author-check.outputs.result != 'true'
         uses: actions/first-interaction@v3
         with:
           issue_message: |
@@ -67,7 +67,7 @@ jobs:
 
             A maintainer will be with you soon! Thank you for your cooperation 🙏
       - name: greet feature requests
-        if: github.event_name == 'issues' && steps.bot-author-check.outputs.result != 'true' && steps.check-labels.outputs.result == 'enhancement'
+        if: steps.check-labels.outputs.result == 'enhancement' && steps.bot-author-check.outputs.result != 'true'
         uses: actions/first-interaction@v3
         with:
           issue_message: |

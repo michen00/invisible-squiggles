@@ -13,10 +13,32 @@ on:
 jobs:
   greeting:
     runs-on: ubuntu-latest
-    if: ${{ !endsWith(github.actor, '[bot]') }}
     steps:
+      - name: detect bot author
+        id: bot-author-check
+        uses: actions/github-script@v8
+        with:
+          result-encoding: string
+          script: |
+            const isBotUser = (user) => {
+              if (!user) return false;
+              if (user.type === 'Bot') return true;
+              if (typeof user.login === 'string' && user.login.endsWith('[bot]')) return true;
+              return false;
+            };
+
+            if (context.eventName === 'issues') {
+              return isBotUser(context.payload.issue?.user) ? 'true' : 'false';
+            }
+
+            if (context.eventName === 'pull_request') {
+              return isBotUser(context.payload.pull_request?.user) ? 'true' : 'false';
+            }
+
+            return 'false';
+
       - name: identify issue type
-        if: github.event_name == 'issues'
+        if: github.event_name == 'issues' && steps.bot-author-check.outputs.result != 'true'
         id: check-labels
         uses: actions/github-script@v8
         with:
@@ -35,7 +57,7 @@ jobs:
             }
             return "unknown";
       - name: greet bug reports
-        if: steps.check-labels.outputs.result == 'bug'
+        if: github.event_name == 'issues' && steps.bot-author-check.outputs.result != 'true' && steps.check-labels.outputs.result == 'bug'
         uses: actions/first-interaction@v3
         with:
           issue_message: |
@@ -45,7 +67,7 @@ jobs:
 
             A maintainer will be with you soon! Thank you for your cooperation 🙏
       - name: greet feature requests
-        if: steps.check-labels.outputs.result == 'enhancement'
+        if: github.event_name == 'issues' && steps.bot-author-check.outputs.result != 'true' && steps.check-labels.outputs.result == 'enhancement'
         uses: actions/first-interaction@v3
         with:
           issue_message: |
@@ -56,7 +78,7 @@ jobs:
             Looking forward to making `invisible-squiggles` even better together! ✨
 
       - name: greet pull requests
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.bot-author-check.outputs.result != 'true'
         uses: actions/first-interaction@v3
         with:
           issue_message: |

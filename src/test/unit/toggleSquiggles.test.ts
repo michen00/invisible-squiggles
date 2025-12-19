@@ -1,9 +1,10 @@
 import * as assert from "assert";
 import { describe, it } from "mocha";
+import sinon from "sinon";
 import {
-    ToggleSquigglesConfig,
-    toggleSquigglesCore,
-    TRANSPARENT_COLOR,
+  ToggleSquigglesConfig,
+  toggleSquigglesCore,
+  TRANSPARENT_COLOR,
 } from "../../extension";
 
 describe("toggleSquigglesCore", () => {
@@ -66,6 +67,7 @@ describe("toggleSquigglesCore", () => {
 
   describe("edge cases", () => {
     it("should handle invalid JSON in invisibleSquiggles.originalColors", () => {
+      const consoleErrorStub = sinon.stub(console, "error");
       const currentCustomizations: Record<string, string | undefined> = {
         "editorError.background": TRANSPARENT_COLOR,
         "editorError.border": TRANSPARENT_COLOR,
@@ -80,16 +82,23 @@ describe("toggleSquigglesCore", () => {
         hideHint: false,
       };
 
-      // Should not throw, should fall back to empty object
-      const result = toggleSquigglesCore(currentCustomizations, hideSquiggles);
-      assert.ok(result);
-      // Should still restore (but with empty stored colors)
-      assert.strictEqual(result.isAlreadyTransparent, true);
-      // Transparent colors should be removed
-      assert.strictEqual(
-        result.newCustomizations["editorError.background"],
-        undefined
-      );
+      try {
+        // Should not throw, should fall back to empty object
+        const result = toggleSquigglesCore(currentCustomizations, hideSquiggles);
+        assert.ok(result);
+        // Should still restore (but with empty stored colors)
+        assert.strictEqual(result.isAlreadyTransparent, true);
+        // Transparent colors should be removed
+        assert.strictEqual(
+          result.newCustomizations["editorError.background"],
+          null
+        );
+
+        assert.ok(consoleErrorStub.called, "Expected toggleSquigglesCore to log an error");
+        assert.strictEqual(consoleErrorStub.firstCall.args[0], "Error parsing saved colors JSON:");
+      } finally {
+        consoleErrorStub.restore();
+      }
     });
 
     it("should handle missing invisibleSquiggles.originalColors", () => {
@@ -113,7 +122,7 @@ describe("toggleSquigglesCore", () => {
       // When restoring with no stored colors, should remove transparent colors
       assert.strictEqual(
         result.newCustomizations["editorError.background"],
-        undefined
+        null
       );
     });
 
@@ -142,7 +151,7 @@ describe("toggleSquigglesCore", () => {
       // Transparent colors should be removed (no stored colors to restore)
       assert.strictEqual(
         result.newCustomizations["editorError.background"],
-        undefined
+        null
       );
     });
 

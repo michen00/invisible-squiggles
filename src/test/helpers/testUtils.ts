@@ -94,7 +94,6 @@ export function createMockColorCustomizations(
     "editorInfo.background": "#00aaff",
     "editorInfo.border": "#00aaff",
     "editorInfo.foreground": "#00aaff",
-    "editorHint.background": "#00ff00",
     "editorHint.border": "#00ff00",
     "editorHint.foreground": "#00ff00",
   };

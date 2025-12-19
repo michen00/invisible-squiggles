@@ -60,7 +60,7 @@ The extension works by:
 
 ### Key Components
 
-**Main Entry Point**: `src/extension.ts` (136 lines)
+**Main Entry Point**: `src/extension.ts`
 
 - `activate()`: Registers command, creates status bar item, sets initial state
 - `toggleSquiggles()`: Core logic that applies/restores color customizations

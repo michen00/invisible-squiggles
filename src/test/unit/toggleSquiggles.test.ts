@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import { describe, it } from "mocha";
+import { afterEach, describe, it } from "mocha";
 import sinon from "sinon";
 import {
   ToggleSquigglesConfig,
@@ -8,6 +8,10 @@ import {
 } from "../../extension";
 
 describe("toggleSquigglesCore", () => {
+  // Ensure all sinon stubs/spies are restored after each test
+  afterEach(() => {
+    sinon.restore();
+  });
   describe("basic toggle functionality", () => {
     it("should apply transparent colors when not already transparent", () => {
       const currentCustomizations: Record<string, string | undefined> = {
@@ -82,23 +86,20 @@ describe("toggleSquigglesCore", () => {
         hideHint: false,
       };
 
-      try {
-        // Should not throw, should fall back to empty object
-        const result = toggleSquigglesCore(currentCustomizations, hideSquiggles);
-        assert.ok(result);
-        // Should still restore (but with empty stored colors)
-        assert.strictEqual(result.isAlreadyTransparent, true);
-        // Transparent colors should be removed
-        assert.strictEqual(
-          result.newCustomizations["editorError.background"],
-          null
-        );
+      // Should not throw, should fall back to empty object
+      const result = toggleSquigglesCore(currentCustomizations, hideSquiggles);
+      assert.ok(result);
+      // Should still restore (but with empty stored colors)
+      assert.strictEqual(result.isAlreadyTransparent, true);
+      // Transparent colors should be removed
+      assert.strictEqual(
+        result.newCustomizations["editorError.background"],
+        null
+      );
 
-        assert.ok(consoleErrorStub.called, "Expected toggleSquigglesCore to log an error");
-        assert.strictEqual(consoleErrorStub.firstCall.args[0], "Error parsing saved colors JSON:");
-      } finally {
-        consoleErrorStub.restore();
-      }
+      assert.ok(consoleErrorStub.called, "Expected toggleSquigglesCore to log an error");
+      assert.strictEqual(consoleErrorStub.firstCall.args[0], "Error parsing saved colors JSON:");
+      // Cleanup handled by afterEach -> sinon.restore()
     });
 
     it("should handle missing invisibleSquiggles.originalColors", () => {

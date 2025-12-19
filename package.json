@@ -73,7 +73,7 @@
     "test:unit": "mocha --require out/test/unit/setup.js out/test/unit/**/*.test.js",
     "test:integration": "vscode-test --config .vscode-test.integration.mjs",
     "test:e2e": "vscode-test --config .vscode-test.e2e.mjs",
-    "test:coverage": "c8 --reporter=text --reporter=text-summary --lines 80 --functions 80 --branches 80 --statements 80 npm test"
+    "test:coverage": "c8 npm test"
   },
   "c8": {
     "reporter": [
@@ -84,16 +84,17 @@
       "**/test/**",
       "**/node_modules/**",
       "**/dist/**",
-      "**/out/**"
+      "**/out/test/**"
     ],
     "include": [
-      "src/extension.ts"
+      "out/extension.js"
     ],
     "check-coverage": false,
     "lines": 80,
     "functions": 80,
     "branches": 80,
-    "statements": 80
+    "statements": 80,
+    "all": true
   },
   "devDependencies": {
     "@types/mocha": "^10.0.9",

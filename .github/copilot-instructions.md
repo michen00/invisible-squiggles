@@ -1,5 +1,7 @@
 # Copilot Instructions for invisible-squiggles
 
+> **Note**: For a concise agent-focused guide, see `AGENTS.md` at the repository root. This file provides more detailed context and troubleshooting information.
+
 ## Repository Overview
 
 **invisible-squiggles** is a VSCode extension that allows users to toggle error, warning, info, and hint squiggles for a distraction-free coding experience. The extension provides both a status bar button (👁️) and command palette integration to control squiggle visibility.
@@ -252,6 +254,34 @@ make enable-pre-commit-only
 ├── esbuild.js         # Build configuration
 └── Makefile           # Git hooks management
 ```
+
+## Documentation Maintenance
+
+### Keeping README.md Accurate
+
+The `README.md` file is user-facing and should remain stable. However, if any information in `README.md` becomes inaccurate (e.g., features change, commands are renamed, or installation steps are updated), **update `README.md` immediately** to reflect the current state of the project.
+
+When updating `README.md`:
+
+- Keep the user-focused tone and simplicity
+- Ensure feature descriptions match actual functionality
+- Verify all links and installation instructions work
+- Update version numbers or compatibility requirements if they change
+
+### Documentation Consistency
+
+This repository maintains multiple documentation files for different audiences:
+
+- `README.md` - User-facing quickstart and features (keep stable, update if inaccurate)
+- `AGENTS.md` - Concise agent-focused workflow guide
+- `CLAUDE.md` - Detailed guidance for Claude Code
+- `.github/copilot-instructions.md` - Comprehensive Copilot context (this file)
+
+All documentation should be kept consistent. When making changes:
+
+1. Update the relevant documentation file(s)
+2. Cross-check that information aligns across all docs
+3. Ensure command examples and architecture descriptions match
 
 ## Trust These Instructions
 

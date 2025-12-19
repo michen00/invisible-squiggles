@@ -1,37 +1,23 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
+import {
+  delay,
+  getColorCustomizations,
+  OriginalConfig,
+  restoreOriginalConfig,
+  saveOriginalConfig,
+  toggleAndWaitForChange,
+} from "../helpers/testUtils";
 
 suite("Extension Integration Tests - Command Execution", () => {
-  let originalCustomizations: Record<string, string | undefined>;
-  let originalHideErrors: boolean | undefined;
+  let originalConfig: OriginalConfig;
 
   suiteSetup(async () => {
-    // Save original color customizations
-    const workbenchConfig = vscode.workspace.getConfiguration("workbench");
-    originalCustomizations =
-      workbenchConfig.get<Record<string, string | undefined>>("colorCustomizations") || {};
-
-    // Save original invisibleSquiggles configuration used in tests
-    const squigglesConfig = vscode.workspace.getConfiguration("invisibleSquiggles");
-    originalHideErrors = squigglesConfig.get<boolean | undefined>("hideErrors");
+    originalConfig = await saveOriginalConfig();
   });
 
   suiteTeardown(async () => {
-    // Restore original color customizations
-    const workbenchConfig = vscode.workspace.getConfiguration("workbench");
-    await workbenchConfig.update(
-      "colorCustomizations",
-      originalCustomizations,
-      vscode.ConfigurationTarget.Global
-    );
-
-    // Restore invisibleSquiggles configuration used in tests
-    const squigglesConfig = vscode.workspace.getConfiguration("invisibleSquiggles");
-    await squigglesConfig.update(
-      "hideErrors",
-      originalHideErrors,
-      vscode.ConfigurationTarget.Global
-    );
+    await restoreOriginalConfig(originalConfig);
   });
 
   test("Toggle command should execute successfully", async () => {
@@ -42,41 +28,16 @@ suite("Extension Integration Tests - Command Execution", () => {
 
   test("Status bar should update when toggle command is invoked", async () => {
     const settings = vscode.workspace.getConfiguration("invisibleSquiggles");
-    const config = vscode.workspace.getConfiguration("workbench");
 
     // Ensure at least one hide flag is enabled so toggle has an effect
     await settings.update("hideErrors", true, vscode.ConfigurationTarget.Global);
+    await delay(100);
 
-    // Wait for configuration to update
-    await new Promise(resolve => setTimeout(resolve, 100));
+    const beforeJson = JSON.stringify(getColorCustomizations());
 
-    const beforeCustomizations =
-      config.get<Record<string, string | undefined>>("colorCustomizations") || {};
-    const beforeJson = JSON.stringify(beforeCustomizations);
+    const changed = await toggleAndWaitForChange();
 
-    // Wait for configuration change event
-    const configChanged = new Promise<boolean>((resolve) => {
-      const disposable = vscode.workspace.onDidChangeConfiguration((e) => {
-        if (e.affectsConfiguration("workbench.colorCustomizations")) {
-          disposable.dispose();
-          resolve(true);
-        }
-      });
-      setTimeout(() => {
-        disposable.dispose();
-        resolve(false);
-      }, 2000);
-    });
-
-    await vscode.commands.executeCommand("invisible-squiggles.toggle");
-    const changed = await configChanged;
-
-    // Additional wait for propagation
-    await new Promise(resolve => setTimeout(resolve, 200));
-
-    const afterCustomizations =
-      config.get<Record<string, string | undefined>>("colorCustomizations") || {};
-    const afterJson = JSON.stringify(afterCustomizations);
+    const afterJson = JSON.stringify(getColorCustomizations());
 
     // Verify: either configuration change event fired, or JSON changed
     assert.ok(

@@ -1,16 +1,16 @@
 import * as vscode from "vscode";
 
 export const TRANSPARENT_COLOR = "#00000000";
-const SQUIGGLE_TYPES = ["Hint", "Info", "Error", "Warning"] as const;
+export const SQUIGGLE_TYPES = ["Error", "Hint", "Info", "Warning"] as const;
 
 const COLOR_PARTS_BY_SQUIGGLE_TYPE: Record<
   (typeof SQUIGGLE_TYPES)[number],
   ReadonlyArray<"background" | "border" | "foreground">
 > = {
   // From VS Code's workbench color registry: Hint has no `editorHint.background`
+  Error: ["background", "border", "foreground"],
   Hint: ["border", "foreground"],
   Info: ["background", "border", "foreground"],
-  Error: ["background", "border", "foreground"],
   Warning: ["background", "border", "foreground"],
 };
 

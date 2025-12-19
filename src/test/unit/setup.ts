@@ -12,14 +12,28 @@ import * as Module from "module";
 
 // Mock vscode module - persists for all unit tests in this process
 const originalRequire = Module.prototype.require;
+
+// Section-specific configuration storage for realistic mocking
+const configStore: Record<string, Record<string, unknown>> = {
+  workbench: {},
+  invisibleSquiggles: {},
+};
+
+function createMockConfig(section: string) {
+  return {
+    get: (key: string, defaultValue?: unknown) => {
+      const sectionConfig = configStore[section] || {};
+      return key in sectionConfig ? sectionConfig[key] : defaultValue;
+    },
+    update: () => Promise.resolve(),
+  };
+}
+
 Module.prototype.require = function (id: string) {
   if (id === "vscode") {
     return {
       workspace: {
-        getConfiguration: () => ({
-          get: () => undefined,
-          update: () => Promise.resolve(),
-        }),
+        getConfiguration: (section?: string) => createMockConfig(section || ""),
       },
       window: {
         createStatusBarItem: () => ({

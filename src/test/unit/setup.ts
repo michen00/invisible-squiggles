@@ -1,9 +1,16 @@
 /**
  * Unit test setup - mocks VSCode module before any test imports
+ *
+ * This file is loaded via mocha's --require flag for unit tests only.
+ * The VSCode mock is intentionally global for the entire unit test run,
+ * allowing tests to import from extension.ts without the real VSCode runtime.
+ *
+ * Integration and E2E tests use the real VSCode API via @vscode/test-cli
+ * and do NOT load this setup file.
  */
 import * as Module from "module";
 
-// Mock vscode module
+// Mock vscode module - persists for all unit tests in this process
 const originalRequire = Module.prototype.require;
 Module.prototype.require = function (id: string) {
   if (id === "vscode") {
@@ -47,3 +54,8 @@ Module.prototype.require = function (id: string) {
   }
   return originalRequire.apply(this, arguments as any);
 };
+
+// Restore original require on process exit (defensive cleanup)
+process.on("exit", () => {
+  Module.prototype.require = originalRequire;
+});

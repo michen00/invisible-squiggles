@@ -10,7 +10,7 @@
 
 - **Type**: VSCode Extension
 - **Language**: TypeScript
-- **Size**: Small focused project (~21 root files, 136 lines in main extension file)
+- **Size**: Small focused project
 - **Runtime**: Node.js 20.x, VSCode ^1.97.0
 - **Build System**: npm + ESBuild + TypeScript
 - **Package Manager**: npm
@@ -108,7 +108,7 @@ npm run watch
 
 #### Source Code
 
-- `src/extension.ts` (136 lines) - Main extension implementation
+- `src/extension.ts` - Main extension implementation
 - `src/test/` - Comprehensive test suite
   - `unit/` - Unit tests with mocked VSCode APIs
   - `integration/` - Integration tests with real VSCode APIs
@@ -263,7 +263,7 @@ make enable-pre-commit-only
 ├── .github/           # GitHub configuration
 ├── .vscode/           # VSCode workspace configuration
 ├── src/
-│   ├── extension.ts   # Main extension code (136 lines)
+│   ├── extension.ts   # Main extension code
 │   └── test/          # Test files
 ├── dist/              # Build output (production)
 ├── out/               # TypeScript output (tests)

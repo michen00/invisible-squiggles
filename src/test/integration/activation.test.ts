@@ -25,16 +25,11 @@ suite("Extension Integration Tests - Activation", () => {
     );
   });
 
-  test("Status bar item should display correct initial state", async () => {
-    // Get current color customizations to determine initial state
-    const config = vscode.workspace.getConfiguration("workbench");
-    const currentCustomizations =
-      config.get<Record<string, string | undefined>>("colorCustomizations") || {};
-
-    // Status bar should reflect the current state
-    // (We can't directly access status bar item in integration tests,
-    // but we can verify the extension activated correctly)
-    assert.ok(true, "Extension activated and status bar initialized");
+  test("Status bar item should display correct initial state", () => {
+    // We can't directly access status bar item in integration tests,
+    // but we can verify the extension activated correctly
+    const extension = vscode.extensions.getExtension("michen00.invisible-squiggles");
+    assert.ok(extension?.isActive, "Extension should be active with status bar initialized");
   });
 
   test("Extension should handle VSCode API failures during activation gracefully", async () => {

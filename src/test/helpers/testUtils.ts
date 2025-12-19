@@ -15,7 +15,7 @@ import {
 
 export { SQUIGGLE_TYPES, TRANSPARENT_COLOR } from "../../extension";
 
-export type SquiggleType = (typeof SQUIGGLE_TYPES)[number];
+type SquiggleType = (typeof SQUIGGLE_TYPES)[number];
 
 // ============================================================================
 // Configuration Save/Restore (for integration & E2E tests)
@@ -81,7 +81,7 @@ export async function restoreOriginalConfig(original: OriginalConfig): Promise<v
  * @param timeout Maximum time to wait in milliseconds (default: 2000)
  * @returns true if change was detected, false if timeout
  */
-export function waitForConfigChange(timeout: number = 2000): Promise<boolean> {
+function waitForConfigChange(timeout: number = 2000): Promise<boolean> {
   return new Promise<boolean>((resolve) => {
     const disposable = vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration("workbench.colorCustomizations")) {
@@ -172,7 +172,7 @@ export async function resetColorCustomizations(): Promise<void> {
  * @param n Number of boolean variables
  * @returns Array of arrays, each containing n boolean values
  */
-export function generateBooleanCombinations(n: number): boolean[][] {
+function generateBooleanCombinations(n: number): boolean[][] {
   const combinations: boolean[][] = [];
   const total = Math.pow(2, n);
 
@@ -195,33 +195,7 @@ export function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/**
- * Waits for a condition to be true
- * @param condition Function that returns true when condition is met
- * @param timeout Maximum time to wait in milliseconds
- * @param interval Check interval in milliseconds
- */
-export async function waitFor(
-  condition: () => boolean,
-  timeout: number = 5000,
-  interval: number = 100
-): Promise<void> {
-  const startTime = Date.now();
-
-  while (Date.now() - startTime < timeout) {
-    if (condition()) {
-      return;
-    }
-    await delay(interval);
-  }
-
-  throw new Error(`Condition not met within ${timeout}ms`);
-}
-
-/**
- * Creates a test configuration object for squiggle types
- */
-export interface SquiggleTypeConfig {
+interface SquiggleTypeConfig {
   hideErrors: boolean;
   hideWarnings: boolean;
   hideInfo: boolean;
@@ -240,27 +214,4 @@ export function generateAllSquiggleConfigs(): SquiggleTypeConfig[] {
     hideInfo: hideInfo ?? false,
     hideHint: hideHint ?? false,
   }));
-}
-
-/**
- * Creates a mock color customizations object
- */
-export function createMockColorCustomizations(
-  overrides: Record<string, string> = {}
-): Record<string, string> {
-  const defaults: Record<string, string> = {
-    "editorError.background": "#ff0000",
-    "editorError.border": "#ff0000",
-    "editorError.foreground": "#ff0000",
-    "editorWarning.background": "#ffaa00",
-    "editorWarning.border": "#ffaa00",
-    "editorWarning.foreground": "#ffaa00",
-    "editorInfo.background": "#00aaff",
-    "editorInfo.border": "#00aaff",
-    "editorInfo.foreground": "#00aaff",
-    "editorHint.border": "#00ff00",
-    "editorHint.foreground": "#00ff00",
-  };
-
-  return { ...defaults, ...overrides };
 }

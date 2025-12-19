@@ -62,6 +62,34 @@ npm test
 
 **Note**: tests require the VSCode runtime and are expected to fail in headless/CI environments.
 
+### Testing Infrastructure
+
+The project includes comprehensive testing infrastructure:
+
+**Test Types**:
+
+- **Unit tests** (`npm run test:unit`): Fast tests (< 5 seconds) with mocked VSCode APIs, located in `src/test/unit/`
+- **Integration tests** (`npm run test:integration`): Tests with real VSCode APIs, located in `src/test/integration/`
+- **E2E tests** (`npm run test:e2e`): Full Extension Development Host tests, located in `src/test/e2e/`
+- **Coverage** (`npm run test:coverage`): Generates coverage reports with 80% threshold warnings
+
+**Test Structure**:
+
+```tree
+src/test/
+├── unit/              # Unit tests (mocked APIs)
+├── integration/       # Integration tests (real APIs)
+├── e2e/               # End-to-end tests (Extension Host)
+└── helpers/           # Test utilities and mocks
+```
+
+**Running Tests**:
+
+- `npm run test:unit` - Run unit tests only (fast, no VSCode required)
+- `npm run test:integration` - Run integration tests (requires VSCode)
+- `npm run test:e2e` - Run E2E tests (requires Extension Development Host)
+- `npm run test:coverage` - Run all tests with coverage report
+
 ## Manual verification (recommended after changes)
 
 - Press `F5` in VSCode to launch an Extension Development Host

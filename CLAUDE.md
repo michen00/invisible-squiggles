@@ -17,8 +17,25 @@ npm run package          # Type check + lint + optimized build (production)
 npm run watch            # Start both TypeScript and ESBuild watchers
 npm run check-types      # TypeScript type validation only
 npm run lint             # ESLint validation only
-npm test                 # Run tests (requires VSCode runtime)
+npm test                 # Run all tests (unit + integration + E2E)
+npm run test:unit        # Run unit tests only (fast, < 5 seconds)
+npm run test:integration # Run integration tests (requires VSCode)
+npm run test:e2e         # Run E2E tests (requires Extension Development Host)
+npm run test:coverage    # Run all tests with coverage report
 ```
+
+### Testing Infrastructure
+
+**Test Types**:
+
+- **Unit tests**: Located in `src/test/unit/`, use mocked VSCode APIs, execute in < 5 seconds
+- **Integration tests**: Located in `src/test/integration/`, use real VSCode APIs
+- **E2E tests**: Located in `src/test/e2e/`, run in Extension Development Host
+- **Coverage**: Configured with c8, 80% threshold (warning only, doesn't fail build)
+
+**Test Helpers**: `src/test/helpers/` contains mock VSCode APIs and test utilities
+
+**Coverage**: Reports show line, branch, function, and statement coverage. Threshold is 80% with warnings only.
 
 ### VSCode Extension Testing
 
@@ -28,7 +45,7 @@ Press `F5` in VSCode to launch Extension Development Host, then:
 - Verify the eye icon (👁️) appears in the status bar
 - Use `Ctrl/Cmd+R` to reload after making code changes
 
-Note: Tests will fail in headless/CI environments as they require VSCode runtime.
+Note: Integration and E2E tests require VSCode runtime and will fail in headless/CI environments. Unit tests can run without VSCode.
 
 ## Architecture
 

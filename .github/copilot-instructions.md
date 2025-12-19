@@ -70,10 +70,22 @@ npm run lint
 #### 6. Testing
 
 ```bash
-npm test
+npm test                 # Run all tests (unit + integration + E2E)
+npm run test:unit        # Run unit tests only (fast, < 5 seconds, no VSCode required)
+npm run test:integration # Run integration tests (requires VSCode runtime)
+npm run test:e2e         # Run E2E tests (requires Extension Development Host)
+npm run test:coverage    # Run all tests with coverage report (80% threshold warning)
 ```
 
-**Note: Tests require VSCode runtime and will fail in headless environments. This is expected behavior.**
+**Test Infrastructure**:
+
+- **Unit tests**: `src/test/unit/` - Fast tests with mocked VSCode APIs, execute in < 5 seconds
+- **Integration tests**: `src/test/integration/` - Tests with real VSCode APIs
+- **E2E tests**: `src/test/e2e/` - Full Extension Development Host tests
+- **Test helpers**: `src/test/helpers/` - Mock VSCode APIs and test utilities
+- **Coverage**: Configured with c8, shows line/branch/function/statement coverage, 80% threshold (warning only)
+
+**Note**: Integration and E2E tests require VSCode runtime and will fail in headless/CI environments. Unit tests can run without VSCode.
 
 ### Watch Mode Development
 
@@ -97,7 +109,11 @@ npm run watch
 #### Source Code
 
 - `src/extension.ts` (136 lines) - Main extension implementation
-- `src/test/extension.test.ts` - Basic test suite
+- `src/test/` - Comprehensive test suite
+  - `unit/` - Unit tests with mocked VSCode APIs
+  - `integration/` - Integration tests with real VSCode APIs
+  - `e2e/` - End-to-end tests in Extension Development Host
+  - `helpers/` - Test utilities and mock helpers
 
 #### Configuration Files
 
@@ -178,7 +194,10 @@ make enable-pre-commit-only
 
 ### Testing Issues
 
-- **Tests fail in CI**: Expected behavior - tests require VSCode runtime
+- **Tests fail in CI**: Expected behavior for integration/E2E tests - they require VSCode runtime. Unit tests can run in CI.
+- **Unit tests fail**: Check that `src/test/unit/setup.ts` is properly mocking VSCode APIs
+- **Integration/E2E tests fail**: Ensure VSCode test framework is properly configured in `.vscode-test.mjs`
+- **Coverage shows 0%**: Ensure `src/extension.ts` is included in coverage configuration
 - **Extension Test Runner not finding tests**: Ensure watch task is running via "Tasks: Run Task" menu
 
 ## Development Workflow

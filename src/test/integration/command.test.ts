@@ -3,20 +3,33 @@ import * as vscode from "vscode";
 
 suite("Extension Integration Tests - Command Execution", () => {
   let originalCustomizations: Record<string, string | undefined>;
+  let originalHideErrors: boolean | undefined;
 
   suiteSetup(async () => {
     // Save original color customizations
-    const config = vscode.workspace.getConfiguration("workbench");
+    const workbenchConfig = vscode.workspace.getConfiguration("workbench");
     originalCustomizations =
-      config.get<Record<string, string | undefined>>("colorCustomizations") || {};
+      workbenchConfig.get<Record<string, string | undefined>>("colorCustomizations") || {};
+
+    // Save original invisibleSquiggles configuration used in tests
+    const squigglesConfig = vscode.workspace.getConfiguration("invisibleSquiggles");
+    originalHideErrors = squigglesConfig.get<boolean | undefined>("hideErrors");
   });
 
   suiteTeardown(async () => {
     // Restore original color customizations
-    const config = vscode.workspace.getConfiguration("workbench");
-    await config.update(
+    const workbenchConfig = vscode.workspace.getConfiguration("workbench");
+    await workbenchConfig.update(
       "colorCustomizations",
       originalCustomizations,
+      vscode.ConfigurationTarget.Global
+    );
+
+    // Restore invisibleSquiggles configuration used in tests
+    const squigglesConfig = vscode.workspace.getConfiguration("invisibleSquiggles");
+    await squigglesConfig.update(
+      "hideErrors",
+      originalHideErrors,
       vscode.ConfigurationTarget.Global
     );
   });

@@ -25,24 +25,9 @@ describe("setStatus", () => {
     assert.strictEqual(mockStatusBarItem.tooltip, "Show squiggles");
   });
 
-  it("should return early when statusBarItem is null", () => {
-    setStatus(null, "visible");
-
-    // Should not throw, just return early
-    assert.ok(true);
-  });
-
-  it("should return early when statusBarItem is undefined", () => {
-    setStatus(undefined, "visible");
-
-    // Should not throw, just return early
-    assert.ok(true);
-  });
-
-  it("should handle status bar item not initialized (edge case)", () => {
+  it("should handle null/undefined status bar item gracefully", () => {
     // Test that function handles null/undefined gracefully by not throwing
-    assert.doesNotThrow(() => {
-      setStatus(null, "visible");
-    });
+    assert.doesNotThrow(() => setStatus(null, "visible"));
+    assert.doesNotThrow(() => setStatus(undefined, "visible"));
   });
 });

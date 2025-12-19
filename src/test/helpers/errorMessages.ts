@@ -1,6 +1,6 @@
 /**
  * Error message formatting utilities for test failures
- * Ensures test failures include actionable information per SC-009:
+ * Ensures test failures include actionable, well-structured information:
  * - Test name
  * - Expected vs actual values
  * - File path and line number

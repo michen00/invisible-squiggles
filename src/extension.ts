@@ -183,7 +183,11 @@ async function toggleSquiggles(): Promise<void> {
     config.get<Record<string, string | null | undefined>>("colorCustomizations") || {};
 
   const result = toggleSquigglesCore(currentCustomizations, hideSquiggles);
-  setStatusInternal(result.isAlreadyTransparent ? 'visible' : 'hidden');
+
+  // Only update status bar if an actual toggle happened (not when all hide flags are disabled)
+  if (result.shouldShowMessage) {
+    setStatusInternal(result.isAlreadyTransparent ? "visible" : "hidden");
+  }
 
   try {
     await config.update(

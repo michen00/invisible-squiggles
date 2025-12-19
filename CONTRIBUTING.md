@@ -18,10 +18,6 @@ The project has defined a [code of conduct](https://github.com/michen00/.github/
 ## TODO
 
 - get an icon for the marketplace listing
-- add CI
-  - lint
-  - test
-  - build/publish/release
 - update the demo on README.md for the eyeball status bar feature
 - refactor code: optimizations and improvements are welcome
 - add a workflow to [update license copyright years](https://github.com/marketplace/actions/update-license-copyright-year-s#i-want-my-pull-requests-to-be-automatically-merged)

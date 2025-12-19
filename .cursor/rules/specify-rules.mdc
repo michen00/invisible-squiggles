@@ -1,0 +1,29 @@
+# invisible-squiggles Development Guidelines
+
+Auto-generated from all feature plans. Last updated: 2025-12-18
+
+## Active Technologies
+
+- TypeScript 5.7.3, Node.js 20.x (001-add-tests)
+
+## Project Structure
+
+```text
+src/
+tests/
+```
+
+## Commands
+
+npm test && npm run lint
+
+## Code Style
+
+TypeScript 5.7.3, Node.js 20.x: Follow standard conventions
+
+## Recent Changes
+
+- 001-add-tests: Added TypeScript 5.7.3, Node.js 20.x
+
+<!-- MANUAL ADDITIONS START -->
+<!-- MANUAL ADDITIONS END -->

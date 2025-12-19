@@ -3,12 +3,24 @@ import * as vscode from "vscode";
 export const TRANSPARENT_COLOR = "#00000000";
 const SQUIGGLE_TYPES = ["Hint", "Info", "Error", "Warning"] as const;
 
+const COLOR_PARTS_BY_SQUIGGLE_TYPE: Record<
+  (typeof SQUIGGLE_TYPES)[number],
+  ReadonlyArray<"background" | "border" | "foreground">
+> = {
+  // From VS Code's workbench color registry: Hint has no `editorHint.background`
+  Hint: ["border", "foreground"],
+  Info: ["background", "border", "foreground"],
+  Error: ["background", "border", "foreground"],
+  Warning: ["background", "border", "foreground"],
+};
+
 const TRANSPARENT_COLORS = Object.fromEntries(
-  SQUIGGLE_TYPES.flatMap((type) => [
-    [`editor${type}.background`, TRANSPARENT_COLOR],
-    [`editor${type}.border`, TRANSPARENT_COLOR],
-    [`editor${type}.foreground`, TRANSPARENT_COLOR],
-  ])
+  SQUIGGLE_TYPES.flatMap((type) =>
+    COLOR_PARTS_BY_SQUIGGLE_TYPE[type].map((part) => [
+      `editor${type}.${part}`,
+      TRANSPARENT_COLOR,
+    ])
+  )
 );
 
 let statusBarItem: vscode.StatusBarItem;
@@ -50,11 +62,23 @@ export interface ToggleSquigglesConfig {
   hideHint: boolean;
 }
 
+const HIDE_KEY_BY_TYPE: Record<
+  (typeof SQUIGGLE_TYPES)[number],
+  keyof ToggleSquigglesConfig
+> = {
+  Hint: "hideHint",
+  Info: "hideInfo",
+  Error: "hideErrors",
+  Warning: "hideWarnings",
+};
+
 /**
  * Result interface for toggleSquigglesCore
  */
 export interface ToggleSquigglesResult {
-  newCustomizations: Record<string, string | undefined>;
+  // VS Code can retain old workbench.colorCustomizations keys when updating objects.
+  // Setting a color key to `null` explicitly clears that customization.
+  newCustomizations: Record<string, string | null | undefined>;
   isAlreadyTransparent: boolean;
   shouldShowMessage: boolean;
 }
@@ -66,7 +90,7 @@ export interface ToggleSquigglesResult {
  * @returns Result containing new customizations and state information
  */
 export function toggleSquigglesCore(
-  currentCustomizations: Record<string, string | undefined>,
+  currentCustomizations: Record<string, string | null | undefined>,
   hideSquiggles: ToggleSquigglesConfig
 ): ToggleSquigglesResult {
   const storedColors = (() => {
@@ -84,8 +108,7 @@ export function toggleSquigglesCore(
 
   const transparentColorsToApply = Object.fromEntries(
     SQUIGGLE_TYPES.flatMap((type) => {
-      // Config keys use plural form: hideErrors, hideWarnings, etc.
-      const hideKey = `hide${type}s` as keyof ToggleSquigglesConfig;
+      const hideKey = HIDE_KEY_BY_TYPE[type];
       return hideSquiggles[hideKey]
         ? Object.entries(TRANSPARENT_COLORS).filter(([key]) =>
             key.startsWith(`editor${type}`)
@@ -104,25 +127,31 @@ export function toggleSquigglesCore(
   }
 
   const isAlreadyTransparent = Object.entries(transparentColorsToApply).every(
-    ([key, value]) => currentCustomizations[key]?.toLowerCase() === value.toLowerCase()
+    ([key, value]) =>
+      typeof currentCustomizations[key] === "string" &&
+      (currentCustomizations[key] as string).toLowerCase() === value.toLowerCase()
   );
 
   const newCustomizations = { ...currentCustomizations };
 
   if (isAlreadyTransparent) {
-    // First remove transparent colors
-    Object.keys(transparentColorsToApply).forEach((key) => delete newCustomizations[key]);
-    // Then restore previous colors (if any)
-    if (Object.keys(storedColors).length > 0) {
-      Object.assign(newCustomizations, storedColors);
-    }
-    delete newCustomizations["invisibleSquiggles.originalColors"];
+    // Restore previous colors (if any), otherwise clear the customizations explicitly.
+    Object.keys(transparentColorsToApply).forEach((key) => {
+      const storedValue = (storedColors as Record<string, unknown>)[key];
+      if (typeof storedValue === "string") {
+        newCustomizations[key] = storedValue;
+      } else {
+        newCustomizations[key] = null;
+      }
+    });
+    // Explicitly clear this marker key. VS Code may retain old object keys otherwise.
+    newCustomizations["invisibleSquiggles.originalColors"] = null;
   } else {
     // Save current state and apply transparency
     const savedColors = Object.fromEntries(
       Object.keys(transparentColorsToApply)
-        .filter((key) => currentCustomizations[key])
-        .map((key) => [key, currentCustomizations[key]!])
+        .filter((key) => typeof currentCustomizations[key] === "string")
+        .map((key) => [key, currentCustomizations[key] as string])
     );
 
     newCustomizations["invisibleSquiggles.originalColors"] = JSON.stringify(savedColors);
@@ -151,7 +180,7 @@ async function toggleSquiggles(): Promise<void> {
   };
 
   const currentCustomizations =
-    config.get<Record<string, string | undefined>>("colorCustomizations") || {};
+    config.get<Record<string, string | null | undefined>>("colorCustomizations") || {};
 
   const result = toggleSquigglesCore(currentCustomizations, hideSquiggles);
   setStatusInternal(result.isAlreadyTransparent ? 'visible' : 'hidden');
@@ -162,7 +191,7 @@ async function toggleSquiggles(): Promise<void> {
       result.newCustomizations,
       vscode.ConfigurationTarget.Global
     );
-    const showStatusBarMessage = settings.get<boolean>("showStatusBarMessage", true);
+    const showStatusBarMessage = settings.get<boolean>("showStatusBarMessage", false);
     if (showStatusBarMessage && result.shouldShowMessage) {
       const message = result.isAlreadyTransparent
         ? "Squiggles restored to previous visibility."
@@ -192,7 +221,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   const currentCustomizations = vscode.workspace
     .getConfiguration("workbench")
-    .get<{ [key: string]: string | undefined }>("colorCustomizations") || {};
+    .get<{ [key: string]: string | null | undefined }>("colorCustomizations") || {};
 
   const isInitiallyTransparent = Object.entries(TRANSPARENT_COLORS).every(
     ([key, value]) =>

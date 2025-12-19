@@ -71,8 +71,8 @@
     "lint": "eslint src",
     "test": "npm run test:unit && npm run test:integration && npm run test:e2e",
     "test:unit": "mocha --require out/test/unit/setup.js out/test/unit/**/*.test.js",
-    "test:integration": "vscode-test --config .vscode-test.mjs out/test/integration/**/*.test.js",
-    "test:e2e": "vscode-test --config .vscode-test.mjs out/test/e2e/**/*.test.js",
+    "test:integration": "vscode-test --config .vscode-test.integration.mjs",
+    "test:e2e": "vscode-test --config .vscode-test.e2e.mjs",
     "test:coverage": "c8 --reporter=text --reporter=text-summary --lines 80 --functions 80 --branches 80 --statements 80 npm test"
   },
   "c8": {

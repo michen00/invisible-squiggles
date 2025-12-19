@@ -1,9 +1,9 @@
 import * as assert from "assert";
 import { describe, it } from "mocha";
 import {
-    ToggleSquigglesConfig,
-    toggleSquigglesCore,
-    TRANSPARENT_COLOR,
+  ToggleSquigglesConfig,
+  toggleSquigglesCore,
+  TRANSPARENT_COLOR,
 } from "../../extension";
 
 describe("Color Logic", () => {
@@ -95,7 +95,7 @@ describe("Color Logic", () => {
       assert.strictEqual(result.newCustomizations["editorError.border"], "#ff0000");
       assert.strictEqual(
         result.newCustomizations["invisibleSquiggles.originalColors"],
-        undefined
+        null
       );
     });
 
@@ -121,6 +121,46 @@ describe("Color Logic", () => {
       assert.strictEqual(
         result.newCustomizations["editorWarning.background"],
         "#ffaa00"
+      );
+    });
+
+    it("should apply transparency for Info when hideInfo is enabled", () => {
+      const currentCustomizations: Record<string, string | undefined> = {
+        "editorInfo.background": "#00aaff",
+      };
+
+      const hideSquiggles: ToggleSquigglesConfig = {
+        hideErrors: false,
+        hideWarnings: false,
+        hideInfo: true,
+        hideHint: false,
+      };
+
+      const result = toggleSquigglesCore(currentCustomizations, hideSquiggles);
+
+      assert.strictEqual(
+        result.newCustomizations["editorInfo.background"],
+        TRANSPARENT_COLOR
+      );
+    });
+
+    it("should apply transparency for Hint when hideHint is enabled", () => {
+      const currentCustomizations: Record<string, string | undefined> = {
+        "editorHint.foreground": "#00ff00",
+      };
+
+      const hideSquiggles: ToggleSquigglesConfig = {
+        hideErrors: false,
+        hideWarnings: false,
+        hideInfo: false,
+        hideHint: true,
+      };
+
+      const result = toggleSquigglesCore(currentCustomizations, hideSquiggles);
+
+      assert.strictEqual(
+        result.newCustomizations["editorHint.foreground"],
+        TRANSPARENT_COLOR
       );
     });
   });

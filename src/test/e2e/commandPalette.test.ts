@@ -5,6 +5,42 @@ suite("Extension E2E Tests - Command Palette", () => {
   const TRANSPARENT_COLOR = "#00000000";
   const SQUIGGLE_TYPES = ["Error", "Warning", "Info", "Hint"] as const;
 
+  // Store original configuration to restore after tests
+  let originalColorCustomizations: Record<string, string | undefined>;
+  let originalHideErrors: boolean | undefined;
+  let originalHideWarnings: boolean | undefined;
+  let originalHideInfo: boolean | undefined;
+  let originalHideHint: boolean | undefined;
+
+  suiteSetup(async () => {
+    // Save original settings
+    const config = vscode.workspace.getConfiguration("workbench");
+    const settings = vscode.workspace.getConfiguration("invisibleSquiggles");
+
+    originalColorCustomizations =
+      config.get<Record<string, string | undefined>>("colorCustomizations") || {};
+    originalHideErrors = settings.get<boolean>("hideErrors");
+    originalHideWarnings = settings.get<boolean>("hideWarnings");
+    originalHideInfo = settings.get<boolean>("hideInfo");
+    originalHideHint = settings.get<boolean>("hideHint");
+  });
+
+  suiteTeardown(async () => {
+    // Restore original settings
+    const config = vscode.workspace.getConfiguration("workbench");
+    const settings = vscode.workspace.getConfiguration("invisibleSquiggles");
+
+    await config.update(
+      "colorCustomizations",
+      originalColorCustomizations,
+      vscode.ConfigurationTarget.Global
+    );
+    await settings.update("hideErrors", originalHideErrors, vscode.ConfigurationTarget.Global);
+    await settings.update("hideWarnings", originalHideWarnings, vscode.ConfigurationTarget.Global);
+    await settings.update("hideInfo", originalHideInfo, vscode.ConfigurationTarget.Global);
+    await settings.update("hideHint", originalHideHint, vscode.ConfigurationTarget.Global);
+  });
+
   function isTypeTransparent(
     type: (typeof SQUIGGLE_TYPES)[number],
     customizations: Record<string, string | undefined>

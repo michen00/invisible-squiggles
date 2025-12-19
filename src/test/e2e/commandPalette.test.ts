@@ -3,12 +3,6 @@ import * as vscode from "vscode";
 
 suite("Extension E2E Tests - Command Palette", () => {
   const TRANSPARENT_COLOR = "#00000000";
-  const HIDE_KEY_BY_TYPE: Record<string, string> = {
-    Error: "hideErrors",
-    Warning: "hideWarnings",
-    Info: "hideInfo",
-    Hint: "hideHint",
-  };
   const SQUIGGLE_TYPES = ["Error", "Warning", "Info", "Hint"] as const;
 
   function isTypeTransparent(

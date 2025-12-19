@@ -23,6 +23,49 @@ const TRANSPARENT_COLORS = Object.fromEntries(
   )
 );
 
+const HIDE_KEY_BY_TYPE: Record<
+  (typeof SQUIGGLE_TYPES)[number],
+  keyof ToggleSquigglesConfig
+> = {
+  Hint: "hideHint",
+  Info: "hideInfo",
+  Error: "hideErrors",
+  Warning: "hideWarnings",
+};
+
+/**
+ * Checks if configured squiggle colors are currently set to transparent.
+ * Used to determine initial status bar state on activation.
+ * @param currentCustomizations - Current workbench color customizations
+ * @param hideSquiggles - Configuration for which squiggle types to hide
+ * @returns true if all configured squiggle colors are transparent,
+ *          false if any configured color is not transparent,
+ *          null if no squiggle types are configured (all hide flags are false)
+ */
+export function areSquigglesCurrentlyTransparent(
+  currentCustomizations: Record<string, string | null | undefined>,
+  hideSquiggles: ToggleSquigglesConfig
+): boolean | null {
+  // Get color keys only for configured squiggle types
+  const relevantKeys = SQUIGGLE_TYPES.flatMap((type) => {
+    const hideKey = HIDE_KEY_BY_TYPE[type];
+    return hideSquiggles[hideKey]
+      ? COLOR_PARTS_BY_SQUIGGLE_TYPE[type].map((part) => `editor${type}.${part}`)
+      : [];
+  });
+
+  // If nothing is configured, return null (caller decides what to do)
+  if (relevantKeys.length === 0) {
+    return null;
+  }
+
+  // Check if all relevant keys are transparent
+  return relevantKeys.every(
+    (key) =>
+      (currentCustomizations[key]?.toLowerCase() || "") === TRANSPARENT_COLOR
+  );
+}
+
 let statusBarItem: vscode.StatusBarItem;
 
 /**
@@ -61,16 +104,6 @@ export interface ToggleSquigglesConfig {
   hideInfo: boolean;
   hideHint: boolean;
 }
-
-const HIDE_KEY_BY_TYPE: Record<
-  (typeof SQUIGGLE_TYPES)[number],
-  keyof ToggleSquigglesConfig
-> = {
-  Hint: "hideHint",
-  Info: "hideInfo",
-  Error: "hideErrors",
-  Warning: "hideWarnings",
-};
 
 /**
  * Result interface for toggleSquigglesCore
@@ -227,12 +260,21 @@ export function activate(context: vscode.ExtensionContext) {
     .getConfiguration("workbench")
     .get<{ [key: string]: string | null | undefined }>("colorCustomizations") || {};
 
-  const isInitiallyTransparent = Object.entries(TRANSPARENT_COLORS).every(
-    ([key, value]) =>
-      (currentCustomizations[key]?.toLowerCase() || "") === value.toLowerCase()
+  const settings = vscode.workspace.getConfiguration("invisibleSquiggles");
+  const hideSquiggles: ToggleSquigglesConfig = {
+    hideErrors: settings.get<boolean>("hideErrors", true),
+    hideWarnings: settings.get<boolean>("hideWarnings", true),
+    hideInfo: settings.get<boolean>("hideInfo", true),
+    hideHint: settings.get<boolean>("hideHint", true),
+  };
+
+  const isInitiallyTransparent = areSquigglesCurrentlyTransparent(
+    currentCustomizations,
+    hideSquiggles
   );
 
-  setStatusInternal(isInitiallyTransparent ? 'hidden' : 'visible');
+  // null means nothing configured → default to visible
+  setStatusInternal(isInitiallyTransparent === true ? 'hidden' : 'visible');
 
   statusBarItem.show();
   context.subscriptions.push(statusBarItem);

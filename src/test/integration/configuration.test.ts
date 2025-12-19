@@ -4,23 +4,64 @@ import { generateAllSquiggleConfigs } from "../helpers/testUtils";
 
 suite("Extension Integration Tests - Configuration", () => {
   let originalCustomizations: Record<string, string | undefined>;
+  let originalSquiggleSettings: {
+    hideErrors?: boolean;
+    hideWarnings?: boolean;
+    hideInfo?: boolean;
+    hideHint?: boolean;
+  };
   const TRANSPARENT_COLOR = "#00000000";
 
   suiteSetup(async () => {
     // Save original color customizations
-    const config = vscode.workspace.getConfiguration("workbench");
+    const workbenchConfig = vscode.workspace.getConfiguration("workbench");
     originalCustomizations =
-      config.get<Record<string, string | undefined>>("colorCustomizations") || {};
+      workbenchConfig.get<Record<string, string | undefined>>("colorCustomizations") ||
+      {};
+
+    // Save original invisible squiggle settings
+    const squiggleConfig = vscode.workspace.getConfiguration("invisibleSquiggles");
+    originalSquiggleSettings = {
+      hideErrors: squiggleConfig.get<boolean | undefined>("hideErrors"),
+      hideWarnings: squiggleConfig.get<boolean | undefined>("hideWarnings"),
+      hideInfo: squiggleConfig.get<boolean | undefined>("hideInfo"),
+      hideHint: squiggleConfig.get<boolean | undefined>("hideHint"),
+    };
   });
 
   suiteTeardown(async () => {
     // Restore original color customizations
-    const config = vscode.workspace.getConfiguration("workbench");
-    await config.update(
+    const workbenchConfig = vscode.workspace.getConfiguration("workbench");
+    await workbenchConfig.update(
       "colorCustomizations",
       originalCustomizations,
       vscode.ConfigurationTarget.Global
     );
+
+    // Restore original invisible squiggle settings
+    const squiggleConfig = vscode.workspace.getConfiguration("invisibleSquiggles");
+    await Promise.all([
+      squiggleConfig.update(
+        "hideErrors",
+        originalSquiggleSettings?.hideErrors,
+        vscode.ConfigurationTarget.Global
+      ),
+      squiggleConfig.update(
+        "hideWarnings",
+        originalSquiggleSettings?.hideWarnings,
+        vscode.ConfigurationTarget.Global
+      ),
+      squiggleConfig.update(
+        "hideInfo",
+        originalSquiggleSettings?.hideInfo,
+        vscode.ConfigurationTarget.Global
+      ),
+      squiggleConfig.update(
+        "hideHint",
+        originalSquiggleSettings?.hideHint,
+        vscode.ConfigurationTarget.Global
+      ),
+    ]);
   });
 
   test("workbench.colorCustomizations should update when toggle command executes", async () => {

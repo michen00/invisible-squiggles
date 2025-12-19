@@ -3,7 +3,11 @@
  */
 
 import * as vscode from "vscode";
-import { SQUIGGLE_TYPES, TRANSPARENT_COLOR } from "../../extension";
+import {
+  COLOR_PARTS_BY_SQUIGGLE_TYPE,
+  SQUIGGLE_TYPES,
+  TRANSPARENT_COLOR,
+} from "../../extension";
 
 // ============================================================================
 // Constants
@@ -110,13 +114,18 @@ export async function toggleAndWaitForChange(
 
 /**
  * Checks if a squiggle type is currently transparent in the given customizations.
+ * Verifies ALL applicable color parts (background, border, foreground) are transparent,
+ * matching the actual extension behavior.
  */
 export function isSquiggleTypeTransparent(
   type: SquiggleType,
   customizations: Record<string, string | undefined>
 ): boolean {
-  const value = customizations[`editor${type}.foreground`];
-  return value?.toLowerCase() === TRANSPARENT_COLOR.toLowerCase();
+  const parts = COLOR_PARTS_BY_SQUIGGLE_TYPE[type];
+  return parts.every((part) => {
+    const value = customizations[`editor${type}.${part}`];
+    return value?.toLowerCase() === TRANSPARENT_COLOR.toLowerCase();
+  });
 }
 
 /**

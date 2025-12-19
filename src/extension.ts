@@ -3,7 +3,7 @@ import * as vscode from "vscode";
 export const TRANSPARENT_COLOR = "#00000000";
 export const SQUIGGLE_TYPES = ["Error", "Hint", "Info", "Warning"] as const;
 
-const COLOR_PARTS_BY_SQUIGGLE_TYPE: Record<
+export const COLOR_PARTS_BY_SQUIGGLE_TYPE: Record<
   (typeof SQUIGGLE_TYPES)[number],
   ReadonlyArray<"background" | "border" | "foreground">
 > = {

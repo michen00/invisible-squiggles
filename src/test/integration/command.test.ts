@@ -73,16 +73,9 @@ suite("Extension Integration Tests - Command Execution", () => {
   });
 
   test("Multiple toggle commands should work correctly", async () => {
-    const config = vscode.workspace.getConfiguration("workbench");
-    const initialCustomizations =
-      config.get<Record<string, string | undefined>>("colorCustomizations") || {};
-
     // Toggle twice (should return to original state)
     await vscode.commands.executeCommand("invisible-squiggles.toggle");
     await vscode.commands.executeCommand("invisible-squiggles.toggle");
-
-    const finalCustomizations =
-      config.get<Record<string, string | undefined>>("colorCustomizations") || {};
 
     // After two toggles, should be back to initial state (or very close)
     // Note: This might not be exact due to originalColors storage, but structure should be similar

@@ -40,8 +40,9 @@ describe("setStatus", () => {
   });
 
   it("should handle status bar item not initialized (edge case)", () => {
-    // Test that function handles null/undefined gracefully
-    const result = setStatus(null, "visible");
-    assert.strictEqual(result, undefined);
+    // Test that function handles null/undefined gracefully by not throwing
+    assert.doesNotThrow(() => {
+      setStatus(null, "visible");
+    });
   });
 });

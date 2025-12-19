@@ -69,19 +69,47 @@
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "check-types": "tsc --noEmit",
     "lint": "eslint src",
-    "test": "vscode-test"
+    "test": "npm run test:unit && npm run test:integration && npm run test:e2e",
+    "test:unit": "mocha --require out/test/unit/setup.js out/test/unit/**/*.test.js",
+    "test:integration": "vscode-test --config .vscode-test.mjs out/test/integration/**/*.test.js",
+    "test:e2e": "vscode-test --config .vscode-test.mjs out/test/e2e/**/*.test.js",
+    "test:coverage": "c8 --reporter=text --reporter=text-summary --lines 80 --functions 80 --branches 80 --statements 80 npm test"
+  },
+  "c8": {
+    "reporter": [
+      "text",
+      "text-summary"
+    ],
+    "exclude": [
+      "**/test/**",
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/out/**"
+    ],
+    "include": [
+      "src/extension.ts"
+    ],
+    "check-coverage": false,
+    "lines": 80,
+    "functions": 80,
+    "branches": 80,
+    "statements": 80
   },
   "devDependencies": {
     "@types/mocha": "^10.0.9",
     "@types/node": "20.x",
+    "@types/sinon": "^21.0.0",
     "@types/vscode": "^1.97.0",
     "@typescript-eslint/eslint-plugin": "^8.10.0",
     "@typescript-eslint/parser": "^8.7.0",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
+    "c8": "^10.1.3",
     "esbuild": "^0.25.0",
     "eslint": "^9.13.0",
+    "mocha": "^11.7.5",
     "npm-run-all": "^4.1.5",
+    "sinon": "^21.0.0",
     "typescript": "^5.7.3"
   },
   "license": "SEE LICENSE IN LICENSE",
@@ -92,5 +120,6 @@
   "homepage": "https://github.com/michen00/invisible-squiggles/blob/main/README.md",
   "bugs": {
     "url": "https://github.com/michen00/bin/issues"
-  }
+  },
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }

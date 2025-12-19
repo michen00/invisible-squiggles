@@ -60,23 +60,23 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T013 [P] [US1] Create unit test for `setStatus()` function in `src/test/unit/setStatus.test.ts`
-- [ ] T014 [P] [US1] Create unit test for color manipulation logic in `src/test/unit/colorLogic.test.ts`
-- [ ] T015 [US1] Create unit test for `toggleSquiggles()` function in `src/test/unit/toggleSquiggles.test.ts` (depends on mock helpers)
+- [x] T013 [P] [US1] Create unit test for `setStatus()` function in `src/test/unit/setStatus.test.ts`
+- [x] T014 [P] [US1] Create unit test for color manipulation logic in `src/test/unit/colorLogic.test.ts`
+- [x] T015 [US1] Create unit test for `toggleSquiggles()` function in `src/test/unit/toggleSquiggles.test.ts` (depends on mock helpers)
 
 ### Implementation for User Story 1
 
-- [ ] T016 [US1] Refactor `setStatus()` to be testable using dependency injection: accept statusBarItem as parameter instead of using module-level variable in `src/extension.ts`
-- [ ] T017 [US1] Refactor `toggleSquiggles()` to be testable using dependency injection: extract VSCode workspace/configuration APIs as parameters or create wrapper functions that can be mocked in `src/extension.ts`
-- [ ] T018 [US1] Implement unit test for `setStatus()` with mocked status bar item in `src/test/unit/setStatus.test.ts`
-- [ ] T019 [US1] Implement unit test for color logic (transparent colors, original color saving/restoration) in `src/test/unit/colorLogic.test.ts`
-- [ ] T020 [US1] Implement unit test for `toggleSquiggles()` with mocked VSCode workspace and configuration APIs in `src/test/unit/toggleSquiggles.test.ts`
-- [ ] T021 [US1] Add unit tests for edge cases: invalid JSON parsing in `invisibleSquiggles.originalColors`, missing configuration values for squiggle types in `src/test/unit/toggleSquiggles.test.ts`
-- [ ] T021a [US1] Add unit test for VSCode configuration API error handling during toggle operation in `src/test/unit/toggleSquiggles.test.ts`
-- [ ] T021b [US1] Add unit test for status bar item not initialized before `setStatus()` is called in `src/test/unit/setStatus.test.ts`
-- [ ] T021c [US1] Add unit test for concurrent toggle command execution (race condition handling) in `src/test/unit/toggleSquiggles.test.ts`
-- [ ] T021d [US1] Add unit test for conflicting color customizations (existing customizations merge) in `src/test/unit/toggleSquiggles.test.ts`
-- [ ] T022 [US1] Verify unit tests run independently via `npm run test:unit` and execute in < 5 seconds
+- [x] T016 [US1] Refactor `setStatus()` to be testable using dependency injection: accept statusBarItem as parameter instead of using module-level variable in `src/extension.ts`
+- [x] T017 [US1] Refactor `toggleSquiggles()` to be testable using dependency injection: extract VSCode workspace/configuration APIs as parameters or create wrapper functions that can be mocked in `src/extension.ts`
+- [x] T018 [US1] Implement unit test for `setStatus()` with mocked status bar item in `src/test/unit/setStatus.test.ts`
+- [x] T019 [US1] Implement unit test for color logic (transparent colors, original color saving/restoration) in `src/test/unit/colorLogic.test.ts`
+- [x] T020 [US1] Implement unit test for `toggleSquiggles()` with mocked VSCode workspace and configuration APIs in `src/test/unit/toggleSquiggles.test.ts`
+- [x] T021 [US1] Add unit tests for edge cases: invalid JSON parsing in `invisibleSquiggles.originalColors`, missing configuration values for squiggle types in `src/test/unit/toggleSquiggles.test.ts`
+- [x] T021a [US1] Add unit test for VSCode configuration API error handling during toggle operation in `src/test/unit/toggleSquiggles.test.ts`
+- [x] T021b [US1] Add unit test for status bar item not initialized before `setStatus()` is called in `src/test/unit/setStatus.test.ts`
+- [x] T021c [US1] Add unit test for concurrent toggle command execution (race condition handling) in `src/test/unit/toggleSquiggles.test.ts`
+- [x] T021d [US1] Add unit test for conflicting color customizations (existing customizations merge) in `src/test/unit/toggleSquiggles.test.ts`
+- [x] T022 [US1] Verify unit tests run independently via `npm run test:unit` and execute in < 5 seconds
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently. Unit tests provide fast feedback without VSCode runtime.
 
@@ -90,19 +90,19 @@
 
 ### Tests for User Story 2
 
-- [ ] T023 [P] [US2] Create integration test for extension activation in `src/test/integration/activation.test.ts`
-- [ ] T024 [P] [US2] Create integration test for command registration in `src/test/integration/command.test.ts`
-- [ ] T025 [US2] Create integration test for configuration updates in `src/test/integration/configuration.test.ts`
+- [x] T023 [P] [US2] Create integration test for extension activation in `src/test/integration/activation.test.ts`
+- [x] T024 [P] [US2] Create integration test for command registration in `src/test/integration/command.test.ts`
+- [x] T025 [US2] Create integration test for configuration updates in `src/test/integration/configuration.test.ts`
 
 ### Implementation for User Story 2
 
-- [ ] T026 [US2] Implement integration test for extension activation and command registration in `src/test/integration/activation.test.ts`
-- [ ] T027 [US2] Implement integration test for `workbench.colorCustomizations` updates when toggle command executes in `src/test/integration/configuration.test.ts`
-- [ ] T027a [US2] Implement integration test for all 16 configuration scenarios (all combinations of Error/Warning/Info/Hint enabled/disabled: 2^4 = 16 scenarios) in `src/test/integration/configuration.test.ts`
-- [ ] T028 [US2] Implement integration test for status bar item creation and initial state in `src/test/integration/activation.test.ts`
-- [ ] T029 [US2] Implement integration test for status bar updates when toggle command is invoked in `src/test/integration/command.test.ts`
-- [ ] T029a [US2] Implement integration test for VSCode API failure during extension activation (error handling) in `src/test/integration/activation.test.ts`
-- [ ] T030 [US2] Verify integration tests run independently via `npm run test:integration` using real VSCode APIs
+- [x] T026 [US2] Implement integration test for extension activation and command registration in `src/test/integration/activation.test.ts`
+- [x] T027 [US2] Implement integration test for `workbench.colorCustomizations` updates when toggle command executes in `src/test/integration/configuration.test.ts`
+- [x] T027a [US2] Implement integration test for all 16 configuration scenarios (all combinations of Error/Warning/Info/Hint enabled/disabled: 2^4 = 16 scenarios) in `src/test/integration/configuration.test.ts`
+- [x] T028 [US2] Implement integration test for status bar item creation and initial state in `src/test/integration/activation.test.ts`
+- [x] T029 [US2] Implement integration test for status bar updates when toggle command is invoked in `src/test/integration/command.test.ts`
+- [x] T029a [US2] Implement integration test for VSCode API failure during extension activation (error handling) in `src/test/integration/activation.test.ts`
+- [x] T030 [US2] Verify integration tests run independently via `npm run test:integration` using real VSCode APIs
 
 **Checkpoint**: At this point, User Stories 1 AND 2 should both work independently. Integration tests verify component interactions with real VSCode APIs.
 
@@ -116,16 +116,16 @@
 
 ### Tests for User Story 3
 
-- [ ] T031 [P] [US3] Create E2E test for command palette execution in `src/test/e2e/commandPalette.test.ts`
-- [ ] T032 [US3] Create E2E test for status bar button interaction in `src/test/e2e/statusBar.test.ts`
+- [x] T031 [P] [US3] Create E2E test for command palette execution in `src/test/e2e/commandPalette.test.ts`
+- [x] T032 [US3] Create E2E test for status bar button interaction in `src/test/e2e/statusBar.test.ts`
 
 ### Implementation for User Story 3
 
-- [ ] T033 [US3] Implement E2E test for Extension Development Host launch with extension loaded in `src/test/e2e/commandPalette.test.ts`
-- [ ] T034 [US3] Implement E2E test for "Toggle Squiggles" command execution via command palette in `src/test/e2e/commandPalette.test.ts`
-- [ ] T035 [US3] Implement E2E test for status bar button click and toggle command execution in `src/test/e2e/statusBar.test.ts`
-- [ ] T036 [US3] Implement E2E test for visual verification of squiggle visibility changes: verify by reading `workbench.colorCustomizations` via VSCode configuration API to check if colors are transparent (`#00000000`) or visible (original color values) in `src/test/e2e/commandPalette.test.ts`
-- [ ] T037 [US3] Verify E2E tests run independently via `npm run test:e2e` in Extension Development Host
+- [x] T033 [US3] Implement E2E test for Extension Development Host launch with extension loaded in `src/test/e2e/commandPalette.test.ts`
+- [x] T034 [US3] Implement E2E test for "Toggle Squiggles" command execution via command palette in `src/test/e2e/commandPalette.test.ts`
+- [x] T035 [US3] Implement E2E test for status bar button click and toggle command execution in `src/test/e2e/statusBar.test.ts`
+- [x] T036 [US3] Implement E2E test for visual verification of squiggle visibility changes: verify by reading `workbench.colorCustomizations` via VSCode configuration API to check if colors are transparent (`#00000000`) or visible (original color values) in `src/test/e2e/commandPalette.test.ts`
+- [x] T037 [US3] Verify E2E tests run independently via `npm run test:e2e` in Extension Development Host
 
 **Checkpoint**: At this point, User Stories 1, 2, AND 3 should all work independently. E2E tests verify complete user workflows from activation to visual changes.
 
@@ -139,20 +139,20 @@
 
 ### Tests for User Story 4
 
-- [ ] T038 [US4] Verify coverage tooling (c8) generates reports when tests run with coverage enabled
+- [x] T038 [US4] Verify coverage tooling (c8) generates reports when tests run with coverage enabled
 
 ### Implementation for User Story 4
 
-- [ ] T039 [US4] Configure c8 coverage tool with terminal output format in `package.json`
-- [ ] T040 [US4] Configure coverage threshold (80%) with warning-only enforcement (does not fail build) in `package.json`
-- [ ] T041 [US4] Configure coverage to include `src/extension.ts` and exclude test files in `package.json` or `.c8rc`
-- [ ] T042 [US4] Add `test:coverage` script that runs all tests with coverage enabled in `package.json`
-- [ ] T043 [US4] Verify coverage reports show line, branch, and function coverage percentages in terminal output
-- [ ] T044 [US4] Verify coverage reports show per-file and overall project coverage
-- [ ] T045 [US4] Verify coverage warning is displayed (not failing build) when coverage falls below 80%
-- [ ] T046 [US4] Verify coverage reports are generated automatically on every test run via `npm run test:coverage`
-- [ ] T047 [US4] Verify developers can identify untested code paths within 30 seconds using coverage reports
-- [ ] T047a [US4] Verify coverage measurement identifies at least 3 previously untested edge cases or error paths by comparing coverage report against known edge cases list (SC-010) in `src/test/integration/coverageValidation.test.ts`
+- [x] T039 [US4] Configure c8 coverage tool with terminal output format in `package.json`
+- [x] T040 [US4] Configure coverage threshold (80%) with warning-only enforcement (does not fail build) in `package.json`
+- [x] T041 [US4] Configure coverage to include `src/extension.ts` and exclude test files in `package.json` or `.c8rc`
+- [x] T042 [US4] Add `test:coverage` script that runs all tests with coverage enabled in `package.json`
+- [x] T043 [US4] Verify coverage reports show line, branch, and function coverage percentages in terminal output
+- [x] T044 [US4] Verify coverage reports show per-file and overall project coverage
+- [x] T045 [US4] Verify coverage warning is displayed (not failing build) when coverage falls below 80%
+- [x] T046 [US4] Verify coverage reports are generated automatically on every test run via `npm run test:coverage`
+- [x] T047 [US4] Verify developers can identify untested code paths within 30 seconds using coverage reports
+- [x] T047a [US4] Verify coverage measurement identifies at least 3 previously untested edge cases or error paths by comparing coverage report against known edge cases list (SC-010) in `src/test/integration/coverageValidation.test.ts`
 
 **Checkpoint**: At this point, all user stories should be complete. Coverage measurement provides visibility into testing completeness and identifies gaps.
 
@@ -162,17 +162,17 @@
 
 **Purpose**: Improvements that affect multiple user stories and final integration
 
-- [ ] T048 [P] Update `npm test` script to run all test suites (unit, integration, E2E) together
-- [ ] T049 [P] Verify all test types can run independently (test:unit, test:integration, test:e2e) and together (test)
-- [ ] T050 [P] Update documentation: Add testing section to `AGENTS.md` with test commands and structure
-- [ ] T051 [P] Update documentation: Add testing section to `CLAUDE.md` with test execution details
-- [ ] T052 [P] Update documentation: Add testing section to `.github/copilot-instructions.md` with test infrastructure details
-- [ ] T053 [P] Verify test execution in CI/CD environment (headless VSCode mode)
-- [ ] T053a [P] Implement error message formatting utilities to ensure test failures include: test name, expected vs actual values, file path and line number, stack trace, and specific assertion failure details in `src/test/helpers/errorMessages.ts`
-- [ ] T054 Verify test failures provide clear, actionable error messages (including test name, expected vs actual values, file path and line number, stack trace, and specific assertion failure details) per SC-009
-- [ ] T055 Verify all test types execute successfully in both local development and CI/CD environments (SC-005)
-- [ ] T056 Verify test suite achieves at least 80% code coverage for `src/extension.ts` (SC-002)
-- [ ] T057 Run quickstart.md validation to ensure all test commands work as documented
+- [x] T048 [P] Update `npm test` script to run all test suites (unit, integration, E2E) together
+- [x] T049 [P] Verify all test types can run independently (test:unit, test:integration, test:e2e) and together (test)
+- [x] T050 [P] Update documentation: Add testing section to `AGENTS.md` with test commands and structure
+- [x] T051 [P] Update documentation: Add testing section to `CLAUDE.md` with test execution details
+- [x] T052 [P] Update documentation: Add testing section to `.github/copilot-instructions.md` with test infrastructure details
+- [x] T053 [P] Verify test execution in CI/CD environment (headless VSCode mode)
+- [x] T053a [P] Implement error message formatting utilities to ensure test failures include: test name, expected vs actual values, file path and line number, stack trace, and specific assertion failure details in `src/test/helpers/errorMessages.ts`
+- [x] T054 Verify test failures provide clear, actionable error messages (including test name, expected vs actual values, file path and line number, stack trace, and specific assertion failure details) per SC-009
+- [x] T055 Verify all test types execute successfully in both local development and CI/CD environments (SC-005)
+- [x] T056 Verify test suite achieves at least 80% code coverage for `src/extension.ts` (SC-002)
+- [x] T057 Run quickstart.md validation to ensure all test commands work as documented
 
 ---
 

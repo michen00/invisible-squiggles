@@ -53,7 +53,7 @@ build-vsix: ## Build the extension as a VSIX file
 	cp README.md README.md.bak.vsix && \
 	trap 'if [ -f .vscodeignore.bak.vsix ]; then mv .vscodeignore.bak.vsix .vscodeignore; fi; if [ -f README.md.bak.vsix ]; then mv README.md.bak.vsix README.md; fi; rm -f .vscodeignore.bak.vsix README.md.bak.vsix README.md.tmp' EXIT; \
 	echo "*.md" >> .vscodeignore; \
-	sed 's|\[!\[Ask DeepWiki\](https://deepwiki.com/badge.svg)\](https://deepwiki.com/michen00/invisible-squiggles)|<!-- [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/michen00/invisible-squiggles) -->|' README.md > README.md.tmp && mv README.md.tmp README.md; \
+	sed -E 's|\[!\[Ask DeepWiki\]\(https://deepwiki\.com/badge\.svg\)\]\(https://deepwiki\.com/michen00/invisible-squiggles\)|<!-- [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/michen00/invisible-squiggles) -->|' README.md > README.md.tmp && mv README.md.tmp README.md; \
 	npx @vscode/vsce package
 
 ###############

@@ -209,9 +209,9 @@ interface SquiggleTypeConfig {
 export function generateAllSquiggleConfigs(): SquiggleTypeConfig[] {
   const combinations = generateBooleanCombinations(4);
   return combinations.map(([hideErrors, hideWarnings, hideInfo, hideHint]) => ({
-    hideErrors: hideErrors ?? false,
-    hideWarnings: hideWarnings ?? false,
-    hideInfo: hideInfo ?? false,
-    hideHint: hideHint ?? false,
+    hideErrors: hideErrors!,
+    hideWarnings: hideWarnings!,
+    hideInfo: hideInfo!,
+    hideHint: hideHint!,
   }));
 }

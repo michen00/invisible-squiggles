@@ -177,6 +177,25 @@ export function toggleSquigglesCore(
         newCustomizations[key] = null;
       }
     });
+
+    // Also restore any squiggle colors that were previously made transparent
+    // but are no longer in the current configuration (e.g., user disabled hideErrors).
+    // This prevents stale transparent colors from persisting after config changes.
+    Object.keys(TRANSPARENT_COLORS).forEach((key) => {
+      if (
+        !(key in transparentColorsToApply) &&
+        typeof newCustomizations[key] === "string" &&
+        newCustomizations[key]!.toLowerCase() === TRANSPARENT_COLOR
+      ) {
+        const storedValue = (storedColors as Record<string, unknown>)[key];
+        if (typeof storedValue === "string") {
+          newCustomizations[key] = storedValue;
+        } else {
+          newCustomizations[key] = null;
+        }
+      }
+    });
+
     // Explicitly clear this marker key. VS Code may retain old object keys otherwise.
     newCustomizations["invisibleSquiggles.originalColors"] = null;
   } else {

@@ -211,6 +211,117 @@ describe("toggleSquigglesCore", () => {
     });
   });
 
+  describe("configuration change scenarios", () => {
+    it("should restore previously transparent colors when their hide flag is disabled", () => {
+      // Scenario:
+      // 1. User toggles with hideErrors=true, hideWarnings=true → both transparent
+      // 2. User changes config to hideErrors=false
+      // 3. User toggles again → Warning restores, AND Error should also restore
+
+      // Step 1: Initial toggle with both enabled
+      const step1Customizations: Record<string, string | undefined> = {
+        "editorError.background": "#ff0000",
+        "editorError.border": "#ff0000",
+        "editorError.foreground": "#ff0000",
+        "editorWarning.background": "#ffaa00",
+        "editorWarning.border": "#ffaa00",
+        "editorWarning.foreground": "#ffaa00",
+      };
+
+      const step1Config: ToggleSquigglesConfig = {
+        hideErrors: true,
+        hideWarnings: true,
+        hideInfo: false,
+        hideHint: false,
+      };
+
+      const result1 = toggleSquigglesCore(step1Customizations, step1Config);
+      assert.strictEqual(result1.isAlreadyTransparent, false);
+      assert.strictEqual(
+        result1.newCustomizations["editorError.background"],
+        TRANSPARENT_COLOR
+      );
+      assert.strictEqual(
+        result1.newCustomizations["editorWarning.background"],
+        TRANSPARENT_COLOR
+      );
+
+      // Step 2: User changes config to hideErrors=false
+      // Step 3: Toggle again with new config
+      const step3Config: ToggleSquigglesConfig = {
+        hideErrors: false, // Changed!
+        hideWarnings: true,
+        hideInfo: false,
+        hideHint: false,
+      };
+
+      const result2 = toggleSquigglesCore(result1.newCustomizations, step3Config);
+
+      // Warning was transparent and is still configured - should restore
+      assert.strictEqual(result2.isAlreadyTransparent, true);
+      assert.strictEqual(
+        result2.newCustomizations["editorWarning.background"],
+        "#ffaa00"
+      );
+
+      // Error was transparent but is NO LONGER configured - should ALSO restore
+      // This is the bug fix: previously Error would remain #00000000
+      assert.strictEqual(
+        result2.newCustomizations["editorError.background"],
+        "#ff0000",
+        "Error colors should be restored even though hideErrors is now false"
+      );
+      assert.strictEqual(
+        result2.newCustomizations["editorError.border"],
+        "#ff0000"
+      );
+      assert.strictEqual(
+        result2.newCustomizations["editorError.foreground"],
+        "#ff0000"
+      );
+    });
+
+    it("should clear stale transparent colors when no stored original exists", () => {
+      // Edge case: transparent color exists but wasn't in originalColors
+      const customizations: Record<string, string | undefined> = {
+        "editorError.background": TRANSPARENT_COLOR,
+        "editorError.border": TRANSPARENT_COLOR,
+        "editorError.foreground": TRANSPARENT_COLOR,
+        "editorWarning.background": TRANSPARENT_COLOR,
+        "editorWarning.border": TRANSPARENT_COLOR,
+        "editorWarning.foreground": TRANSPARENT_COLOR,
+        // originalColors only has Warning (simulating a partial save)
+        "invisibleSquiggles.originalColors": JSON.stringify({
+          "editorWarning.background": "#ffaa00",
+          "editorWarning.border": "#ffaa00",
+          "editorWarning.foreground": "#ffaa00",
+        }),
+      };
+
+      const config: ToggleSquigglesConfig = {
+        hideErrors: false, // Not configured
+        hideWarnings: true,
+        hideInfo: false,
+        hideHint: false,
+      };
+
+      const result = toggleSquigglesCore(customizations, config);
+
+      // Warning restores from stored colors
+      assert.strictEqual(
+        result.newCustomizations["editorWarning.background"],
+        "#ffaa00"
+      );
+
+      // Error has no stored original, so should be cleared (null)
+      assert.strictEqual(
+        result.newCustomizations["editorError.background"],
+        null,
+        "Stale transparent colors with no stored original should be cleared"
+      );
+    });
+  });
+
   describe("concurrent execution simulation", () => {
     it("should handle multiple rapid toggles correctly (last state wins)", () => {
       const initialCustomizations: Record<string, string | undefined> = {

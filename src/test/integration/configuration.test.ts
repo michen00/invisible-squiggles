@@ -52,17 +52,13 @@ suite("Extension Integration Tests - Configuration", () => {
     // Test a subset of configurations (testing all 16 would be slow)
     // Test: All enabled, all disabled, and a few combinations
     const testConfigs = [
-      allConfigs[0], // All false
-      allConfigs[15], // All true
-      allConfigs[8], // Errors only
-      allConfigs[7], // Warnings only
+      allConfigs[0]!, // All false
+      allConfigs[15]!, // All true
+      allConfigs[8]!, // Errors only
+      allConfigs[7]!, // Warnings only
     ];
 
     for (const testConfig of testConfigs) {
-      if (!testConfig) {
-        continue;
-      }
-
       // Set configuration
       await config.update("hideErrors", testConfig.hideErrors, vscode.ConfigurationTarget.Global);
       await config.update(

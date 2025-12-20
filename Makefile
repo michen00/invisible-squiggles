@@ -42,6 +42,18 @@ help: ## Show this help message
 	@echo "  $(YELLOW)DEBUG$(_COLOR) = true|false    Set to true to enable debug output (default: false)"
 	@echo "  $(YELLOW)VERBOSE$(_COLOR) = true|false  Set to true to enable verbose output (default: false)"
 
+.PHONY: build
+build: ## Build the extension
+	npm run package
+
+.PHONY: build-vsix
+build-vsix: ## Build the extension as a VSIX file
+	@set -e; \
+	echo "*.md" >> .vscodeignore; \
+	sed -i.bak 's|\[!\[Ask DeepWiki\](https://deepwiki.com/badge.svg)\](https://deepwiki.com/michen00/invisible-squiggles)|<!-- [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/michen00/invisible-squiggles) -->|' README.md; \
+	trap 'grep -vFx "*.md" .vscodeignore > .vscodeignore.tmp && mv .vscodeignore.tmp .vscodeignore; if [ -f README.md.bak ]; then mv README.md.bak README.md; fi; rm -f .vscodeignore.tmp' EXIT; \
+	npx @vscode/vsce package
+
 ###############
 ## Git hooks ##
 ###############

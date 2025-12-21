@@ -20,6 +20,16 @@ repos:
     hooks:
       - id: talisman-push
         fail_fast: true
+  # git commit message style
+  # - repo: https://github.com/michen00/custom-commit-hooks
+  #   rev: v0.0.0
+  #   hooks:
+  #     - id: enhance-scope
+  #     - id: conventional-merge-commit
+  - repo: https://github.com/jorisroovers/gitlint
+    rev: v0.19.1
+    hooks:
+      - id: gitlint
   # formatters & fixers
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -60,7 +70,13 @@ repos:
       - id: check-symlinks
       - id: check-toml
       - id: check-yaml
+      - id: debug-statements
       - id: mixed-line-ending
+  - repo: https://github.com/adrienverge/yamllint.git
+    rev: v1.37.1
+    hooks:
+      - id: yamllint
+        args: [--strict]
   - repo: https://github.com/crate-ci/typos
     rev: v1
     hooks:
@@ -73,3 +89,7 @@ repos:
     rev: v0.11.0.1
     hooks:
       - id: shellcheck
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.9
+    hooks:
+      - id: actionlint

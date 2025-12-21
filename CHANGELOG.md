@@ -6,6 +6,32 @@ All notable changes will be documented in this file. See [conventional commits](
 
 The format is based on [Keep a Changelog](https://keepachangelog.com) and this project adheres to [Semantic Versioning](https://semver.org).
 
+## [0.3.0](https://github.com/michen00/invisible-squiggles/compare/v0.2.1..v0.3.0) - 2025-12-21
+
+### ✨ Features
+
+- **(package.json)** adjust categories - ([466e7ee](https://github.com/michen00/invisible-squiggles/commit/466e7ee12aa8c2631e33c5114150524f21344115)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- add an icon - ([689153e](https://github.com/michen00/invisible-squiggles/commit/689153e6e39f3e46a139b973c3a27f92002eb221)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+
+### 🐛 Fixes
+
+- **(Makefile)** fix indentation - ([598b9f5](https://github.com/michen00/invisible-squiggles/commit/598b9f5fc92bb3018782edbf92d89ae98661f5ee)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+
+### 👷 Build
+
+- robustify develop target - ([0cf4fd6](https://github.com/michen00/invisible-squiggles/commit/0cf4fd6f74fdaf32c431d601b8dd8b7212d34e06)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- add branch archive aliases - ([19298cd](https://github.com/michen00/invisible-squiggles/commit/19298cd870bfe68d183b89ec0688ef6438baef2f)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- set up for LFS - ([ae4bb92](https://github.com/michen00/invisible-squiggles/commit/ae4bb929b086efc75f653afe3b56b33ea5a2d67c)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- update publishing flow - ([92c2f55](https://github.com/michen00/invisible-squiggles/commit/92c2f553b7acf532adb41e2871925d30f33ec7c5)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+
+### 📝 Documentation
+
+- **(package.json)** expand categories - ([52cfe91](https://github.com/michen00/invisible-squiggles/commit/52cfe91ea02f09bfe0ebecad536f0dcd445a53f5)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+
+### ⏪️ Revert
+
+- remove branch archival utilities - ([f1fb3ce](https://github.com/michen00/invisible-squiggles/commit/f1fb3cec995aecca82b65ede21f24f9e84b2d35f)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+
 ## [0.2.1](https://github.com/michen00/invisible-squiggles/compare/v0.2.0..v0.2.1) - 2025-12-20
 
 ### ✨ Features

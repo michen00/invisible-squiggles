@@ -18,6 +18,17 @@ endif
 RM_FLAGS := -rf$(if $(or $(DEBUG),$(VERBOSE)),v,)
 RM := rm $(RM_FLAGS)
 
+PRECOMMIT ?= pre-commit
+ifneq ($(shell command -v prek >/dev/null 2>&1 && echo y),)
+    PRECOMMIT := prek
+    ifneq ($(filter true,$(DEBUG) $(VERBOSE)),)
+        $(info Using prek for pre-commit checks)
+        ifeq ($(DEBUG),true)
+            PRECOMMIT := $(PRECOMMIT) -v
+        endif
+    endif
+endif
+
 # Terminal formatting (tput with fallbacks)
 _COLOR  := $(shell tput sgr0 2>/dev/null || echo "\033[0m")
 BOLD    := $(shell tput bold 2>/dev/null || echo "\033[1m")
@@ -87,41 +98,14 @@ TO_REMOVE := \
 clean: ## Remove build artifacts and temporary files
 	@echo $(TO_REMOVE) | xargs -n 1 -P 4 $(RM)
 
-###############
-## Git hooks ##
-###############
+######################
+## Pre-commit hooks ##
+######################
 
-.PHONY: enable-git-hooks
-enable-git-hooks: check-pre-commit configure-git-hooks ## Enable both pre-commit and custom commit hooks
-	@set -e; \
-        mv .gitconfig .gitconfig.bak && \
-        trap 'mv .gitconfig.bak .gitconfig' EXIT; \
-        pre-commit install && \
-        mv .git/hooks/pre-commit .githooks/pre-commit && \
-        echo "pre-commit hooks moved to .githooks/pre-commit"
+.PHONY: enable-pre-commit
+enable-pre-commit: ## Enable pre-commit hooks (along with commit-msg and pre-push hooks)
+	@pre-commit install --hook-type commit-msg --hook-type pre-commit --hook-type pre-push
 
-.PHONY: enable-pre-commit-only
-enable-pre-commit-only: check-pre-commit ## Enable pre-commit hooks only (disable custom commit hooks)
-	@git config --local --unset include.path > /dev/null 2>&1 || true
-	@$(RM) -f .githooks/pre-commit && pre-commit install
-
-.PHONY: enable-commit-hooks-only
-enable-commit-hooks-only: configure-git-hooks ## Enable custom commit hooks only (disable pre-commit)
-	@$(RM) -f .githooks/pre-commit
-	@echo "Enabled commit hooks only"
-
-.PHONY: configure-git-hooks
-configure-git-hooks: ## Configure Git to use the hooksPath defined in .gitconfig
-	@git config --local include.path ../.gitconfig
-	@echo "Configured Git to use hooksPath defined in .gitconfig"
-
-.PHONY: disable-git-hooks
-disable-git-hooks: ## Disable all Git hooks
-	@git config --local --unset include.path > /dev/null 2>&1 || true
-	@git config --local --unset-all core.hooksPath > /dev/null 2>&1 || true
-	@$(RM) -f .git/hooks/pre-commit
-	@echo "Disabled Git hooks"
-
-.PHONY: check-pre-commit
-check-pre-commit: ## Check if pre-commit is installed
-	@command -v pre-commit > /dev/null || (echo "pre-commit is not installed."; exit 1)
+.PHONY: run-pre-commit
+run-pre-commit: ## Run the pre-commit checks
+	$(PRECOMMIT) run --all-files

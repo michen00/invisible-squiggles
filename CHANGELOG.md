@@ -70,6 +70,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com) and this p
 
 ### 👷 Build
 
+- **(Makefile)** account for missing pre-commit - ([969251f](https://github.com/michen00/invisible-squiggles/commit/969251f06551ac3ae1d7408228236d2dac259ddb)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - include README and CHANGELOG in .VSIX - ([4beeb73](https://github.com/michen00/invisible-squiggles/commit/4beeb7377e7b8d9c589a5ebfc70c89b8f733b4fa)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(.pre-commit-config.yaml)** add default stage - ([4fdea6a](https://github.com/michen00/invisible-squiggles/commit/4fdea6a138906d9f47aa8a69f0fe0510d6e2b37b)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(.yamllint)** configure yamllint - ([83c804b](https://github.com/michen00/invisible-squiggles/commit/83c804b5482f8b5bda52d90d1b26e50ffec60496)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
@@ -128,6 +129,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com) and this p
 
 ### 📝 Documentation
 
+- **(CHANGELOG.md)** prepare for release - ([d37cf3e](https://github.com/michen00/invisible-squiggles/commit/d37cf3e0d03e98fa3e49d994b1790dd0b2c8dd52)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- **(CONTRIBUTING.md)** edit release guidelines - ([61ea346](https://github.com/michen00/invisible-squiggles/commit/61ea346d8564ad960caa1decbba8064b637e38f4)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(CHANGELOG.md)** update the changelog - ([ee45a84](https://github.com/michen00/invisible-squiggles/commit/ee45a841fa911272ed21848c72b5e179e4d6e27f)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(package.json)** edit description - ([9327320](https://github.com/michen00/invisible-squiggles/commit/9327320cf8731f39c4f319d317232bef0db5de8b)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - bump version - ([dddad08](https://github.com/michen00/invisible-squiggles/commit/dddad08aa62f3cc4c4fd81ce3e7b30c9269d64da)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
@@ -160,6 +163,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com) and this p
 
 ### 🎨 Styling
 
+- **(Makefile)** adjust indentation - ([a54d01f](https://github.com/michen00/invisible-squiggles/commit/a54d01f8ad9acbce301fd957707b73b00d9bd6ef)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(.editorconfig)** update editor config - ([ca7eed0](https://github.com/michen00/invisible-squiggles/commit/ca7eed0f986039fe4536e8a9fbb243f38f5d115d)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(.gitlint)** configure gitlint - ([d38863f](https://github.com/michen00/invisible-squiggles/commit/d38863f23f7ba86d2da57066ff8aefa3a61ade87)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(.yamllint)** set min spaces from content - ([3e2687d](https://github.com/michen00/invisible-squiggles/commit/3e2687d74d9131a1bc0f94726d8a86d80986ccee)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)

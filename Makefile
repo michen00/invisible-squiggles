@@ -77,8 +77,9 @@ rebuild: clean build ## Clean and build from scratch
 .PHONY: build-vsix
 build-vsix: install ## Build the extension as a VSIX file
 	@set -e; \
-        trap 'if [ -f README.md.hidden ]; then mv README.md.hidden README.md; fi' EXIT; \
-        mv README.md README.md.hidden; \
+        trap 'if [ -f README.md.bak ]; then mv README.md.bak README.md; fi' EXIT; \
+        mv README.md README.md.bak; \
+        sed -n '/## .*Documentation/q;p' README.md.bak > README.md; \
         rm -f dist/*.map; \
         npx vsce package
 
@@ -98,7 +99,7 @@ TO_REMOVE := \
     dist \
     node_modules \
     out \
-    README.md.hidden
+    README.md.bak
 clean: ## Remove build artifacts and temporary files
 	@echo $(TO_REMOVE) | xargs -n 1 -P 4 $(RM)
 

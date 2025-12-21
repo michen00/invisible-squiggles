@@ -53,6 +53,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com) and this p
 
 ### 💚 Continuous Integration
 
+- also run on main push - ([3080953](https://github.com/michen00/invisible-squiggles/commit/308095302616234e1b6cefc7c08454053fe3af12)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - add integration tests - ([78d687c](https://github.com/michen00/invisible-squiggles/commit/78d687c5de092071431004382ed63debb0725a9d)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - provide coverage in CI - ([3546830](https://github.com/michen00/invisible-squiggles/commit/35468303ec91ac5dc6ebe0df2657c94bc425e29e)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - add CI - ([9f3187a](https://github.com/michen00/invisible-squiggles/commit/9f3187a71a851f232000fb68f64e19b79e30e872)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
@@ -67,6 +68,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com) and this p
 
 ### 👷 Build
 
+- **(.pre-commit-config.yaml)** add default stage - ([4fdea6a](https://github.com/michen00/invisible-squiggles/commit/4fdea6a138906d9f47aa8a69f0fe0510d6e2b37b)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- **(.yamllint)** configure yamllint - ([83c804b](https://github.com/michen00/invisible-squiggles/commit/83c804b5482f8b5bda52d90d1b26e50ffec60496)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- **(Makefile)** use pre-commit by default - ([8053081](https://github.com/michen00/invisible-squiggles/commit/8053081f1d69c529c077ac2d4cbe60b230f911ba)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- **(pre-commit)** avoid a mutable reference - ([4cb0763](https://github.com/michen00/invisible-squiggles/commit/4cb07632c7be3f0f749c06fcdb88b22191e6fef3)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- switch to custom-commit-hooks - ([76414c8](https://github.com/michen00/invisible-squiggles/commit/76414c85622e2a320d238837627f14b42e77256d)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- add more pre-commit hooks - ([91e491d](https://github.com/michen00/invisible-squiggles/commit/91e491dc7049f5106c51046aa75951dc789f5b38)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- increase large file threshold - ([09b163c](https://github.com/michen00/invisible-squiggles/commit/09b163cac330684f64f1957e8bfd2aec9fec671b)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- build(pre-commit) add talisman on push - ([1a5de54](https://github.com/michen00/invisible-squiggles/commit/1a5de54189ed7da1d880a757cc55e6a8ab15bea5)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(.gitignore)** add coverage to gitignore - ([9155c5b](https://github.com/michen00/invisible-squiggles/commit/9155c5ba957f0bec0ee0d23940ee599ef6e79cde)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(.pre-commit-config.yaml)** revamp pre-commit - ([fef27f0](https://github.com/michen00/invisible-squiggles/commit/fef27f04579abf96a8dd28b4c36ab2f4d94ceb69)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(.vscodeignore)** use explicit negation - ([798464e](https://github.com/michen00/invisible-squiggles/commit/798464e6f7c3abdd24d031d1cd3de5896cdea7f6)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
@@ -116,6 +125,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com) and this p
 
 ### 📝 Documentation
 
+- bump version - ([dddad08](https://github.com/michen00/invisible-squiggles/commit/dddad08aa62f3cc4c4fd81ce3e7b30c9269d64da)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- update contribution guidelines - ([552c9ac](https://github.com/michen00/invisible-squiggles/commit/552c9ac642852c251b081a425e00673724fc9d24)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- update CHANGELOG.md - ([eead32e](https://github.com/michen00/invisible-squiggles/commit/eead32e0713f46afc512c878883db18de851a92f)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(CONTRIBUTING.md)** add a TODO - ([3a00c7f](https://github.com/michen00/invisible-squiggles/commit/3a00c7f39a749525a739190ed9ef205fe5df9906)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(LICENSE)** update copyright year - ([3fc45a0](https://github.com/michen00/invisible-squiggles/commit/3fc45a0a73e846ac88e0ba8a7cf3d534ddb500ef)) - [Michael I Chen](mailto:michael.chen.0@gmail.com)
 - **(README.md)** update description to include hint squiggles - ([1d610a7](https://github.com/michen00/invisible-squiggles/commit/1d610a7efe0ee87b1070fa4f5facb3c7fad6ef4e)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
@@ -143,6 +155,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com) and this p
 
 ### 🎨 Styling
 
+- **(.editorconfig)** update editor config - ([ca7eed0](https://github.com/michen00/invisible-squiggles/commit/ca7eed0f986039fe4536e8a9fbb243f38f5d115d)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- **(.gitlint)** configure gitlint - ([d38863f](https://github.com/michen00/invisible-squiggles/commit/d38863f23f7ba86d2da57066ff8aefa3a61ade87)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- **(.yamllint)** set min spaces from content - ([3e2687d](https://github.com/michen00/invisible-squiggles/commit/3e2687d74d9131a1bc0f94726d8a86d80986ccee)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- **(.yamllint)** edit yamllint - ([2f2cb1a](https://github.com/michen00/invisible-squiggles/commit/2f2cb1a587ed5877c8ec120a253216826583133b)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- format indentations/whitespace - ([8a8a8ba](https://github.com/michen00/invisible-squiggles/commit/8a8a8ba43f9a312314cd5488d7699306ae5d458b)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- use less whitespace - ([5c0c169](https://github.com/michen00/invisible-squiggles/commit/5c0c1697bf1c92c019c6f852722f7f710fc3bf03)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(src/extension.ts)** fix indentation - ([90d792c](https://github.com/michen00/invisible-squiggles/commit/90d792cf59bead010d50b0f476cf3ad9746a8099)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - add whitespace to issue_message - ([c70b8e5](https://github.com/michen00/invisible-squiggles/commit/c70b8e5851a2e42f9ccd3e912a60ec39573ef573)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - edit whitespace - ([c9f3403](https://github.com/michen00/invisible-squiggles/commit/c9f34039cfd999087aa344208827220c38341229)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
@@ -154,6 +172,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com) and this p
 
 ### ⚙️ Miscellaneous Tasks
 
+- remove an unused hook - ([f17f86c](https://github.com/michen00/invisible-squiggles/commit/f17f86c474a174c2c02edc32d3ec204ad9aa1e03)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- remove a python pre-commit hook - ([eb560d7](https://github.com/michen00/invisible-squiggles/commit/eb560d7c9f6936de4a76ae835cd8f8597d5f5e91)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(.vscode-test.mjs)** remove unused test file - ([3cf1af2](https://github.com/michen00/invisible-squiggles/commit/3cf1af26e0cca431ed2862703ad9a85d7d066507)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(Makefile)** remove unused colors - ([cd7dba2](https://github.com/michen00/invisible-squiggles/commit/cd7dba2194c4eb6f18b8784437ed92806e7034ce)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - remove boilerplate - ([c82613b](https://github.com/michen00/invisible-squiggles/commit/c82613b0567164b6a2fdac263ec8ab34548f1b0f)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)

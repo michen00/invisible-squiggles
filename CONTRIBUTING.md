@@ -108,24 +108,48 @@ Enhancement suggestions are tracked as [GitHub issues][issues].
 
 ### Your first code contribution
 
+#### Prerequisites
+
+- Node.js 20.x or 22.x
+- npm (comes with Node.js)
+- VSCode (for testing the extension)
+
+#### Getting started
+
 Start by [forking the repository](https://docs.github.com/en/github/getting-started-with-github/fork-a-repo), i.e. copying the repository to your account to grant you write access. Continue with cloning the forked repository to your local machine.
 
 ```sh
 git clone https://github.com/<your username>/invisible-squiggles.git
 ```
 
-Navigate into the cloned directory and create a new branch:
+Navigate into the cloned directory, install dependencies, and create a new branch:
 
 ```sh
 cd invisible-squiggles
+npm install
 git switch -c <branch name>
 ```
 
-Update the code according to your requirements and commit the changes using the [conventional commits](https://www.conventionalcommits.org) message style:
+#### Development workflow
+
+Make your changes to the code, then verify everything works:
 
 ```sh
-git commit -a -m 'chore: follow the conventional commit style'
+npm run compile    # Type check + lint + build
+npm run test:unit  # Run unit tests (fast, < 5 seconds)
 ```
+
+To test the extension manually, press `F5` in VSCode to launch an Extension Development Host.
+
+#### Committing your changes
+
+Commit the changes using the [conventional commits](https://www.conventionalcommits.org) message style:
+
+```sh
+git commit -a -m 'feat: add new feature'
+```
+
+Common commit types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 
 Continue with pushing the local commits to GitHub:
 
@@ -133,23 +157,26 @@ Continue with pushing the local commits to GitHub:
 git push origin <branch name>
 ```
 
-Before opening a Pull Request (PR), please consider the following guidelines:
+#### Before opening a Pull Request
 
-- Please make sure that the code builds perfectly fine on your local system.
-- The PR must meet the code standards and conventions of the project.
-- Explanatory comments related to code functions are strongly recommended.
+- Make sure `npm run compile` passes without errors
+- Run `npm run test:unit` to verify tests pass
+- Test the extension manually in VSCode (press `F5`)
+- Follow the code standards and conventions of the project
 
 And finally, when you are satisfied with your changes, open a new PR.
 
 ## Creating a release
 
-1. Describe the new release in `CHANGELOG.md` (`git reset main && git pull && git cliff --unreleased`)
-1. Update version in `package.json`
-1. Run `npm run release`
-1. Commit the changes
-1. Run `git tag -a v<major>.<minor>.<patch> -m v<major>.<minor>.<patch> -s`
-1. Run `git push --follow-tags`
-1. When the build pipeline is complete, update the GitHub release message.
+1. Update `CHANGELOG.md` (use `git cliff --unreleased` to generate entries)
+2. Update version in `package.json`
+3. Build and test: `make rebuild && make check`
+4. Test locally: `make install-vsix`
+5. Commit the changes: `git commit -am "chore: release v<version>"`
+6. Create signed tag: `git tag -a v<version> -m v<version> -s`
+7. Push with tags: `git push --follow-tags`
+8. Publish to Marketplace: `npx vsce publish`
+9. Create GitHub release from the tag
 
 [issues]: https://github.com/michen00/invisible-squiggles/issues
 [issues_new]: https://github.com/michen00/invisible-squiggles/issues/new

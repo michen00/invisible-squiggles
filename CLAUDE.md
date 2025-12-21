@@ -31,11 +31,11 @@ npm run test:coverage    # Run all tests with coverage report
 - **Unit tests**: Located in `src/test/unit/`, use mocked VSCode APIs, execute in < 5 seconds
 - **Integration tests**: Located in `src/test/integration/`, use real VSCode APIs
 - **E2E tests**: Located in `src/test/e2e/`, run in Extension Development Host
-- **Coverage**: Configured with c8, 80% threshold (warning only, doesn't fail build)
+- **Coverage**: Configured with c8, per-metric thresholds (warning only, doesn't fail build)
 
 **Test Helpers**: `src/test/helpers/` contains mock VSCode APIs and test utilities
 
-**Coverage**: Reports show line, branch, function, and statement coverage. Threshold is 80% with warnings only.
+**Coverage**: Reports show line, branch, function, and statement coverage with per-metric thresholds (warnings only).
 
 ### VSCode Extension Testing
 
@@ -97,7 +97,7 @@ For each type, the extension manages three color properties:
 
 **TypeScript** (`tsconfig.json`):
 
-- Target: ES2023
+- Target: ES2022
 - Module: Node16
 - Strict mode enabled
 - Output for tests: `out/` directory
@@ -130,13 +130,15 @@ Examples:
 
 ## Release Process
 
-1. Update `CHANGELOG.md` (use `git cliff --unreleased`)
+1. Update `CHANGELOG.md` (use `git cliff --unreleased` to generate entries)
 2. Update version in `package.json`
-3. Run `npm run release`
-4. Commit changes
-5. Create signed tag: `git tag -a v<version> -m v<version> -s`
-6. Push with tags: `git push --follow-tags`
-7. Update GitHub release message when pipeline completes
+3. Build and test: `make rebuild && make check`
+4. Test locally: `make install-vsix`
+5. Commit changes: `git commit -am "chore: release v<version>"`
+6. Create signed tag: `git tag -a v<version> -m v<version> -s`
+7. Push with tags: `git push --follow-tags`
+8. Publish to Marketplace: `npx vsce publish`
+9. Create GitHub release from the tag
 
 ## Git Hooks
 
@@ -150,16 +152,19 @@ Pre-commit hooks include: gitleaks, prettier, markdownlint, typos, codespell, sh
 
 ## Codebase Context
 
-**Total Source Files**: 2 TypeScript files
+**Source Structure**:
 
-- `src/extension.ts` - Main extension logic
-- `src/test/extension.test.ts` - Test suite
-
-**Node Modules**: ~97MB, 11 dev dependencies
+- `src/extension.ts` - Main extension logic (single file)
+- `src/test/unit/` - Unit tests (mocked VSCode APIs)
+- `src/test/integration/` - Integration tests (real VSCode APIs)
+- `src/test/e2e/` - End-to-end tests (Extension Development Host)
+- `src/test/helpers/` - Test utilities and mocks
 
 **Build Output Directories**:
 
 - `dist/` - ESBuild production bundle
 - `out/` - TypeScript test compilation
+
+**Makefile Targets**: Run `make help` to see available commands including `build`, `rebuild`, `build-vsix`, `install-vsix`, `check`, `clean`, and git hook management.
 
 This is a focused single-purpose extension with minimal complexity. All core logic resides in one file.

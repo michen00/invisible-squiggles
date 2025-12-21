@@ -11,17 +11,17 @@
 - **Type**: VSCode Extension
 - **Language**: TypeScript
 - **Size**: Small focused project
-- **Runtime**: Node.js 20.x, VSCode ^1.97.0
+- **Runtime**: Node.js 20.x or 22.x, VSCode ^1.100.0
 - **Build System**: npm + ESBuild + TypeScript
 - **Package Manager**: npm
-- **Dependencies**: 11 dev dependencies, ~97MB node_modules
+- **Dependencies**: 16 dev dependencies
 - **Build Time**: ~2.5 seconds for full compile/package
 
 ## Build & Development Instructions
 
 ### Prerequisites
 
-- Node.js 20.x
+- Node.js 20.x or 22.x
 - npm (comes with Node.js)
 - VSCode (for testing extension)
 
@@ -74,7 +74,7 @@ npm test                 # Run all tests (unit + integration + E2E)
 npm run test:unit        # Run unit tests only (fast, < 5 seconds, no VSCode required)
 npm run test:integration # Run integration tests (requires VSCode runtime)
 npm run test:e2e         # Run E2E tests (requires Extension Development Host)
-npm run test:coverage    # Run all tests with coverage report (80% threshold warning)
+npm run test:coverage    # Run all tests with coverage report
 ```
 
 **Test Infrastructure**:
@@ -83,7 +83,7 @@ npm run test:coverage    # Run all tests with coverage report (80% threshold war
 - **Integration tests**: `src/test/integration/` - Tests with real VSCode APIs
 - **E2E tests**: `src/test/e2e/` - Full Extension Development Host tests
 - **Test helpers**: `src/test/helpers/` - Mock VSCode APIs and test utilities
-- **Coverage**: Configured with c8, shows line/branch/function/statement coverage, 80% threshold (warning only)
+- **Coverage**: Configured with c8, shows line/branch/function/statement coverage with per-metric thresholds (warning only)
 
 **Note**: Integration and E2E tests require VSCode runtime and will fail in headless/CI environments. Unit tests can run without VSCode.
 
@@ -94,6 +94,21 @@ npm run watch
 ```
 
 **Starts both TypeScript and ESBuild watchers for continuous compilation during development.**
+
+### Makefile Targets
+
+The Makefile provides convenient automation. Run `make help` to see all targets:
+
+```bash
+make install      # Install dependencies (npm install)
+make build        # Production build (npm run package)
+make rebuild      # Clean and rebuild
+make check        # Run type checking, lint, and tests
+make build-vsix   # Build VSIX package for distribution
+make install-vsix # Build and install VSIX locally for testing
+make uninstall    # Uninstall extension from VSCode
+make clean        # Remove build artifacts (dist/, out/, *.vsix)
+```
 
 ### VSCode Extension Development
 
@@ -134,6 +149,26 @@ npm run watch
 - `dist/` - ESBuild output (production bundle)
 - `out/` - TypeScript compiler output (tests)
 
+#### VSIX Packaging
+
+The VSIX package is built using `make build-vsix` (or `make install-vsix` to build and install locally).
+
+**What happens during `make build-vsix`:**
+
+1. Renames `README.md` to `README.md.hidden` (prevents vsce from auto-including it)
+2. Removes any stale sourcemaps (`dist/*.map`)
+3. Runs `npx vsce package` to create the `.vsix` file
+4. Restores `README.md` via `trap` (even on failure)
+
+**Why exclude README.md and CHANGELOG.md from VSIX?**
+
+- The VSIX is what users download/install — it should be minimal
+- The VS Code Marketplace reads these files directly during `npx vsce publish`, not from the VSIX
+- Both files remain fully visible on the Marketplace listing
+- This reduces VSIX download size without affecting the user experience
+
+**Note**: The `.vscodeignore` uses an allowlist pattern (`**` excludes all, then `!` negates specific files to include). The README.md rename is needed because vsce auto-includes README.md regardless of `.vscodeignore`.
+
 ### Extension Architecture
 
 The extension uses VSCode's `workbench.colorCustomizations` setting to make squiggles transparent by setting editor colors to `#00000000`. It maintains original colors in a JSON string within the settings for restoration.
@@ -166,7 +201,8 @@ make enable-pre-commit-only
 
 ### GitHub Workflows
 
-- `greet-new-contributors.yml` - Welcomes new contributors (no CI pipeline yet)
+- `ci.yml` - CI pipeline: unit tests (Node 20.x/22.x) and E2E tests (VSCode 1.100.0/stable)
+- `greet-new-contributors.yml` - Welcomes new contributors
 
 ### Manual Validation Steps
 
@@ -179,11 +215,12 @@ make enable-pre-commit-only
 
 ### Build Issues
 
-- **Missing dependencies**: Run `npm install` (takes ~3-15 seconds with normal network)
+- **Missing dependencies**: Run `npm install` or `make install`
 - **Type errors**: Check `tsconfig.json` and run `npm run check-types`
 - **ESLint errors**: Run `npm run lint` and fix reported issues
-- **Build failures**: Clean and rebuild with `rm -rf dist/ out/ && npm run compile`
+- **Build failures**: Clean and rebuild with `make rebuild` (or `make clean && make build`)
 - **Dependency warnings**: npm shows deprecated package warnings - these are expected and don't affect functionality
+- **VSIX contains unexpected files**: Check `.vscodeignore` allowlist pattern
 
 ### Extension Development
 
@@ -251,11 +288,15 @@ make enable-pre-commit-only
 
 ### Release Process
 
-1. Update version in `package.json`
-2. Update `CHANGELOG.md`
-3. Run `npm run package` for production build
-4. Test extension thoroughly
-5. Publish to VSCode Marketplace
+1. Update `CHANGELOG.md` (use `git cliff --unreleased` to generate entries)
+2. Update version in `package.json`
+3. Build and test: `make rebuild && make check`
+4. Test locally: `make install-vsix`
+5. Commit changes: `git commit -am "chore: release v<version>"`
+6. Create signed tag: `git tag -a v<version> -m v<version> -s`
+7. Push with tags: `git push --follow-tags`
+8. Publish to Marketplace: `npx vsce publish`
+9. Create GitHub release from the tag
 
 ## File Structure Overview
 
@@ -271,7 +312,7 @@ make enable-pre-commit-only
 ├── tsconfig.json      # TypeScript configuration
 ├── eslint.config.mjs  # Linting rules
 ├── esbuild.js         # Build configuration
-└── Makefile           # Git hooks management
+└── Makefile           # Build automation, VSIX packaging, git hooks
 ```
 
 ## Documentation Maintenance

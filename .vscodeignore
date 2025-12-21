@@ -1,6 +1,5 @@
 **
-!CHANGELOG.md
 !dist/**
+dist/**/*.map
 !LICENSE
 !package.json
-!README.md

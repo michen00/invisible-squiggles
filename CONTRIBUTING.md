@@ -2,8 +2,6 @@
 
 # Regarding contributions
 
-[DeepWiki Docs](https://deepwiki.com/michen00/invisible-squiggles)
-
 All types of contributions are encouraged and valued. See the [Table of Contents](#table-of-contents) for different ways to help and details about how this project handles them. Please make sure to read the relevant section before making your contribution. It will make it a lot easier for us maintainers and smooth out the experience for all involved. We look forward to your contributions!
 
 The project has defined a [code of conduct](https://github.com/michen00/.github/blob/main/CODE_OF_CONDUCT.md), providing a welcoming and friendly environment. Please adhere to it in all interactions.
@@ -17,7 +15,6 @@ The project has defined a [code of conduct](https://github.com/michen00/.github/
 
 ## TODO
 
-- get an icon for the marketplace listing
 - update the demo on README.md for the eyeball status bar feature
 - refactor code: optimizations and improvements are welcome
 - add a workflow to [update license copyright years](https://github.com/marketplace/actions/update-license-copyright-year-s#i-want-my-pull-requests-to-be-automatically-merged)

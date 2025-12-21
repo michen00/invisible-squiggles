@@ -60,7 +60,7 @@ Run tests:
 npm test
 ```
 
-**Note**: tests require the VSCode runtime and are expected to fail in headless/CI environments.
+**Note**: Unit tests (`npm run test:unit`) run without VSCode and work in CI. Integration and E2E tests require the VSCode runtime.
 
 ### Testing Infrastructure
 
@@ -71,7 +71,7 @@ The project includes comprehensive testing infrastructure:
 - **Unit tests** (`npm run test:unit`): Fast tests (< 5 seconds) with mocked VSCode APIs, located in `src/test/unit/`
 - **Integration tests** (`npm run test:integration`): Tests with real VSCode APIs, located in `src/test/integration/`
 - **E2E tests** (`npm run test:e2e`): Full Extension Development Host tests, located in `src/test/e2e/`
-- **Coverage** (`npm run test:coverage`): Generates coverage reports with 80% threshold warnings
+- **Coverage** (`npm run test:coverage`): Generates coverage reports with per-metric threshold warnings
 
 **Test Structure**:
 

@@ -62,10 +62,7 @@ rebuild: clean build ## Clean and build from scratch
 .PHONY: build-vsix
 build-vsix: install ## Build the extension as a VSIX file
 	@set -e; \
-        cp .vscodeignore .vscodeignore.bak.vsix && \
-        cp README.md README.md.bak.vsix && \
-        trap 'if [ -f .vscodeignore.bak.vsix ]; then mv .vscodeignore.bak.vsix .vscodeignore; fi; if [ -f README.md.bak.vsix ]; then mv README.md.bak.vsix README.md; fi; if [ -f README.md.hidden ]; then mv README.md.hidden README.md; fi; rm -f .vscodeignore.bak.vsix README.md.bak.vsix' EXIT; \
-        grep -vFx "!CHANGELOG.md" .vscodeignore | grep -vFx "!README.md" > .vscodeignore.tmp && mv .vscodeignore.tmp .vscodeignore; \
+        trap 'if [ -f README.md.hidden ]; then mv README.md.hidden README.md; fi' EXIT; \
         mv README.md README.md.hidden; \
         rm -f dist/*.map; \
         npx vsce package
@@ -81,14 +78,11 @@ check: install ## Run checks and tests
 .PHONY: clean
 TO_REMOVE := \
     .vscode-test \
-    .vscodeignore.bak.vsix \
-    .vscodeignore.tmp \
     *.vsix \
     coverage \
     dist \
     node_modules \
     out \
-    README.md.bak.vsix \
     README.md.hidden
 clean: ## Remove build artifacts and temporary files
 	@echo $(TO_REMOVE) | xargs -n 1 -P 4 $(RM)

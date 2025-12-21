@@ -15,10 +15,10 @@ permissions:
   contents: read
 
 jobs:
-  test:
-    name: Build, lint, and unit tests (Node ${{ matrix.node }})
+  unit-tests:
+    name: Unit tests (Node ${{ matrix.node }})
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
 
     strategy:
       fail-fast: false
@@ -43,5 +43,36 @@ jobs:
       - name: Build and lint
         run: npm run pretest
 
-      - name: Run unit tests
+      - name: Run unit tests with coverage
         run: npm run test:coverage
+
+  e2e-tests:
+    name: E2E tests (VSCode ${{ matrix.vscode }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    strategy:
+      fail-fast: true
+      matrix:
+        vscode:
+          - "1.100.0" # Minimum supported version
+          - "stable" # Latest stable version
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.x
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run pretest
+
+      - name: Run E2E tests
+        run: xvfb-run -a npm run test:e2e -- --code-version ${{ matrix.vscode }}

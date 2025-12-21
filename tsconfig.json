@@ -3,7 +3,7 @@
     "declaration": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "lib": ["ES2023", "dom"],
+    "lib": ["ES2022", "dom"],
     "module": "Node16",
     "moduleResolution": "node16",
     "noUncheckedIndexedAccess": true,
@@ -13,7 +13,7 @@
     "skipLibCheck": true,
     "sourceMap": true,
     "strict": true,
-    "target": "ES2023",
+    "target": "ES2022",
     "types": ["mocha", "node", "vscode"]
   },
   "exclude": ["node_modules", ".vscode-test", "dist"],

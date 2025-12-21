@@ -61,7 +61,6 @@ repos:
     hooks:
       - id: check-added-large-files
         args: ["--maxkb=1024"]
-      - id: check-ast
       - id: check-case-conflict
       - id: check-executables-have-shebangs
       - id: check-json

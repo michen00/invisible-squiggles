@@ -8,6 +8,8 @@ ci:
 
     for more information, see https://pre-commit.ci
 
+default_stages: [pre-commit]
+
 repos:
   # security
   - repo: https://github.com/gitleaks/gitleaks

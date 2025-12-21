@@ -15,3 +15,4 @@ c416a3ea1e30cd46e475eb91b8798f172d862cb2  # style: format two files
 c9f34039cfd999087aa344208827220c38341229  # style: edit whitespace
 5c0c1697bf1c92c019c6f852722f7f710fc3bf03  # style: use less whitespace
 8a8a8ba43f9a312314cd5488d7699306ae5d458b  # style: format indentations/whitespace
+a54d01f8ad9acbce301fd957707b73b00d9bd6ef  # style(Makefile): adjust indentation

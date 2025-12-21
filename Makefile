@@ -22,8 +22,6 @@ RM := rm $(RM_FLAGS)
 _COLOR  := $(shell tput sgr0 2>/dev/null || echo "\033[0m")
 BOLD    := $(shell tput bold 2>/dev/null || echo "\033[1m")
 CYAN    := $(shell tput setaf 6 2>/dev/null || echo "\033[36m")
-GREEN   := $(shell tput setaf 2 2>/dev/null || echo "\033[32m")
-RED     := $(shell tput setaf 1 2>/dev/null || echo "\033[31m")
 YELLOW  := $(shell tput setaf 3 2>/dev/null || echo "\033[33m")
 
 .DEFAULT_GOAL := help

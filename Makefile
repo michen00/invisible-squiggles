@@ -67,7 +67,7 @@ build-vsix: install ## Build the extension as a VSIX file
 	trap 'if [ -f .vscodeignore.bak.vsix ]; then mv .vscodeignore.bak.vsix .vscodeignore; fi; if [ -f README.md.bak.vsix ]; then mv README.md.bak.vsix README.md; fi; if [ -f README.md.hidden ]; then mv README.md.hidden README.md; fi; rm -f .vscodeignore.bak.vsix README.md.bak.vsix' EXIT; \
 	grep -vFx "!CHANGELOG.md" .vscodeignore | grep -vFx "!README.md" > .vscodeignore.tmp && mv .vscodeignore.tmp .vscodeignore; \
 	mv README.md README.md.hidden; \
-	npx @vscode/vsce package
+	npx vsce package
 
 .PHONY: check
 check: install ## Run checks and tests

@@ -77,15 +77,30 @@ develop: install ## Install the project for development (WITH_HOOKS={true|false}
         git lfs install --local --skip-repo || true; \
     fi; \
     current_branch=$$(git branch --show-current); \
+    stash_was_needed=0; \
+    cleanup() { \
+        exit_code=$$?; \
+        if [ "$$current_branch" != "$$(git branch --show-current)" ]; then \
+            echo "$(YELLOW)Warning: Still on $$(git branch --show-current). Attempting to return to $$current_branch...$(_COLOR)"; \
+            if git switch $$current_branch 2>/dev/null; then \
+                echo "Successfully returned to $$current_branch"; \
+            else \
+                echo "$(YELLOW)Could not return to $$current_branch. You are on $$(git branch --show-current).$(_COLOR)"; \
+            fi; \
+        fi; \
+        if [ $$stash_was_needed -eq 1 ] && git stash list | head -1 | grep -q "Auto stash before switching to main"; then \
+            echo "$(YELLOW)Note: Your stashed changes are still available. Run 'git stash pop' to restore them.$(_COLOR)"; \
+        fi; \
+        exit $$exit_code; \
+    }; \
+    trap cleanup EXIT; \
     if ! git diff --quiet || ! git diff --cached --quiet; then \
         git stash push -m "Auto stash before switching to main"; \
         stash_was_needed=1; \
-    else \
-        stash_was_needed=0; \
     fi; \
     git switch main && git pull; \
     if command -v git-lfs >/dev/null 2>&1; then \
-        git lfs pull; \
+        git lfs pull || true; \
     fi; \
     git switch $$current_branch; \
     if [ $$stash_was_needed -eq 1 ]; then \
@@ -94,7 +109,8 @@ develop: install ## Install the project for development (WITH_HOOKS={true|false}
         else \
             echo "$(YELLOW)Warning: Stash apply had conflicts. Resolve them, then run: git stash drop$(_COLOR)"; \
         fi; \
-    fi
+    fi; \
+    trap - EXIT
 	@if [ "$(WITH_HOOKS)" = "true" ]; then \
         $(MAKE) enable-pre-commit; \
     fi

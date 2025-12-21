@@ -123,7 +123,7 @@ Navigate into the cloned directory, install dependencies, and create a new branc
 
 ```sh
 cd invisible-squiggles
-make install
+make develop
 git switch -c <branch name>
 ```
 

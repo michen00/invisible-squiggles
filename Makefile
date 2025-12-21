@@ -55,6 +55,15 @@ help: ## Show this help message
 ## Build and install ##
 #######################
 
+# Common logic for preparing README for marketplace (strip Documentation section)
+define PREPARE_README
+	set -e; \
+	trap 'if [ -f README.md.bak ]; then mv README.md.bak README.md; fi' EXIT; \
+	mv README.md README.md.bak; \
+	sed -n '/## .*Documentation/q;p' README.md.bak > README.md; \
+	rm -f dist/*.map
+endef
+
 .PHONY: install
 WITH_PRECOMMIT ?= true
 install: ## Install npm dependencies
@@ -76,16 +85,17 @@ rebuild: clean build ## Clean and build from scratch
 
 .PHONY: build-vsix
 build-vsix: install ## Build the extension as a VSIX file
-	@set -e; \
-	trap 'if [ -f README.md.bak ]; then mv README.md.bak README.md; fi' EXIT; \
-	mv README.md README.md.bak; \
-	sed -n '/## .*Documentation/q;p' README.md.bak > README.md; \
-	rm -f dist/*.map; \
-	npx vsce package
+	@$(PREPARE_README); \
+    npx vsce package
 
 .PHONY: install-vsix
 install-vsix: build-vsix ## Build and install VSIX locally for testing
 	code --install-extension *.vsix
+
+.PHONY: publish
+publish: install ## Publish the extension to the VS Code Marketplace
+	@$(PREPARE_README); \
+    npx vsce publish
 
 .PHONY: check
 check: install ## Run checks and tests

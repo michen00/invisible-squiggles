@@ -180,7 +180,7 @@ And finally, when you are satisfied with your changes, open a new PR.
 1. Create signed tag: `git tag -a v<version> -m v<version> -s`
 1. Push with tags: `git push --follow-tags`
 1. Create GitHub release from the tag
-1. Publish to Marketplace: `npx vsce publish`
+1. Publish to Marketplace: `make publish`
 
 [issues]: https://github.com/michen00/invisible-squiggles/issues
 [issues_new]: https://github.com/michen00/invisible-squiggles/issues/new

@@ -126,7 +126,7 @@ Navigate into the cloned directory, install dependencies, and create a new branc
 
 ```sh
 cd invisible-squiggles
-npm install
+make install
 git switch -c <branch name>
 ```
 
@@ -146,7 +146,7 @@ To test the extension manually, press `F5` in VSCode to launch an Extension Deve
 Commit the changes using the [conventional commits](https://www.conventionalcommits.org) message style:
 
 ```sh
-git commit -a -m 'feat: add new feature'
+git commit -am 'feat: add new feature'
 ```
 
 Common commit types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
@@ -161,6 +161,7 @@ git push origin <branch name>
 
 - Make sure `npm run compile` passes without errors
 - Run `npm run test:unit` to verify tests pass
+- Run `make run-pre-commit` to run the pre-commit checks
 - Test the extension manually in VSCode (press `F5`)
 - Follow the code standards and conventions of the project
 

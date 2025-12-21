@@ -58,10 +58,10 @@ help: ## Show this help message
 # Common logic for preparing README for marketplace (strip Documentation section)
 define PREPARE_README
 	set -e; \
-	trap 'if [ -f README.md.bak ]; then mv README.md.bak README.md; fi' EXIT; \
-	mv README.md README.md.bak; \
-	sed -n '/## .*Documentation/q;p' README.md.bak > README.md; \
-	rm -f dist/*.map
+    trap 'if [ -f README.md.bak ]; then mv README.md.bak README.md; fi' EXIT; \
+    mv README.md README.md.bak; \
+    sed -n '/## .*Documentation/q;p' README.md.bak > README.md; \
+    rm -f dist/*.map
 endef
 
 .PHONY: install

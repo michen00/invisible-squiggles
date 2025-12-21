@@ -6,10 +6,12 @@ All notable changes will be documented in this file. See [conventional commits](
 
 The format is based on [Keep a Changelog](https://keepachangelog.com) and this project adheres to [Semantic Versioning](https://semver.org).
 
-## [0.2.1]
+## [0.2.1](https://github.com/michen00/invisible-squiggles/compare/v0.2.0..v0.2.1) - 2025-12-20
 
 ### ✨ Features
 
+- **(package.json)** update display name - ([079cca7](https://github.com/michen00/invisible-squiggles/commit/079cca700e8978b70f96c4b99ad832af121a02ef)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- **(package.json)** add keywords - ([910e77d](https://github.com/michen00/invisible-squiggles/commit/910e77d5bc60e49aa4e4bed9703ed187a3492ccb)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - use consistent floor version - ([cddd13f](https://github.com/michen00/invisible-squiggles/commit/cddd13f4a98ea1794159d84220b50f3998e31ae0)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - update package.json with a new 'Hint' setting - ([3c4e113](https://github.com/michen00/invisible-squiggles/commit/3c4e113d0a328c3d9b8b074f0b3409a4493b0109)) - [Parvati](mailto:parvatijay2901@gmail.com)
 - add Hint squiggle - ([5126de5](https://github.com/michen00/invisible-squiggles/commit/5126de50d3e3c76adf6a08b9869fe0072b589420)) - [Parvati](mailto:parvatijay2901@gmail.com)
@@ -68,6 +70,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com) and this p
 
 ### 👷 Build
 
+- include README and CHANGELOG in .VSIX - ([4beeb73](https://github.com/michen00/invisible-squiggles/commit/4beeb7377e7b8d9c589a5ebfc70c89b8f733b4fa)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(.pre-commit-config.yaml)** add default stage - ([4fdea6a](https://github.com/michen00/invisible-squiggles/commit/4fdea6a138906d9f47aa8a69f0fe0510d6e2b37b)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(.yamllint)** configure yamllint - ([83c804b](https://github.com/michen00/invisible-squiggles/commit/83c804b5482f8b5bda52d90d1b26e50ffec60496)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(Makefile)** use pre-commit by default - ([8053081](https://github.com/michen00/invisible-squiggles/commit/8053081f1d69c529c077ac2d4cbe60b230f911ba)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
@@ -125,6 +128,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com) and this p
 
 ### 📝 Documentation
 
+- **(CHANGELOG.md)** update the changelog - ([ee45a84](https://github.com/michen00/invisible-squiggles/commit/ee45a841fa911272ed21848c72b5e179e4d6e27f)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- **(package.json)** edit description - ([9327320](https://github.com/michen00/invisible-squiggles/commit/9327320cf8731f39c4f319d317232bef0db5de8b)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - bump version - ([dddad08](https://github.com/michen00/invisible-squiggles/commit/dddad08aa62f3cc4c4fd81ce3e7b30c9269d64da)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - update contribution guidelines - ([552c9ac](https://github.com/michen00/invisible-squiggles/commit/552c9ac642852c251b081a425e00673724fc9d24)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - update CHANGELOG.md - ([eead32e](https://github.com/michen00/invisible-squiggles/commit/eead32e0713f46afc512c878883db18de851a92f)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)

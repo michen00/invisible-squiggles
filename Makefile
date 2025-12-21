@@ -71,9 +71,6 @@ install: ## Install npm dependencies
 .PHONY: develop
 WITH_HOOKS ?= true
 develop: install ## Install the project for development (WITH_HOOKS={true|false}, default=true)
-	@if ! git config --local --get-all include.path | grep -q ".gitconfigs/alias"; then \
-        git config --local --add include.path "$(CURDIR)/.gitconfigs/alias"; \
-    fi
 	@git config --local blame.ignoreRevsFile .git-blame-ignore-revs
 	@set -e; \
     if command -v git-lfs >/dev/null 2>&1; then \

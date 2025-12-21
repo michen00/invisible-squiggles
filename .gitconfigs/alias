@@ -1,8 +1,0 @@
-[alias]
-archive-branch = "!sh .github/scripts/archive-utils.sh archive_branch"
-delete-archive = "!sh .github/scripts/archive-utils.sh delete_archive"
-init-archive-tracking = "!git config --add remote.origin.fetch 'refs/archive/*:refs/archive/*' && echo Archive tracking initialized"
-list-archived = "!sh .github/scripts/archive-utils.sh list_archived"
-pull-archived = "!sh .github/scripts/archive-utils.sh pull_archived"
-purge-archive = "!sh .github/scripts/archive-utils.sh purge_archive"
-restore-archive = "!sh .github/scripts/archive-utils.sh restore_archive"

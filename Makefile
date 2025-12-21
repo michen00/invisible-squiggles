@@ -51,9 +51,9 @@ build-vsix: ## Build the extension as a VSIX file
 	@set -e; \
 	cp .vscodeignore .vscodeignore.bak.vsix && \
 	cp README.md README.md.bak.vsix && \
-	trap 'if [ -f .vscodeignore.bak.vsix ]; then mv .vscodeignore.bak.vsix .vscodeignore; fi; if [ -f README.md.bak.vsix ]; then mv README.md.bak.vsix README.md; fi; rm -f .vscodeignore.bak.vsix README.md.bak.vsix README.md.tmp' EXIT; \
-	echo "*.md" >> .vscodeignore; \
-	sed -E 's|\[!\[Ask DeepWiki\]\(https://deepwiki\.com/badge\.svg\)\]\(https://deepwiki\.com/michen00/invisible-squiggles\)|<!-- [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/michen00/invisible-squiggles) -->|' README.md > README.md.tmp && mv README.md.tmp README.md; \
+	trap 'if [ -f .vscodeignore.bak.vsix ]; then mv .vscodeignore.bak.vsix .vscodeignore; fi; if [ -f README.md.bak.vsix ]; then mv README.md.bak.vsix README.md; fi; if [ -f README.md.hidden ]; then mv README.md.hidden README.md; fi; rm -f .vscodeignore.bak.vsix README.md.bak.vsix' EXIT; \
+	grep -vFx "!CHANGELOG.md" .vscodeignore | grep -vFx "!README.md" > .vscodeignore.tmp && mv .vscodeignore.tmp .vscodeignore; \
+	mv README.md README.md.hidden; \
 	npx @vscode/vsce package
 
 ###############

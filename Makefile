@@ -42,39 +42,27 @@ help: ## Show this help message
 	@echo "  $(YELLOW)DEBUG$(_COLOR) = true|false    Set to true to enable debug output (default: false)"
 	@echo "  $(YELLOW)VERBOSE$(_COLOR) = true|false  Set to true to enable verbose output (default: false)"
 
+#######################
+## Build and install ##
+#######################
+
 .PHONY: install
-install: ## Install dependencies
+install: ## Install npm dependencies
 	npm install
 
-.PHONY: clean-install
-clean-install: clean install ## Remove build artifacts and temporary files and install dependencies
-
 .PHONY: uninstall
-uninstall: ## Uninstall the extension
-	npm uninstall invisible-squiggles
-
-.PHONY: clean-uninstall
-clean-uninstall: clean uninstall ## Remove build artifacts and temporary files and uninstall the extension
-
-.PHONY: reinstall
-reinstall: uninstall install ## Uninstall and install the extension
-
-.PHONY: clean-reinstall
-clean-reinstall: clean reinstall ## Remove build artifacts and temporary files and reinstall the extension
-
-.PHONY: install-prod
-install-prod: ## Install the extension for production
-	npm ci --omit=dev
+uninstall: ## Uninstall extension from VSCode
+	code --uninstall-extension michen00.invisible-squiggles
 
 .PHONY: build
-build: install-prod ## Build the extension
+build: install ## Build the extension
 	npm run package
 
-.PHONY: clean-build
-clean-build: clean build ## Remove build artifacts and temporary files and build the extension
+.PHONY: rebuild
+rebuild: clean build ## Clean and build from scratch
 
 .PHONY: build-vsix
-build-vsix: install-prod ## Build the extension as a VSIX file
+build-vsix: install ## Build the extension as a VSIX file
 	@set -e; \
 	cp .vscodeignore .vscodeignore.bak.vsix && \
 	cp README.md README.md.bak.vsix && \
@@ -83,20 +71,9 @@ build-vsix: install-prod ## Build the extension as a VSIX file
 	mv README.md README.md.hidden; \
 	npx @vscode/vsce package
 
-.PHONY: clean-build-vsix
-clean-build-vsix: clean build-vsix ## Remove build artifacts and temporary files and build the extension as a VSIX file
-
-.PHONY: rebuild
-rebuild: reinstall build ## Reinstall the extension and build the extension
-
-.PHONY: clean-rebuild
-clean-rebuild: clean rebuild ## Remove build artifacts and temporary files and rebuild the extension
-
-.PHONY: rebuild-vsix
-rebuild-vsix: reinstall build-vsix ## Reinstall the extension and build the extension as a VSIX file
-
-.PHONY: clean-rebuild-vsix
-clean-rebuild-vsix: clean rebuild-vsix ## Remove build artifacts and temporary files and rebuild the extension as a VSIX file
+.PHONY: check
+check: install ## Run checks and tests
+	npm run test
 
 .PHONY: clean
 TO_REMOVE := \
@@ -113,16 +90,12 @@ TO_REMOVE := \
 clean: ## Remove build artifacts and temporary files
 	@echo $(TO_REMOVE) | xargs -n 1 -P 4 $(RM)
 
-.PHONY: check
-check: install ## Run checks and tests
-	npm run test
-
 ###############
 ## Git hooks ##
 ###############
 
 .PHONY: enable-git-hooks
-enable-git-hooks: check-pre-commit configure-git-hooks ## Enable Git hooks
+enable-git-hooks: check-pre-commit configure-git-hooks ## Enable both pre-commit and custom commit hooks
 	@set -e; \
         mv .gitconfig .gitconfig.bak && \
         trap 'mv .gitconfig.bak .gitconfig' EXIT; \
@@ -131,12 +104,12 @@ enable-git-hooks: check-pre-commit configure-git-hooks ## Enable Git hooks
         echo "pre-commit hooks moved to .githooks/pre-commit"
 
 .PHONY: enable-pre-commit-only
-enable-pre-commit-only: check-pre-commit ## Enable pre-commit hooks without enabling commit hooks
+enable-pre-commit-only: check-pre-commit ## Enable pre-commit hooks only (disable custom commit hooks)
 	@git config --local --unset include.path > /dev/null 2>&1 || true
 	@$(RM) -f .githooks/pre-commit && pre-commit install
 
 .PHONY: enable-commit-hooks-only
-enable-commit-hooks-only: configure-git-hooks ## Enable commit hooks without enabling pre-commit hooks
+enable-commit-hooks-only: configure-git-hooks ## Enable custom commit hooks only (disable pre-commit)
 	@$(RM) -f .githooks/pre-commit
 	@echo "Enabled commit hooks only"
 
@@ -145,16 +118,8 @@ configure-git-hooks: ## Configure Git to use the hooksPath defined in .gitconfig
 	@git config --local include.path ../.gitconfig
 	@echo "Configured Git to use hooksPath defined in .gitconfig"
 
-.PHONY: disable-commit-hooks-only
-disable-commit-hooks-only: disable-git-hooks enable-commit-hooks-only ## Disable commit hooks and enable pre-commit hooks
-	@echo "Disabled commit hooks and enabled pre-commit hooks"
-
-.PHONY: disable-pre-commit-only
-disable-pre-commit-only: disable-git-hooks enable-pre-commit-only ## Disable pre-commit hooks and enable commit hooks
-	@echo "Disabled pre-commit hooks and enabled commit hooks"
-
 .PHONY: disable-git-hooks
-disable-git-hooks: ## Disable the use of Git hooks locally
+disable-git-hooks: ## Disable all Git hooks
 	@git config --local --unset include.path > /dev/null 2>&1 || true
 	@git config --local --unset-all core.hooksPath > /dev/null 2>&1 || true
 	@$(RM) -f .git/hooks/pre-commit

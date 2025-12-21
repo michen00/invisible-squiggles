@@ -3,7 +3,7 @@
   "displayName": "invisible squiggles",
   "version": "0.2.1",
   "publisher": "michen00",
-  "description": "toggle the transparency of info/error/warning squiggles",
+  "description": "toggle the transparency of diagnostic squiggles for distraction-free coding",
   "author": {
     "name": "Michael I Chen"
   },

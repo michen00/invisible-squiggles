@@ -42,12 +42,39 @@ help: ## Show this help message
 	@echo "  $(YELLOW)DEBUG$(_COLOR) = true|false    Set to true to enable debug output (default: false)"
 	@echo "  $(YELLOW)VERBOSE$(_COLOR) = true|false  Set to true to enable verbose output (default: false)"
 
+.PHONY: install
+install: ## Install dependencies
+	npm install
+
+.PHONY: clean-install
+clean-install: clean install ## Remove build artifacts and temporary files and install dependencies
+
+.PHONY: uninstall
+uninstall: ## Uninstall the extension
+	npm uninstall invisible-squiggles
+
+.PHONY: clean-uninstall
+clean-uninstall: clean uninstall ## Remove build artifacts and temporary files and uninstall the extension
+
+.PHONY: reinstall
+reinstall: uninstall install ## Uninstall and install the extension
+
+.PHONY: clean-reinstall
+clean-reinstall: clean reinstall ## Remove build artifacts and temporary files and reinstall the extension
+
+.PHONY: install-prod
+install-prod: ## Install the extension for production
+	npm ci --omit=dev
+
 .PHONY: build
-build: ## Build the extension
+build: install-prod ## Build the extension
 	npm run package
 
+.PHONY: clean-build
+clean-build: clean build ## Remove build artifacts and temporary files and build the extension
+
 .PHONY: build-vsix
-build-vsix: ## Build the extension as a VSIX file
+build-vsix: install-prod ## Build the extension as a VSIX file
 	@set -e; \
 	cp .vscodeignore .vscodeignore.bak.vsix && \
 	cp README.md README.md.bak.vsix && \
@@ -55,6 +82,40 @@ build-vsix: ## Build the extension as a VSIX file
 	grep -vFx "!CHANGELOG.md" .vscodeignore | grep -vFx "!README.md" > .vscodeignore.tmp && mv .vscodeignore.tmp .vscodeignore; \
 	mv README.md README.md.hidden; \
 	npx @vscode/vsce package
+
+.PHONY: clean-build-vsix
+clean-build-vsix: clean build-vsix ## Remove build artifacts and temporary files and build the extension as a VSIX file
+
+.PHONY: rebuild
+rebuild: reinstall build ## Reinstall the extension and build the extension
+
+.PHONY: clean-rebuild
+clean-rebuild: clean rebuild ## Remove build artifacts and temporary files and rebuild the extension
+
+.PHONY: rebuild-vsix
+rebuild-vsix: reinstall build-vsix ## Reinstall the extension and build the extension as a VSIX file
+
+.PHONY: clean-rebuild-vsix
+clean-rebuild-vsix: clean rebuild-vsix ## Remove build artifacts and temporary files and rebuild the extension as a VSIX file
+
+.PHONY: clean
+TO_REMOVE := \
+    .vscode-test \
+    .vscodeignore.bak.vsix \
+    .vscodeignore.tmp \
+    *.vsix \
+    coverage \
+    dist \
+    node_modules \
+    out \
+    README.md.bak.vsix \
+    README.md.hidden
+clean: ## Remove build artifacts and temporary files
+	@echo $(TO_REMOVE) | xargs -n 1 -P 4 $(RM)
+
+.PHONY: check
+check: install ## Run checks and tests
+	npm run test
 
 ###############
 ## Git hooks ##

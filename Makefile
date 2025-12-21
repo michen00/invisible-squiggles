@@ -65,10 +65,40 @@ define PREPARE_README
 endef
 
 .PHONY: install
-WITH_PRECOMMIT ?= true
 install: ## Install npm dependencies
 	npm install
-	@if [ "$(WITH_PRECOMMIT)" = "true" ]; then \
+
+.PHONY: develop
+WITH_HOOKS ?= true
+develop: install ## Install the project for development (WITH_HOOKS={true|false}, default=true)
+	@if ! git config --local --get-all include.path | grep -q ".gitconfigs/alias"; then \
+        git config --local --add include.path "$(CURDIR)/.gitconfigs/alias"; \
+    fi
+	@git config --local blame.ignoreRevsFile .git-blame-ignore-revs
+	@set -e; \
+    if command -v git-lfs >/dev/null 2>&1; then \
+        git lfs install --local --skip-repo || true; \
+    fi; \
+    current_branch=$$(git branch --show-current); \
+    if ! git diff --quiet || ! git diff --cached --quiet; then \
+        git stash push -m "Auto stash before switching to main"; \
+        stash_was_needed=1; \
+    else \
+        stash_was_needed=0; \
+    fi; \
+    git switch main && git pull; \
+    if command -v git-lfs >/dev/null 2>&1; then \
+        git lfs pull; \
+    fi; \
+    git switch $$current_branch; \
+    if [ $$stash_was_needed -eq 1 ]; then \
+        if git stash apply; then \
+            git stash drop; \
+        else \
+            echo "$(YELLOW)Warning: Stash apply had conflicts. Resolve them, then run: git stash drop$(_COLOR)"; \
+        fi; \
+    fi
+	@if [ "$(WITH_HOOKS)" = "true" ]; then \
         $(MAKE) enable-pre-commit; \
     fi
 

@@ -77,11 +77,11 @@ rebuild: clean build ## Clean and build from scratch
 .PHONY: build-vsix
 build-vsix: install ## Build the extension as a VSIX file
 	@set -e; \
-        trap 'if [ -f README.md.bak ]; then mv README.md.bak README.md; fi' EXIT; \
-        mv README.md README.md.bak; \
-        sed -n '/## .*Documentation/q;p' README.md.bak > README.md; \
-        rm -f dist/*.map; \
-        npx vsce package
+	trap 'if [ -f README.md.bak ]; then mv README.md.bak README.md; fi' EXIT; \
+	mv README.md README.md.bak; \
+	sed -n '/## .*Documentation/q;p' README.md.bak > README.md; \
+	rm -f dist/*.map; \
+	npx vsce package
 
 .PHONY: install-vsix
 install-vsix: build-vsix ## Build and install VSIX locally for testing

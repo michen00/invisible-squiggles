@@ -10,6 +10,17 @@
   "categories": [
     "Linters"
   ],
+  "keywords": [
+    "diagnostics",
+    "distraction-free",
+    "errors",
+    "invisible",
+    "linting",
+    "squiggles",
+    "toggle",
+    "ui",
+    "warnings"
+  ],
   "pricing": "Free",
   "activationEvents": [
     "onStartupFinished"

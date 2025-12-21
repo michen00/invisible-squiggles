@@ -56,8 +56,12 @@ help: ## Show this help message
 #######################
 
 .PHONY: install
+WITH_PRECOMMIT ?= true
 install: ## Install npm dependencies
 	npm install
+	@if [ "$(WITH_PRECOMMIT)" = "true" ]; then \
+        $(MAKE) enable-pre-commit; \
+    fi
 
 .PHONY: uninstall
 uninstall: ## Uninstall extension from VSCode

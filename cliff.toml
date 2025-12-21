@@ -101,7 +101,7 @@ commit_parsers = [
     { message = "^docs\\(blame\\)", skip = true },
     { message = "^docs: update .git-blame-ignore-revs", skip = true },
     { message = "^feat", group = "<!-- 00 -->✨ Features" },
-    { message = "^fix", group = "<!-- 01 -->🐛 Bug Fixes" },
+    { message = "^fix", group = "<!-- 01 -->🐛 Fixes" },
     { message = "^perf", group = "<!-- 02 -->⚡ Performance" },
     { message = "^test", group = "<!-- 03 -->🧪 Testing" },
     { message = "^ci", group = "<!-- 04 -->💚 Continuous Integration" },
@@ -110,9 +110,8 @@ commit_parsers = [
     { message = "^refactor", group = "<!-- 07 -->♻️ Refactor" },
     { message = "^style", group = "<!-- 08 -->🎨 Styling" },
     { message = "^chore", group = "<!-- 09 -->⚙️ Miscellaneous Tasks" },
-    { body = ".*security", group = "<!-- 10 -->🛡️ Security" },
-    { message = "^revert", group = "<!-- 11 -->⏪️ Revert" },
-    { message = "^.*", group = "<!-- 12 -->💼 Other" },
+    { message = "^revert", group = "<!-- 10 -->⏪️ Revert" },
+    { message = "^.*", group = "<!-- 11 -->💼 Other" },
 ]
 
 protect_breaking_commits = true

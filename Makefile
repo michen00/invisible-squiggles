@@ -62,12 +62,17 @@ rebuild: clean build ## Clean and build from scratch
 .PHONY: build-vsix
 build-vsix: install ## Build the extension as a VSIX file
 	@set -e; \
-	cp .vscodeignore .vscodeignore.bak.vsix && \
-	cp README.md README.md.bak.vsix && \
-	trap 'if [ -f .vscodeignore.bak.vsix ]; then mv .vscodeignore.bak.vsix .vscodeignore; fi; if [ -f README.md.bak.vsix ]; then mv README.md.bak.vsix README.md; fi; if [ -f README.md.hidden ]; then mv README.md.hidden README.md; fi; rm -f .vscodeignore.bak.vsix README.md.bak.vsix' EXIT; \
-	grep -vFx "!CHANGELOG.md" .vscodeignore | grep -vFx "!README.md" > .vscodeignore.tmp && mv .vscodeignore.tmp .vscodeignore; \
-	mv README.md README.md.hidden; \
-	npx vsce package
+        cp .vscodeignore .vscodeignore.bak.vsix && \
+        cp README.md README.md.bak.vsix && \
+        trap 'if [ -f .vscodeignore.bak.vsix ]; then mv .vscodeignore.bak.vsix .vscodeignore; fi; if [ -f README.md.bak.vsix ]; then mv README.md.bak.vsix README.md; fi; if [ -f README.md.hidden ]; then mv README.md.hidden README.md; fi; rm -f .vscodeignore.bak.vsix README.md.bak.vsix' EXIT; \
+        grep -vFx "!CHANGELOG.md" .vscodeignore | grep -vFx "!README.md" > .vscodeignore.tmp && mv .vscodeignore.tmp .vscodeignore; \
+        mv README.md README.md.hidden; \
+        rm -f dist/*.map; \
+        npx vsce package
+
+.PHONY: install-vsix
+install-vsix: build-vsix ## Build and install VSIX locally for testing
+	code --install-extension *.vsix
 
 .PHONY: check
 check: install ## Run checks and tests

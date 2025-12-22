@@ -1,4 +1,4 @@
 [codespell]
-skip = .git,node_modules,dist,out,.vscode-test,package-lock.json,*.vsix,coverage
+skip = .gitignore,package-lock.json
 check-hidden = true
 builtin = clear,rare,usage

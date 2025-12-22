@@ -71,7 +71,6 @@ repos:
       - id: check-symlinks
       - id: check-toml
       - id: check-yaml
-      - id: debug-statements
       - id: mixed-line-ending
   - repo: https://github.com/adrienverge/yamllint.git
     rev: v1.37.1

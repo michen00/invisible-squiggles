@@ -1,7 +1,6 @@
 extends: default
 
 yaml-files:
-  - ".yamlfmt"
   - ".yamllint"
   - "*.yaml"
   - "*.yml"

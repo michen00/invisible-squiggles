@@ -30,10 +30,10 @@ ifneq ($(shell command -v prek >/dev/null 2>&1 && echo y),)
 endif
 
 # Terminal formatting (tput with fallbacks to ANSI codes)
-_COLOR  := $(shell tput sgr0 2>/dev/null || echo "\033[0m")
-BOLD    := $(shell tput bold 2>/dev/null || echo "\033[1m")
-CYAN    := $(shell tput setaf 6 2>/dev/null || echo "\033[0;36m")
-YELLOW  := $(shell tput setaf 3 2>/dev/null || echo "\033[0;33m")
+_COLOR  := $(shell tput sgr0 2>/dev/null || printf '\033[0m')
+BOLD    := $(shell tput bold 2>/dev/null || printf '\033[1m')
+CYAN    := $(shell tput setaf 6 2>/dev/null || printf '\033[0;36m')
+YELLOW  := $(shell tput setaf 3 2>/dev/null || printf '\033[0;33m')
 
 .DEFAULT_GOAL := help
 .PHONY: help

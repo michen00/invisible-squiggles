@@ -82,7 +82,7 @@ develop: install ## Install the project for development (WITH_HOOKS={true|false}
         exit_code=$$?; \
         if [ "$$current_branch" != "$$(git branch --show-current)" ]; then \
             echo "$(YELLOW)Warning: Still on $$(git branch --show-current). Attempting to return to $$current_branch...$(_COLOR)"; \
-            if git switch $$current_branch 2>/dev/null; then \
+            if git switch "$$current_branch" 2>/dev/null; then \
                 echo "Successfully returned to $$current_branch"; \
             else \
                 echo "$(YELLOW)Could not return to $$current_branch. You are on $$(git branch --show-current).$(_COLOR)"; \
@@ -102,7 +102,7 @@ develop: install ## Install the project for development (WITH_HOOKS={true|false}
     if command -v git-lfs >/dev/null 2>&1; then \
         git lfs pull || true; \
     fi; \
-    git switch $$current_branch; \
+    git switch "$$current_branch"; \
     if [ $$stash_was_needed -eq 1 ]; then \
         if git stash apply; then \
             git stash drop; \

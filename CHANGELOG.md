@@ -6,6 +6,41 @@ All notable changes will be documented in this file. See [conventional commits](
 
 The format is based on [Keep a Changelog](https://keepachangelog.com) and this project adheres to [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+### ⚡ Performance
+
+- don't cache pip since we don't use it - ([22b7a87](https://github.com/michen00/invisible-squiggles/commit/22b7a87a95e78885a3bea68efaa5b87c710f9441)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- remove data from cache key - ([06f6371](https://github.com/michen00/invisible-squiggles/commit/06f6371da04af0735d896d90d6fb90765d112405)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+
+### 💚 Continuous Integration
+
+- **(.github/workflows/ci.yml)** run pre-commit - ([b026389](https://github.com/michen00/invisible-squiggles/commit/b026389eb20173fe2f5717c334fe9bb9ab52dfe8)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- **(pre-commit)** add a workflow for updates - ([8716b67](https://github.com/michen00/invisible-squiggles/commit/8716b6792984d3e258d6123e48a7b1b83a940e76)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+
+### 👷 Build
+
+- **(.pre-commit-config.yaml)** reorganize hooks - ([7001d5d](https://github.com/michen00/invisible-squiggles/commit/7001d5db4449bae984182d64636afb9f5fa45d46)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- **(Makefile)** include omitted hooks - ([50e75ec](https://github.com/michen00/invisible-squiggles/commit/50e75ecf51fcf8adffde80f3e5cc252b9056f9e0)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- update .gitignore - ([4d407c6](https://github.com/michen00/invisible-squiggles/commit/4d407c6f0df6c9d61e7a4a6d29e2cb2d5097bf03)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+
+### 📝 Documentation
+
+- **(CONTRIBUTING.md)** improve release guidance - ([9ec66e2](https://github.com/michen00/invisible-squiggles/commit/9ec66e20066a18d371cf2da3182fc37cf75470c7)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+
+### ♻️ Refactor
+
+- exit on error instead of warning - ([27ff320](https://github.com/michen00/invisible-squiggles/commit/27ff32072fd23270b61893284ea1f81dd5803eb9)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+
+### ⚙️ Miscellaneous Tasks
+
+- **(.editorconfig)** remove an invalid key - ([be54bd1](https://github.com/michen00/invisible-squiggles/commit/be54bd18f41d9634d03efa931d464d695490328f)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- **(.yamllint)** drop yamlfmt - ([f23956d](https://github.com/michen00/invisible-squiggles/commit/f23956d6e5c4f2026a511aa4657ab80fa7a61f96)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- **(Makefile)** improve the portability of colors - ([9802145](https://github.com/michen00/invisible-squiggles/commit/9802145aad6ffe9fd7c6a655430631d34a9e8d3f)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- **(Makefile)** improve security - ([746a531](https://github.com/michen00/invisible-squiggles/commit/746a531cbdea5c0197c7a7e2bac468e8745f578b)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- **(Makefile)** update to match boilerplate - ([6c58415](https://github.com/michen00/invisible-squiggles/commit/6c5841583fe74942804a4637c2fb7ad352f9213a)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- remove a python-specific pre-commit hook - ([39fe15d](https://github.com/michen00/invisible-squiggles/commit/39fe15dff3a3b1e99145044d0aaed6e38a40de9c)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+
 ## [0.3.0](https://github.com/michen00/invisible-squiggles/compare/v0.2.1..v0.3.0) - 2025-12-21
 
 ### ✨ Features

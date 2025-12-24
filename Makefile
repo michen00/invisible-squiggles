@@ -107,7 +107,7 @@ develop: install ## Install the project for development (WITH_HOOKS={true|false}
         if git stash apply; then \
             git stash drop; \
         else \
-            echo "$(YELLOW)Warning: Stash apply had conflicts. Resolve them, then run: git stash drop$(_COLOR)"; \
+            echo "$(RED)Error: Stash apply had conflicts. Resolve them, then run: git stash drop$(_COLOR)"; \
         fi; \
     fi; \
     trap - EXIT

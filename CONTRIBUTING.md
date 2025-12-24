@@ -166,18 +166,18 @@ And finally, when you are satisfied with your changes, open a new PR.
 
 ## Creating a release
 
-1. Create a release branch: `git switch -c release/v<version>`
-1. Update `CHANGELOG.md` (use `git cliff --unreleased` to generate entries)
-1. Update version in `package.json`
+1. Prepare a release branch: `git switch main && git pull && git switch -c release/vX.Y.Z`
+1. Update `CHANGELOG.md`; use `git cliff --unreleased` to generate entries.
+1. Update version in `package.json`.
 1. Build and test: `make rebuild && make check`
 1. Test locally: `make install-vsix`
-1. Commit the changes: `git commit -am "chore: release v<version>"`
-1. Merge the PR into `main`
+1. Commit the changes: `git commit -am "chore: release vX.Y.Z"`
+1. Merge the PR into `main`.
 1. Get the latest main: `git switch main && git pull`
-1. Create signed tag: `git tag -a v<version> -m v<version> -s`
+1. Create a signed tag: `git tag -a vX.Y.Z -m vX.Y.Z -s`
 1. Push with tags: `git push --follow-tags`
-1. Create GitHub release from the tag
-1. Publish to Marketplace: `make publish`
+1. Create a GitHub release from the tag: `gh release create vX.Y.Z --generate-notes`
+1. Publish to the VSCode Marketplace: `make publish`
 
 [issues]: https://github.com/michen00/invisible-squiggles/issues
 [issues_new]: https://github.com/michen00/invisible-squiggles/issues/new

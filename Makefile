@@ -163,7 +163,7 @@ clean: ## Remove build artifacts and temporary files
 .PHONY: enable-pre-commit
 enable-pre-commit: ## Enable pre-commit hooks (along with commit-msg and pre-push hooks)
 	@if command -v pre-commit >/dev/null 2>&1; then \
-        pre-commit install --hook-type commit-msg --hook-type pre-commit --hook-type pre-push; \
+        pre-commit install --hook-type commit-msg --hook-type pre-commit --hook-type pre-push --hook-type prepare-commit-msg ; \
     else \
         echo "$(YELLOW)Warning: pre-commit is not installed. Skipping hook installation.$(_COLOR)"; \
         echo "Install it with: pip install pre-commit (or brew install pre-commit on macOS)"; \

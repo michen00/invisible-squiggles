@@ -37,48 +37,8 @@ jobs:
 
             return 'false';
 
-      - name: identify issue type
-        if: steps.bot-author-check.outputs.result != 'true' && github.event_name == 'issues'
-        id: check-labels
-        uses: actions/github-script@v8
-        with:
-          result-encoding: string
-          script: |
-            const issue = context.payload.issue;
-            if (!issue) {
-              return "unknown";
-            }
-            const labels = issue.labels.map(label => label.name.toLowerCase());
-            if (labels.includes("bug")) {
-              return "bug";
-            }
-            if (labels.includes("enhancement") || labels.includes("feature-request")) {
-              return "enhancement";
-            }
-            return "unknown";
-      - name: greet bug reports
-        if: steps.bot-author-check.outputs.result != 'true' && github.event_name == 'issues' && steps.check-labels.outputs.result == 'bug'
-        uses: actions/first-interaction@v3
-        with:
-          issue_message: |
-            🎉 Welcome to the `invisible-squiggles` community! 🎉
-
-            Thank you for taking the time to report this issue! 🐛 Quality is important to us and we would never release anything with known defects, but unfortunately, you encountered something we didn't expect. Let's figure out what went wrong together so we can identify a remedy for it.
-
-            A maintainer will be with you soon! Thank you for your cooperation 🙏
-      - name: greet feature requests
-        if: steps.bot-author-check.outputs.result != 'true' && github.event_name == 'issues' && steps.check-labels.outputs.result == 'enhancement'
-        uses: actions/first-interaction@v3
-        with:
-          issue_message: |
-            🎉 Welcome to the `invisible-squiggles` community! 🎉
-
-            Thank you for your feature request! 🚀 We love ideas that help improve this project. Your suggestion will be reviewed by a maintainer soon. If you have any additional thoughts, feel free to add them to this issue.
-
-            Looking forward to making `invisible-squiggles` even better together! ✨
-
-      - name: greet pull requests
-        if: steps.bot-author-check.outputs.result != 'true' && github.event_name == 'pull_request'
+      - name: greet first interactions
+        if: steps.bot-author-check.outputs.result != 'true'
         uses: actions/first-interaction@v3
         with:
           issue_message: |

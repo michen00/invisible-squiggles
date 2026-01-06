@@ -20,13 +20,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
-        with:
-          check-latest: true
       - name: Install pre-commit
         run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install --upgrade pre-commit
+          pip install --upgrade pip
+          pip install --upgrade pre-commit
       - name: Cache pre-commit hooks
         id: cache-pre-commit-hooks
         uses: actions/cache@v5

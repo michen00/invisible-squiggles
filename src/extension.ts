@@ -173,7 +173,7 @@ export function toggleSquigglesCore(
       if (typeof storedValue === "string") {
         newCustomizations[key] = storedValue;
       } else {
-        newCustomizations[key] = null;
+        newCustomizations[key] = "";
       }
     });
 
@@ -190,7 +190,7 @@ export function toggleSquigglesCore(
         if (typeof storedValue === "string") {
           newCustomizations[key] = storedValue;
         } else {
-          newCustomizations[key] = null;
+          newCustomizations[key] = "";
         }
       }
     });

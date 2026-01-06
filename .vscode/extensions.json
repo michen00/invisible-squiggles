@@ -1,6 +1,5 @@
 {
   "recommendations": [
-    "connor4312.esbuild-problem-matchers",
     "davidanson.vscode-markdownlint",
     "dbaeumer.vscode-eslint",
     "esbenp.prettier-vscode",

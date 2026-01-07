@@ -94,7 +94,7 @@ describe("toggleSquigglesCore", () => {
       // Transparent colors should be removed
       assert.strictEqual(
         result.newCustomizations["editorError.background"],
-        null
+        ""
       );
 
       assert.ok(consoleErrorStub.called, "Expected toggleSquigglesCore to log an error");
@@ -123,7 +123,7 @@ describe("toggleSquigglesCore", () => {
       // When restoring with no stored colors, should remove transparent colors
       assert.strictEqual(
         result.newCustomizations["editorError.background"],
-        null
+        ""
       );
     });
 
@@ -152,7 +152,7 @@ describe("toggleSquigglesCore", () => {
       // Transparent colors should be removed (no stored colors to restore)
       assert.strictEqual(
         result.newCustomizations["editorError.background"],
-        null
+        ""
       );
     });
 
@@ -316,7 +316,7 @@ describe("toggleSquigglesCore", () => {
       // Error has no stored original, so should be cleared (null)
       assert.strictEqual(
         result.newCustomizations["editorError.background"],
-        null,
+        "",
         "Stale transparent colors with no stored original should be cleared"
       );
     });

@@ -109,7 +109,7 @@ export interface ToggleSquigglesConfig {
  */
 export interface ToggleSquigglesResult {
   // VS Code can retain old workbench.colorCustomizations keys when updating objects.
-  // Setting a color key to `null` explicitly clears that customization.
+  // Setting a color key to `""` explicitly clears that customization.
   newCustomizations: Record<string, string | null | undefined>;
   isAlreadyTransparent: boolean;
   shouldShowMessage: boolean;

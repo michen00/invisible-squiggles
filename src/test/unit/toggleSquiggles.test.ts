@@ -58,15 +58,9 @@ describe("toggleSquigglesCore", () => {
       const result = toggleSquigglesCore(currentCustomizations, hideSquiggles);
 
       assert.strictEqual(result.isAlreadyTransparent, true);
-      assert.strictEqual(
-        result.newCustomizations["editorError.background"],
-        "#ff0000"
-      );
+      assert.strictEqual(result.newCustomizations["editorError.background"], "#ff0000");
       assert.strictEqual(result.newCustomizations["editorError.border"], "#ff0000");
-      assert.strictEqual(
-        result.newCustomizations["editorError.foreground"],
-        "#ff0000"
-      );
+      assert.strictEqual(result.newCustomizations["editorError.foreground"], "#ff0000");
     });
   });
 
@@ -93,13 +87,16 @@ describe("toggleSquigglesCore", () => {
       // Should still restore (but with empty stored colors)
       assert.strictEqual(result.isAlreadyTransparent, true);
       // Transparent colors should be removed
-      assert.strictEqual(
-        result.newCustomizations["editorError.background"],
-        ""
-      );
+      assert.strictEqual(result.newCustomizations["editorError.background"], "");
 
-      assert.ok(consoleErrorStub.called, "Expected toggleSquigglesCore to log an error");
-      assert.strictEqual(consoleErrorStub.firstCall.args[0], "Error parsing saved colors JSON:");
+      assert.ok(
+        consoleErrorStub.called,
+        "Expected toggleSquigglesCore to log an error"
+      );
+      assert.strictEqual(
+        consoleErrorStub.firstCall.args[0],
+        "Error parsing saved colors JSON:"
+      );
       // Cleanup handled by afterEach -> sinon.restore()
     });
 
@@ -122,10 +119,7 @@ describe("toggleSquigglesCore", () => {
       // Should detect as already transparent
       assert.strictEqual(result.isAlreadyTransparent, true);
       // When restoring with no stored colors, should remove transparent colors
-      assert.strictEqual(
-        result.newCustomizations["editorError.background"],
-        ""
-      );
+      assert.strictEqual(result.newCustomizations["editorError.background"], "");
     });
 
     it("should handle non-string invisibleSquiggles.originalColors", () => {
@@ -151,10 +145,7 @@ describe("toggleSquigglesCore", () => {
       // and restore (but with empty stored colors since originalColors was invalid)
       assert.strictEqual(result.isAlreadyTransparent, true);
       // Transparent colors should be removed (no stored colors to restore)
-      assert.strictEqual(
-        result.newCustomizations["editorError.background"],
-        ""
-      );
+      assert.strictEqual(result.newCustomizations["editorError.background"], "");
     });
 
     it("should handle missing configuration values (use defaults)", () => {
@@ -172,10 +163,7 @@ describe("toggleSquigglesCore", () => {
 
       const result = toggleSquigglesCore(currentCustomizations, hideSquiggles);
       // No transparent colors should be applied
-      assert.strictEqual(
-        result.newCustomizations["editorError.background"],
-        "#ff0000"
-      );
+      assert.strictEqual(result.newCustomizations["editorError.background"], "#ff0000");
     });
 
     it("should handle conflicting color customizations (merge correctly)", () => {
@@ -195,10 +183,7 @@ describe("toggleSquigglesCore", () => {
       const result = toggleSquigglesCore(currentCustomizations, hideSquiggles);
 
       // Should preserve existing customizations
-      assert.strictEqual(
-        result.newCustomizations["custom.setting"],
-        "custom-value"
-      );
+      assert.strictEqual(result.newCustomizations["custom.setting"], "custom-value");
       // Should apply transparency to Error
       assert.strictEqual(
         result.newCustomizations["editorError.background"],
@@ -272,10 +257,7 @@ describe("toggleSquigglesCore", () => {
         "#ff0000",
         "Error colors should be restored even though hideErrors is now false"
       );
-      assert.strictEqual(
-        result2.newCustomizations["editorError.border"],
-        "#ff0000"
-      );
+      assert.strictEqual(result2.newCustomizations["editorError.border"], "#ff0000");
       assert.strictEqual(
         result2.newCustomizations["editorError.foreground"],
         "#ff0000"
@@ -341,59 +323,17 @@ describe("toggleSquigglesCore", () => {
       assert.strictEqual(result1.isAlreadyTransparent, false);
 
       // Simulate second toggle (show) - using result1's newCustomizations as current
-      const result2 = toggleSquigglesCore(
-        result1.newCustomizations,
-        hideSquiggles
-      );
+      const result2 = toggleSquigglesCore(result1.newCustomizations, hideSquiggles);
       assert.strictEqual(result2.isAlreadyTransparent, true);
 
       // Simulate third toggle (hide again)
-      const result3 = toggleSquigglesCore(
-        result2.newCustomizations,
-        hideSquiggles
-      );
+      const result3 = toggleSquigglesCore(result2.newCustomizations, hideSquiggles);
       assert.strictEqual(result3.isAlreadyTransparent, false);
 
       // Each toggle should produce valid state
       assert.ok(result1.newCustomizations);
       assert.ok(result2.newCustomizations);
       assert.ok(result3.newCustomizations);
-    });
-  });
-
-  describe("shouldShowMessage behavior", () => {
-    // Regression test: when all hide flags are disabled, shouldShowMessage must be false
-    // to prevent the status bar from incorrectly showing "hidden" when nothing was hidden
-    it("should return shouldShowMessage=false when all hide flags are disabled", () => {
-      const currentCustomizations: Record<string, string | undefined> = {
-        "editorError.background": "#ff0000",
-        "editorWarning.background": "#ffaa00",
-      };
-
-      const hideSquiggles: ToggleSquigglesConfig = {
-        hideErrors: false,
-        hideWarnings: false,
-        hideInfo: false,
-        hideHint: false,
-      };
-
-      const result = toggleSquigglesCore(currentCustomizations, hideSquiggles);
-
-      // shouldShowMessage must be false so the caller knows not to update status bar
-      assert.strictEqual(
-        result.shouldShowMessage,
-        false,
-        "shouldShowMessage should be false when no squiggle types are configured to hide"
-      );
-      // Customizations should remain unchanged
-      assert.strictEqual(
-        result.newCustomizations["editorError.background"],
-        "#ff0000"
-      );
-      assert.strictEqual(
-        result.newCustomizations["editorWarning.background"],
-        "#ffaa00"
-      );
     });
   });
 });

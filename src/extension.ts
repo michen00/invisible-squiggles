@@ -218,9 +218,36 @@ export function toggleSquigglesCore(
 }
 
 /**
- * VSCode API wrapper for toggleSquiggles
+ * Native mode: Toggle squiggles using VS Code's problems.visibility setting
  */
-async function toggleSquiggles(): Promise<void> {
+async function toggleSquigglesNative(): Promise<void> {
+  const settings = vscode.workspace.getConfiguration("invisibleSquiggles");
+  const config = vscode.workspace.getConfiguration("problems");
+  const current = config.get<boolean>("visibility", true);
+
+  try {
+    await config.update("visibility", !current, vscode.ConfigurationTarget.Global);
+    setStatusInternal(current ? "hidden" : "visible");
+
+    const showStatusBarMessage = settings.get<boolean>("showStatusBarMessage", false);
+    if (showStatusBarMessage) {
+      const message = current
+        ? "Squiggles are now hidden."
+        : "Squiggles are now visible.";
+      vscode.window.setStatusBarMessage(message, 2500);
+    }
+  } catch (error) {
+    console.error("Error toggling squiggle visibility:", error);
+    vscode.window.showErrorMessage(
+      "An error occurred while toggling squiggle settings. Check logs for details."
+    );
+  }
+}
+
+/**
+ * Legacy mode: Toggle squiggles using color customizations
+ */
+async function toggleSquigglesLegacy(): Promise<void> {
   const config = vscode.workspace.getConfiguration("workbench");
   const settings = vscode.workspace.getConfiguration("invisibleSquiggles");
 
@@ -262,6 +289,20 @@ async function toggleSquiggles(): Promise<void> {
   }
 }
 
+/**
+ * Main toggle function - dispatches to native or legacy mode based on settings
+ */
+async function toggleSquiggles(): Promise<void> {
+  const settings = vscode.workspace.getConfiguration("invisibleSquiggles");
+  const mode = settings.get<string>("mode", "native");
+
+  if (mode === "legacy") {
+    await toggleSquigglesLegacy();
+  } else {
+    await toggleSquigglesNative();
+  }
+}
+
 const COMMAND_TOGGLE_SQUIGGLES = "invisible-squiggles.toggle";
 export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
@@ -275,29 +316,126 @@ export function activate(context: vscode.ExtensionContext) {
 
   statusBarItem.command = COMMAND_TOGGLE_SQUIGGLES;
 
-  const currentCustomizations =
-    vscode.workspace
-      .getConfiguration("workbench")
-      .get<{ [key: string]: string | null | undefined }>("colorCustomizations") || {};
-
   const settings = vscode.workspace.getConfiguration("invisibleSquiggles");
-  const hideSquiggles: ToggleSquigglesConfig = {
-    hideErrors: settings.get<boolean>("hideErrors", true),
-    hideWarnings: settings.get<boolean>("hideWarnings", true),
-    hideInfo: settings.get<boolean>("hideInfo", true),
-    hideHint: settings.get<boolean>("hideHint", true),
-  };
+  const mode = settings.get<string>("mode", "native");
 
-  const isInitiallyTransparent = areSquigglesCurrentlyTransparent(
-    currentCustomizations,
-    hideSquiggles
-  );
+  let isInitiallyHidden: boolean;
 
-  // null means nothing configured → default to visible
-  setStatusInternal(isInitiallyTransparent === true ? "hidden" : "visible");
+  if (mode === "legacy") {
+    // Legacy mode: Check color customizations
+    const currentCustomizations =
+      vscode.workspace
+        .getConfiguration("workbench")
+        .get<{ [key: string]: string | null | undefined }>("colorCustomizations") || {};
+
+    const hideSquiggles: ToggleSquigglesConfig = {
+      hideErrors: settings.get<boolean>("hideErrors", true),
+      hideWarnings: settings.get<boolean>("hideWarnings", true),
+      hideInfo: settings.get<boolean>("hideInfo", true),
+      hideHint: settings.get<boolean>("hideHint", true),
+    };
+
+    const isInitiallyTransparent = areSquigglesCurrentlyTransparent(
+      currentCustomizations,
+      hideSquiggles
+    );
+
+    // null means nothing configured → default to visible
+    isInitiallyHidden = isInitiallyTransparent === true;
+  } else {
+    // Native mode: Check problems.visibility setting
+    const problemsVisibility = vscode.workspace
+      .getConfiguration("problems")
+      .get<boolean>("visibility", true);
+
+    isInitiallyHidden = !problemsVisibility;
+  }
+
+  setStatusInternal(isInitiallyHidden ? "hidden" : "visible");
 
   statusBarItem.show();
   context.subscriptions.push(statusBarItem);
 }
 
-export function deactivate() {}
+/**
+ * Restore settings when extension is deactivated.
+ * Note: This means hidden state won't persist across VSCode restarts.
+ */
+export async function deactivate(): Promise<void> {
+  try {
+    const settings = vscode.workspace.getConfiguration("invisibleSquiggles");
+    const mode = settings.get<string>("mode", "native");
+
+    if (mode === "legacy") {
+      // Legacy mode: Restore original colors if currently hidden
+      const config = vscode.workspace.getConfiguration("workbench");
+      const currentCustomizations =
+        config.get<Record<string, string | null | undefined>>("colorCustomizations") ||
+        {};
+
+      const storedColorsJson =
+        currentCustomizations["invisibleSquiggles.originalColors"];
+      if (storedColorsJson && typeof storedColorsJson === "string") {
+        // We have stored colors, meaning squiggles are currently hidden - restore them
+        try {
+          const storedColors = JSON.parse(storedColorsJson) as Record<string, string>;
+          const newCustomizations = { ...currentCustomizations };
+
+          // Restore original colors
+          for (const [key, value] of Object.entries(storedColors)) {
+            newCustomizations[key] = value;
+          }
+
+          // Remove transparent colors that weren't in original
+          for (const key of Object.keys(TRANSPARENT_COLORS)) {
+            if (!(key in storedColors)) {
+              newCustomizations[key] = null;
+            }
+          }
+
+          // Clear the marker (use null - VS Code may retain old object keys otherwise)
+          newCustomizations["invisibleSquiggles.originalColors"] = null;
+
+          await config.update(
+            "colorCustomizations",
+            newCustomizations,
+            vscode.ConfigurationTarget.Global
+          );
+        } catch {
+          // JSON parse error - just try to clean up transparent colors
+          const newCustomizations = { ...currentCustomizations };
+          for (const key of Object.keys(TRANSPARENT_COLORS)) {
+            if (
+              typeof newCustomizations[key] === "string" &&
+              newCustomizations[key]!.toLowerCase() === TRANSPARENT_COLOR
+            ) {
+              newCustomizations[key] = null;
+            }
+          }
+          newCustomizations["invisibleSquiggles.originalColors"] = null;
+          await config.update(
+            "colorCustomizations",
+            newCustomizations,
+            vscode.ConfigurationTarget.Global
+          );
+        }
+      }
+    } else {
+      // Native mode: Restore problems.visibility if currently hidden
+      const problemsConfig = vscode.workspace.getConfiguration("problems");
+      const visibility = problemsConfig.get<boolean>("visibility", true);
+
+      if (!visibility) {
+        // Currently hidden - restore to visible (remove the setting entirely)
+        await problemsConfig.update(
+          "visibility",
+          undefined, // Remove the setting to use VS Code's default
+          vscode.ConfigurationTarget.Global
+        );
+      }
+    }
+  } catch (error) {
+    // Best effort - don't throw during deactivation
+    console.error("Error during deactivation cleanup:", error);
+  }
+}

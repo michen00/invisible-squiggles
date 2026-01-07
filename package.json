@@ -42,25 +42,34 @@
       "type": "object",
       "title": "Invisible Squiggles",
       "properties": {
+        "invisibleSquiggles.mode": {
+          "type": "string",
+          "enum": [
+            "native",
+            "legacy"
+          ],
+          "default": "native",
+          "markdownDescription": "Toggle method:\n- `native`: Uses VS Code's `problems.visibility` setting (simpler, all-or-nothing)\n- `legacy`: Uses color customizations (allows per-squiggle-type control)"
+        },
         "invisibleSquiggles.hideErrors": {
           "type": "boolean",
           "default": true,
-          "description": "Toggle error squiggles."
+          "markdownDescription": "Toggle error squiggles. **Only applies in `legacy` mode.**"
         },
         "invisibleSquiggles.hideWarnings": {
           "type": "boolean",
           "default": true,
-          "description": "Toggle warning squiggles."
+          "markdownDescription": "Toggle warning squiggles. **Only applies in `legacy` mode.**"
         },
         "invisibleSquiggles.hideInfo": {
           "type": "boolean",
           "default": true,
-          "description": "Toggle info squiggles."
+          "markdownDescription": "Toggle info squiggles. **Only applies in `legacy` mode.**"
         },
         "invisibleSquiggles.hideHint": {
           "type": "boolean",
           "default": true,
-          "description": "Toggle hint squiggles."
+          "markdownDescription": "Toggle hint squiggles. **Only applies in `legacy` mode.**"
         },
         "invisibleSquiggles.showStatusBarMessage": {
           "type": "boolean",
@@ -72,6 +81,7 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
+    "vscode:uninstall": "node ./scripts/uninstall.js",
     "compile": "npm run check-types && npm run lint && node esbuild.js",
     "watch": "npm-run-all -p watch:*",
     "watch:esbuild": "node esbuild.js --watch",

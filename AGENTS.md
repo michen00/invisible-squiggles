@@ -8,12 +8,15 @@ For more context, see `README.md`, `CLAUDE.md`, and `.github/copilot-instruction
 
 **invisible-squiggles** is a VSCode extension that toggles **error, warning, info, and hint** squiggles for distraction-free coding.
 
-It works by manipulating VSCode’s `workbench.colorCustomizations` setting to make diagnostic squiggles transparent by setting colors to `#00000000`.
+The extension supports two modes:
+
+- **Native mode** (default): Uses VS Code's built-in `problems.visibility` setting
+- **Legacy mode**: Manipulates `workbench.colorCustomizations` to make squiggles transparent
 
 ## Key user-facing behavior
 
-- **Command**: `invisible-squiggles.toggle` (“Toggle Squiggles”) via Command Palette and status bar button (👁️)
-- **Squiggle types**: Hint, Info, Warning, Error
+- **Command**: `invisible-squiggles.toggle` ("Toggle Squiggles") via Command Palette and status bar button (👁️)
+- **Modes**: Native (simple, all-or-nothing) or Legacy (per-squiggle-type control)
 - **Persistence**: updates are written to **global** settings (`ConfigurationTarget.Global`)
 
 ## Development commands
@@ -102,11 +105,19 @@ src/test/
 ## Architecture notes (how it works)
 
 - **Main entry point**: `src/extension.ts`
-- The extension:
-  - Reads current `workbench.colorCustomizations`
-  - Stores original squiggle colors in `invisibleSquiggles.originalColors` (JSON string)
-  - Applies transparent colors (`#00000000`) to configured squiggle color keys
-  - Restores original colors when toggled back
+
+### Native mode (default)
+
+- Toggles VS Code's `problems.visibility` setting between `true` and `false`
+- Simple and clean - no color manipulation needed
+
+### Legacy mode
+
+- Reads current `workbench.colorCustomizations`
+- Stores original squiggle colors in `invisibleSquiggles.originalColors` (JSON string)
+- Applies transparent colors (`#00000000`) to configured squiggle color keys
+- Restores original colors when toggled back
+- Allows per-squiggle-type control via `hideErrors`, `hideWarnings`, `hideInfo`, `hideHint` settings
 
 ## Conventions
 

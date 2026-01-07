@@ -9,7 +9,7 @@ The **Invisible Squiggles** VSCode extension allows you to **toggle error, warni
 ## 🔹 Features
 
 - ✅ **Toggle squiggles on/off** from the **status bar** or **command palette**
-- ✅ **Supports hint, info, error, and warning squiggles**
+- ✅ **Two modes**: Native (simple) or Legacy (per-squiggle-type control)
 
 ---
 
@@ -27,6 +27,39 @@ Click the **👁️ Toggle Squiggles** button at the **bottom right**.
 1. Press **`Ctrl/Cmd + Shift + P`**.
 1. Type **`Toggle Squiggles`**.
 1. Select the command to hide/show squiggles.
+
+---
+
+## 🔹 Modes
+
+### Native Mode (Default)
+
+Uses VS Code's built-in `problems.visibility` setting. This is the **recommended** mode for most users.
+
+- ✅ Simple and reliable
+- ✅ Toggles all squiggles at once
+- ✅ No settings pollution
+
+### Legacy Mode
+
+Uses color customizations to make squiggles transparent. Enable this mode if you need **per-squiggle-type control**.
+
+To enable legacy mode, add to your `settings.json`:
+
+```json
+{
+  "invisibleSquiggles.mode": "legacy"
+}
+```
+
+In legacy mode, you can customize which squiggle types to hide:
+
+| Setting                           | Default | Description              |
+| --------------------------------- | ------- | ------------------------ |
+| `invisibleSquiggles.hideErrors`   | `true`  | Toggle error squiggles   |
+| `invisibleSquiggles.hideWarnings` | `true`  | Toggle warning squiggles |
+| `invisibleSquiggles.hideInfo`     | `true`  | Toggle info squiggles    |
+| `invisibleSquiggles.hideHint`     | `true`  | Toggle hint squiggles    |
 
 ## 🔹 Documentation
 

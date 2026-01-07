@@ -4,7 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a VSCode extension that toggles error, warning, info, and hint squiggles for distraction-free coding. The extension manipulates VSCode's `workbench.colorCustomizations` to make diagnostic squiggles transparent by setting colors to `#00000000`.
+This is a VSCode extension that toggles error, warning, info, and hint squiggles for distraction-free coding.
+
+The extension supports two modes:
+
+- **Native mode** (default): Uses VS Code's built-in `problems.visibility` setting - simple and clean
+- **Legacy mode**: Manipulates `workbench.colorCustomizations` to make squiggles transparent - allows per-squiggle-type control
 
 ## Essential Development Commands
 
@@ -49,26 +54,35 @@ Note: Integration and E2E tests require VSCode runtime and will fail in headless
 
 ## Architecture
 
-### Core Mechanism
+### Dual-Mode System
 
-The extension works by:
+The extension dispatches to different toggle implementations based on the `invisibleSquiggles.mode` setting:
 
-1. Reading current `workbench.colorCustomizations` settings
-2. Storing original squiggle colors in a JSON string within settings (`invisibleSquiggles.originalColors`)
-3. Applying transparent colors (`#00000000`) to configured squiggle types
-4. Restoring original colors when toggled back
+**Native mode** (default):
+
+- Toggles `problems.visibility` between `true` and `false`
+- Simple, no state management needed
+
+**Legacy mode**:
+
+1. Reads current `workbench.colorCustomizations` settings
+2. Stores original squiggle colors in a JSON string within settings (`invisibleSquiggles.originalColors`)
+3. Applies transparent colors (`#00000000`) to configured squiggle types
+4. Restores original colors when toggled back
 
 ### Key Components
 
 **Main Entry Point**: `src/extension.ts`
 
-- `activate()`: Registers command, creates status bar item, sets initial state
-- `toggleSquiggles()`: Core logic that applies/restores color customizations
+- `activate()`: Registers command, creates status bar item, sets initial state based on mode
+- `toggleSquiggles()`: Dispatches to native or legacy toggle based on mode setting
+- `toggleSquigglesNative()`: Native mode implementation - toggles `problems.visibility`
+- `toggleSquigglesLegacy()`: Legacy mode implementation - color customization logic
 - `setStatus()`: Updates status bar icon and tooltip based on squiggle visibility state
 
-**Squiggle Types Managed**: Hint, Info, Error, Warning
+**Squiggle Types Managed** (legacy mode only): Hint, Info, Error, Warning
 
-For each type, the extension manages three color properties:
+For each type, the extension manages up to three color properties:
 
 - `editor{Type}.background`
 - `editor{Type}.border`
@@ -76,10 +90,11 @@ For each type, the extension manages three color properties:
 
 **Configuration Settings** (`package.json` contributions):
 
-- `invisibleSquiggles.hideErrors` (default: true)
-- `invisibleSquiggles.hideWarnings` (default: true)
-- `invisibleSquiggles.hideInfo` (default: true)
-- `invisibleSquiggles.hideHint` (default: true)
+- `invisibleSquiggles.mode` (default: "native") - Toggle method: "native" or "legacy"
+- `invisibleSquiggles.hideErrors` (default: true) - Legacy mode only
+- `invisibleSquiggles.hideWarnings` (default: true) - Legacy mode only
+- `invisibleSquiggles.hideInfo` (default: true) - Legacy mode only
+- `invisibleSquiggles.hideHint` (default: true) - Legacy mode only
 - `invisibleSquiggles.showStatusBarMessage` (default: false) - Shows temporary status message on toggle
 
 **Command Registration**: `invisible-squiggles.toggle` - Accessible via Command Palette and status bar button
@@ -104,13 +119,20 @@ For each type, the extension manages three color properties:
 
 ### State Management
 
-The extension maintains state through:
+**Native mode**:
+
+- State is simply VS Code's `problems.visibility` setting
+- No hidden state needed
+
+**Legacy mode**:
 
 1. **Global Settings**: `workbench.colorCustomizations` persisted by VSCode
 2. **Hidden State**: Original colors stored as JSON string in `invisibleSquiggles.originalColors`
-3. **Status Bar**: Visual indicator of current squiggle visibility
 
-Important: All color updates use `ConfigurationTarget.Global` to affect all workspaces.
+**Both modes**:
+
+- **Status Bar**: Visual indicator of current squiggle visibility
+- All updates use `ConfigurationTarget.Global` to affect all workspaces
 
 ## Commit Guidelines
 

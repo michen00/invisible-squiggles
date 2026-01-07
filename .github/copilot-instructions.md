@@ -6,6 +6,11 @@
 
 **invisible-squiggles** is a VSCode extension that allows users to toggle error, warning, info, and hint squiggles for a distraction-free coding experience. The extension provides both a status bar button (👁️) and command palette integration to control squiggle visibility.
 
+The extension supports two modes:
+
+- **Native mode** (default): Uses VS Code's built-in `problems.visibility` setting - simple and clean
+- **Legacy mode**: Manipulates `workbench.colorCustomizations` to make squiggles transparent - allows per-squiggle-type control
+
 ### Project Details
 
 - **Type**: VSCode Extension
@@ -171,14 +176,27 @@ The VSIX package is built using `make build-vsix` (or `make install-vsix` to bui
 
 ### Extension Architecture
 
-The extension uses VSCode's `workbench.colorCustomizations` setting to make squiggles transparent by setting editor colors to `#00000000`. It maintains original colors in a JSON string within the settings for restoration.
+The extension dispatches to different toggle implementations based on the `invisibleSquiggles.mode` setting:
+
+**Native mode** (default):
+
+- Toggles VS Code's `problems.visibility` setting between `true` and `false`
+- Simple, no state management needed
+
+**Legacy mode**:
+
+- Uses VSCode's `workbench.colorCustomizations` setting to make squiggles transparent by setting editor colors to `#00000000`
+- Maintains original colors in a JSON string within the settings for restoration
+- Allows per-squiggle-type control via `hideErrors`, `hideWarnings`, `hideInfo`, `hideHint` settings
 
 **Key Components:**
 
 - Command registration: `invisible-squiggles.toggle`
 - Status bar item with eye icon
-- Configuration settings for each squiggle type (Error, Warning, Info, Hint)
-- Color customization persistence
+- `toggleSquiggles()`: Dispatches to native or legacy toggle based on mode setting
+- `toggleSquigglesNative()`: Native mode implementation
+- `toggleSquigglesLegacy()`: Legacy mode implementation with color customization persistence
+- Configuration settings: `mode` (native/legacy) and per-squiggle-type flags (legacy mode only)
 
 ## Validation Pipeline
 

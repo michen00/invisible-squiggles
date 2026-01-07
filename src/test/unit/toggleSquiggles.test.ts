@@ -1,7 +1,8 @@
 import * as assert from "assert";
-import { afterEach, describe, it } from "mocha";
+import { afterEach, beforeEach, describe, it } from "mocha";
 import sinon from "sinon";
 import {
+  setStatus,
   ToggleSquigglesConfig,
   toggleSquigglesCore,
   TRANSPARENT_COLOR,
@@ -393,6 +394,55 @@ describe("toggleSquigglesCore", () => {
         result.newCustomizations["editorWarning.background"],
         "#ffaa00"
       );
+    });
+  });
+});
+
+describe("setStatus", () => {
+  interface MockStatusBarItem {
+    text: string;
+    tooltip: string | undefined;
+  }
+
+  let mockStatusBarItem: MockStatusBarItem;
+
+  beforeEach(() => {
+    mockStatusBarItem = { text: "", tooltip: undefined };
+  });
+
+  describe("when state is 'visible'", () => {
+    it("should set eye icon in text", () => {
+      setStatus(mockStatusBarItem as any, "visible");
+      assert.strictEqual(mockStatusBarItem.text, "Squiggles: $(eye)");
+    });
+
+    it("should set tooltip to 'Hide squiggles'", () => {
+      setStatus(mockStatusBarItem as any, "visible");
+      assert.strictEqual(mockStatusBarItem.tooltip, "Hide squiggles");
+    });
+  });
+
+  describe("when state is 'hidden'", () => {
+    it("should set eye-closed icon in text", () => {
+      setStatus(mockStatusBarItem as any, "hidden");
+      assert.strictEqual(mockStatusBarItem.text, "Squiggles: $(eye-closed)");
+    });
+
+    it("should set tooltip to 'Show squiggles'", () => {
+      setStatus(mockStatusBarItem as any, "hidden");
+      assert.strictEqual(mockStatusBarItem.tooltip, "Show squiggles");
+    });
+  });
+
+  describe("null/undefined handling", () => {
+    it("should not throw when statusBarItem is null", () => {
+      assert.doesNotThrow(() => setStatus(null, "visible"));
+      assert.doesNotThrow(() => setStatus(null, "hidden"));
+    });
+
+    it("should not throw when statusBarItem is undefined", () => {
+      assert.doesNotThrow(() => setStatus(undefined, "visible"));
+      assert.doesNotThrow(() => setStatus(undefined, "hidden"));
     });
   });
 });

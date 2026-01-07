@@ -2,10 +2,14 @@ import * as assert from "assert";
 import * as vscode from "vscode";
 import {
   delay,
+  enableAllHideFlags,
   getColorCustomizations,
+  isSquiggleTypeTransparent,
   OriginalConfig,
+  resetColorCustomizations,
   restoreOriginalConfig,
   saveOriginalConfig,
+  SQUIGGLE_TYPES,
   toggleAndWaitForChange,
 } from "../helpers/testUtils";
 
@@ -26,7 +30,7 @@ suite("Extension Integration Tests - Command Execution", () => {
     assert.ok(true, "Toggle command executed successfully");
   });
 
-  test("Status bar should update when toggle command is invoked", async () => {
+  test("Toggle command should update color customizations", async () => {
     const settings = vscode.workspace.getConfiguration("invisibleSquiggles");
 
     // Ensure at least one hide flag is enabled so toggle has an effect
@@ -46,13 +50,44 @@ suite("Extension Integration Tests - Command Execution", () => {
     );
   });
 
-  test("Multiple toggle commands should work correctly", async () => {
-    // Toggle twice (should return to original state)
-    await vscode.commands.executeCommand("invisible-squiggles.toggle");
-    await vscode.commands.executeCommand("invisible-squiggles.toggle");
+  test("Double toggle should restore squiggles to visible state", async () => {
+    // Reset to clean state and enable all hide flags for deterministic test
+    await resetColorCustomizations();
+    await enableAllHideFlags();
 
-    // After two toggles, should be back to initial state (or very close)
-    // Note: This might not be exact due to originalColors storage, but structure should be similar
-    assert.ok(true, "Multiple toggles executed without errors");
+    // Verify starting state: no squiggles are transparent
+    const initialCustomizations = getColorCustomizations();
+    const initiallyTransparent = SQUIGGLE_TYPES.some((type) =>
+      isSquiggleTypeTransparent(type, initialCustomizations)
+    );
+    assert.strictEqual(
+      initiallyTransparent,
+      false,
+      "Should start with no transparent squiggles"
+    );
+
+    // First toggle: hide squiggles
+    await toggleAndWaitForChange();
+    const afterFirstToggle = getColorCustomizations();
+    const transparentAfterFirst = SQUIGGLE_TYPES.every((type) =>
+      isSquiggleTypeTransparent(type, afterFirstToggle)
+    );
+    assert.strictEqual(
+      transparentAfterFirst,
+      true,
+      "After first toggle, all squiggles should be transparent"
+    );
+
+    // Second toggle: restore squiggles
+    await toggleAndWaitForChange();
+    const afterSecondToggle = getColorCustomizations();
+    const transparentAfterSecond = SQUIGGLE_TYPES.some((type) =>
+      isSquiggleTypeTransparent(type, afterSecondToggle)
+    );
+    assert.strictEqual(
+      transparentAfterSecond,
+      false,
+      "After second toggle, squiggles should be visible (not transparent)"
+    );
   });
 });

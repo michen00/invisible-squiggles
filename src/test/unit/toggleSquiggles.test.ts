@@ -359,4 +359,40 @@ describe("toggleSquigglesCore", () => {
       assert.ok(result3.newCustomizations);
     });
   });
+
+  describe("shouldShowMessage behavior", () => {
+    // Regression test: when all hide flags are disabled, shouldShowMessage must be false
+    // to prevent the status bar from incorrectly showing "hidden" when nothing was hidden
+    it("should return shouldShowMessage=false when all hide flags are disabled", () => {
+      const currentCustomizations: Record<string, string | undefined> = {
+        "editorError.background": "#ff0000",
+        "editorWarning.background": "#ffaa00",
+      };
+
+      const hideSquiggles: ToggleSquigglesConfig = {
+        hideErrors: false,
+        hideWarnings: false,
+        hideInfo: false,
+        hideHint: false,
+      };
+
+      const result = toggleSquigglesCore(currentCustomizations, hideSquiggles);
+
+      // shouldShowMessage must be false so the caller knows not to update status bar
+      assert.strictEqual(
+        result.shouldShowMessage,
+        false,
+        "shouldShowMessage should be false when no squiggle types are configured to hide"
+      );
+      // Customizations should remain unchanged
+      assert.strictEqual(
+        result.newCustomizations["editorError.background"],
+        "#ff0000"
+      );
+      assert.strictEqual(
+        result.newCustomizations["editorWarning.background"],
+        "#ffaa00"
+      );
+    });
+  });
 });

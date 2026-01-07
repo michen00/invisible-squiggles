@@ -26,10 +26,12 @@ type SquiggleType = (typeof SQUIGGLE_TYPES)[number];
  */
 export interface OriginalConfig {
   colorCustomizations: Record<string, string | undefined>;
-  hideErrors: boolean | undefined;
-  hideWarnings: boolean | undefined;
-  hideInfo: boolean | undefined;
-  hideHint: boolean | undefined;
+  mode: string;
+  hideErrors: boolean;
+  hideWarnings: boolean;
+  hideInfo: boolean;
+  hideHint: boolean;
+  problemsVisibility: boolean;
 }
 
 /**
@@ -39,14 +41,17 @@ export interface OriginalConfig {
 export async function saveOriginalConfig(): Promise<OriginalConfig> {
   const workbenchConfig = vscode.workspace.getConfiguration("workbench");
   const squigglesConfig = vscode.workspace.getConfiguration("invisibleSquiggles");
+  const problemsConfig = vscode.workspace.getConfiguration("problems");
 
   return {
     colorCustomizations:
       workbenchConfig.get<Record<string, string | undefined>>("colorCustomizations") || {},
-    hideErrors: squigglesConfig.get<boolean>("hideErrors"),
-    hideWarnings: squigglesConfig.get<boolean>("hideWarnings"),
-    hideInfo: squigglesConfig.get<boolean>("hideInfo"),
-    hideHint: squigglesConfig.get<boolean>("hideHint"),
+    mode: squigglesConfig.get<string>("mode", "native"),
+    hideErrors: squigglesConfig.get<boolean>("hideErrors", true),
+    hideWarnings: squigglesConfig.get<boolean>("hideWarnings", true),
+    hideInfo: squigglesConfig.get<boolean>("hideInfo", true),
+    hideHint: squigglesConfig.get<boolean>("hideHint", true),
+    problemsVisibility: problemsConfig.get<boolean>("visibility", true),
   };
 }
 
@@ -57,6 +62,7 @@ export async function saveOriginalConfig(): Promise<OriginalConfig> {
 export async function restoreOriginalConfig(original: OriginalConfig): Promise<void> {
   const workbenchConfig = vscode.workspace.getConfiguration("workbench");
   const squigglesConfig = vscode.workspace.getConfiguration("invisibleSquiggles");
+  const problemsConfig = vscode.workspace.getConfiguration("problems");
 
   await workbenchConfig.update(
     "colorCustomizations",
@@ -64,12 +70,24 @@ export async function restoreOriginalConfig(original: OriginalConfig): Promise<v
     vscode.ConfigurationTarget.Global
   );
 
+  await problemsConfig.update("visibility", original.problemsVisibility, vscode.ConfigurationTarget.Global);
+
   await Promise.all([
+    squigglesConfig.update("mode", original.mode, vscode.ConfigurationTarget.Global),
     squigglesConfig.update("hideErrors", original.hideErrors, vscode.ConfigurationTarget.Global),
     squigglesConfig.update("hideWarnings", original.hideWarnings, vscode.ConfigurationTarget.Global),
     squigglesConfig.update("hideInfo", original.hideInfo, vscode.ConfigurationTarget.Global),
     squigglesConfig.update("hideHint", original.hideHint, vscode.ConfigurationTarget.Global),
   ]);
+}
+
+/**
+ * Sets the extension to legacy mode for tests that require color customizations.
+ */
+export async function setLegacyMode(): Promise<void> {
+  const squigglesConfig = vscode.workspace.getConfiguration("invisibleSquiggles");
+  await squigglesConfig.update("mode", "legacy", vscode.ConfigurationTarget.Global);
+  await delay(150);
 }
 
 // ============================================================================

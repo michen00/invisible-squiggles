@@ -9,6 +9,7 @@ import {
   resetColorCustomizations,
   restoreOriginalConfig,
   saveOriginalConfig,
+  setLegacyMode,
   SQUIGGLE_TYPES,
   toggleAndWaitForChange,
 } from "../helpers/testUtils";
@@ -18,6 +19,8 @@ suite("Extension Integration Tests - Command Execution", () => {
 
   suiteSetup(async () => {
     originalConfig = await saveOriginalConfig();
+    // Use legacy mode for tests that check color customizations
+    await setLegacyMode();
   });
 
   suiteTeardown(async () => {

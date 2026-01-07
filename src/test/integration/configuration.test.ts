@@ -7,6 +7,7 @@ import {
   OriginalConfig,
   restoreOriginalConfig,
   saveOriginalConfig,
+  setLegacyMode,
   toggleAndWaitForChange,
   TRANSPARENT_COLOR,
 } from "../helpers/testUtils";
@@ -16,6 +17,8 @@ suite("Extension Integration Tests - Configuration", () => {
 
   suiteSetup(async () => {
     originalConfig = await saveOriginalConfig();
+    // Use legacy mode for these tests since they test color customizations
+    await setLegacyMode();
   });
 
   suiteTeardown(async () => {

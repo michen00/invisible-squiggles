@@ -20,7 +20,7 @@ suite("Extension E2E Tests - Status Bar", () => {
     await restoreOriginalConfig(originalConfig);
   });
 
-  test("Status bar button should execute toggle command when clicked", async () => {
+  test("Toggle command should update color customizations", async () => {
     const settings = vscode.workspace.getConfiguration("invisibleSquiggles");
 
     // Ensure at least one hide flag is enabled so toggle has an effect
@@ -29,8 +29,6 @@ suite("Extension E2E Tests - Status Bar", () => {
 
     const beforeJson = JSON.stringify(getColorCustomizations());
 
-    // Simulate status bar button click by executing the command it's bound to
-    // (In real E2E, we would click the status bar, but we can simulate via command)
     const changed = await toggleAndWaitForChange();
 
     const afterJson = JSON.stringify(getColorCustomizations());
@@ -38,11 +36,11 @@ suite("Extension E2E Tests - Status Bar", () => {
     // Verify: either configuration change event fired, or JSON changed
     assert.ok(
       changed || beforeJson !== afterJson,
-      "Status bar button should execute toggle command"
+      "Toggle command should update color customizations"
     );
   });
 
-  test("Status bar should reflect squiggle visibility state after toggle", async () => {
+  test("Toggle command should reflect state change in configuration", async () => {
     const settings = vscode.workspace.getConfiguration("invisibleSquiggles");
 
     // Ensure at least one hide flag is enabled so toggle has an effect
@@ -51,7 +49,7 @@ suite("Extension E2E Tests - Status Bar", () => {
 
     const beforeJson = JSON.stringify(getColorCustomizations());
 
-    // Execute toggle command (simulating status bar click)
+    // Execute toggle command
     const changed = await toggleAndWaitForChange();
 
     // Verify state changed by checking configuration
@@ -60,7 +58,7 @@ suite("Extension E2E Tests - Status Bar", () => {
     // Verify: either configuration change event fired, or JSON changed
     assert.ok(
       changed || beforeJson !== afterJson,
-      "Status bar state should be reflected in configuration"
+      "Configuration should reflect state change after toggle"
     );
   });
 });

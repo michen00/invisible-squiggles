@@ -87,7 +87,7 @@ describe("toggleSquigglesCore", () => {
       // Should still restore (but with empty stored colors)
       assert.strictEqual(result.isAlreadyTransparent, true);
       // Transparent colors should be removed
-      assert.strictEqual(result.newCustomizations["editorError.background"], "");
+      assert.strictEqual(result.newCustomizations["editorError.background"], undefined);
 
       assert.ok(
         consoleErrorStub.called,
@@ -119,7 +119,7 @@ describe("toggleSquigglesCore", () => {
       // Should detect as already transparent
       assert.strictEqual(result.isAlreadyTransparent, true);
       // When restoring with no stored colors, should remove transparent colors
-      assert.strictEqual(result.newCustomizations["editorError.background"], "");
+      assert.strictEqual(result.newCustomizations["editorError.background"], undefined);
     });
 
     it("should handle non-string invisibleSquiggles.originalColors", () => {
@@ -145,7 +145,7 @@ describe("toggleSquigglesCore", () => {
       // and restore (but with empty stored colors since originalColors was invalid)
       assert.strictEqual(result.isAlreadyTransparent, true);
       // Transparent colors should be removed (no stored colors to restore)
-      assert.strictEqual(result.newCustomizations["editorError.background"], "");
+      assert.strictEqual(result.newCustomizations["editorError.background"], undefined);
     });
 
     it("should handle missing configuration values (use defaults)", () => {
@@ -296,10 +296,10 @@ describe("toggleSquigglesCore", () => {
         "#ffaa00"
       );
 
-      // Error has no stored original, so should be cleared (null)
+      // Error has no stored original, so should be cleared (undefined)
       assert.strictEqual(
         result.newCustomizations["editorError.background"],
-        "",
+        undefined,
         "Stale transparent colors with no stored original should be cleared"
       );
     });

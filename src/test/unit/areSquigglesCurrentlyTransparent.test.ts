@@ -177,10 +177,10 @@ describe("areSquigglesCurrentlyTransparent", () => {
 
   describe("edge cases", () => {
     it("should return false when colors are null", () => {
-      const customizations: Record<string, string | null> = {};
+      const customizations: Record<string, string | null | undefined> = {};
       for (const type of SQUIGGLE_TYPES) {
         for (const part of COLOR_PARTS_BY_SQUIGGLE_TYPE[type]) {
-          customizations[`editor${type}.${part}`] = null;
+          customizations[`editor${type}.${part}`] = undefined;
         }
       }
 

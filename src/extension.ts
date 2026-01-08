@@ -109,7 +109,7 @@ export interface ToggleSquigglesConfig {
  */
 export interface ToggleSquigglesResult {
   // VS Code can retain old workbench.colorCustomizations keys when updating objects.
-  // Setting a color key to `undefined` explicitly clears that customization.
+  // Setting a color key to `null` explicitly clears that customization.
   newCustomizations: Record<string, string | null | undefined>;
   isAlreadyTransparent: boolean;
   shouldShowMessage: boolean;
@@ -160,8 +160,7 @@ export function toggleSquigglesCore(
 
   const isAlreadyTransparent = Object.entries(transparentColorsToApply).every(
     ([key, value]) =>
-      typeof currentCustomizations[key] === "string" &&
-      (currentCustomizations[key] as string).toLowerCase() === value.toLowerCase()
+      currentCustomizations[key]?.toLowerCase() === value.toLowerCase()
   );
 
   const newCustomizations = { ...currentCustomizations };
@@ -259,7 +258,7 @@ async function toggleSquigglesLegacy(): Promise<void> {
   };
 
   const currentCustomizations =
-    config.get<Record<string, string | null | undefined>>("colorCustomizations") || {};
+    config.get<Record<string, string>>("colorCustomizations") || {};
 
   const result = toggleSquigglesCore(currentCustomizations, hideSquiggles);
 
@@ -326,7 +325,7 @@ export function activate(context: vscode.ExtensionContext) {
     const currentCustomizations =
       vscode.workspace
         .getConfiguration("workbench")
-        .get<{ [key: string]: string | null | undefined }>("colorCustomizations") || {};
+        .get<Record<string, string>>("colorCustomizations") || {};
 
     const hideSquiggles: ToggleSquigglesConfig = {
       hideErrors: settings.get<boolean>("hideErrors", true),
@@ -370,8 +369,7 @@ export async function deactivate(): Promise<void> {
       // Legacy mode: Restore original colors if currently hidden
       const config = vscode.workspace.getConfiguration("workbench");
       const currentCustomizations =
-        config.get<Record<string, string | null | undefined>>("colorCustomizations") ||
-        {};
+        config.get<Record<string, string>>("colorCustomizations") || {};
 
       const storedColorsJson =
         currentCustomizations["invisibleSquiggles.originalColors"];
@@ -379,7 +377,9 @@ export async function deactivate(): Promise<void> {
         // We have stored colors, meaning squiggles are currently hidden - restore them
         try {
           const storedColors = JSON.parse(storedColorsJson) as Record<string, string>;
-          const newCustomizations = { ...currentCustomizations };
+          const newCustomizations: Record<string, string | null> = {
+            ...currentCustomizations,
+          };
 
           // Restore original colors
           for (const [key, value] of Object.entries(storedColors)) {
@@ -403,7 +403,9 @@ export async function deactivate(): Promise<void> {
           );
         } catch {
           // JSON parse error - just try to clean up transparent colors
-          const newCustomizations = { ...currentCustomizations };
+          const newCustomizations: Record<string, string | null> = {
+            ...currentCustomizations,
+          };
           for (const key of Object.keys(TRANSPARENT_COLORS)) {
             if (
               typeof newCustomizations[key] === "string" &&

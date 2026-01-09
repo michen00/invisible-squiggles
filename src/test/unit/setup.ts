@@ -19,6 +19,23 @@ const configStore: Record<string, Record<string, unknown>> = {
   invisibleSquiggles: {},
 };
 
+/**
+ * Resets the mock configuration store to empty state.
+ * Note: Current unit tests don't rely on config state (they test pure functions),
+ * but this is available if future tests need isolated config state.
+ */
+function resetMockConfigStore(): void {
+  configStore.workbench = {};
+  configStore.invisibleSquiggles = {};
+}
+
+// Mocha root hooks - automatically run before each test
+export const mochaHooks = {
+  beforeEach() {
+    resetMockConfigStore();
+  },
+};
+
 function createMockConfig(section: string) {
   return {
     get: (key: string, defaultValue?: unknown) => {

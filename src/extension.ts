@@ -237,7 +237,7 @@ async function toggleSquiggles(): Promise<void> {
   };
 
   const currentCustomizations =
-    config.get<Record<string, string>>("colorCustomizations") || {};
+    config.get<Record<string, string | null | undefined>>("colorCustomizations") || {};
 
   const result = toggleSquigglesCore(currentCustomizations, hideSquiggles);
 

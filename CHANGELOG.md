@@ -8,37 +8,72 @@ The format is based on [Keep a Changelog](https://keepachangelog.com) and this p
 
 ## [Unreleased]
 
+### 🐛 Fixes
+
+- **(f9a9b25)** use undefined instead of "" - ([65726a8](https://github.com/michen00/invisible-squiggles/commit/65726a82aaa54b50564062ee9ee3e0348b988c76)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- **(toggleSquigglesCore)** return isInvisibleState - ([db7cfcd](https://github.com/michen00/invisible-squiggles/commit/db7cfcd3e73095667ad6052fc6c06071bdbb423a)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- enhance toggleSquigglesCore state logic - ([7310e2b](https://github.com/michen00/invisible-squiggles/commit/7310e2b99c3a36212b6ed537cb1c88bce192bb67)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- use empty strings instead of nulls (#75) - ([f9a9b25](https://github.com/michen00/invisible-squiggles/commit/f9a9b25800cc1f56a7583977027ec8d4c391ecf4)) - [Michael I Chen](mailto:michael.chen.0@gmail.com)
+
 ### ⚡ Performance
 
-- don't cache pip since we don't use it - ([22b7a87](https://github.com/michen00/invisible-squiggles/commit/22b7a87a95e78885a3bea68efaa5b87c710f9441)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
-- remove data from cache key - ([06f6371](https://github.com/michen00/invisible-squiggles/commit/06f6371da04af0735d896d90d6fb90765d112405)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- don't cache pip since we don't use it - ([644f19a](https://github.com/michen00/invisible-squiggles/commit/644f19af0bc7948846dc8cf5cf454b9b9ed64f51)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- remove data from cache key - ([cccadb2](https://github.com/michen00/invisible-squiggles/commit/cccadb2758c9f156b8f448c0c901948c336debe7)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+
+### 🧪 Testing
+
+- add a failing test - ([a569466](https://github.com/michen00/invisible-squiggles/commit/a569466b1b2e978566ab2d2fbc538d8cfde4110d)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- refactor toggleSquiggles unit tests - ([51e9d1b](https://github.com/michen00/invisible-squiggles/commit/51e9d1bb368a0a7277d64a115f9529070192a05e)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- add unit tests - ([3bb5f12](https://github.com/michen00/invisible-squiggles/commit/3bb5f12582e0b869be871891aa26a0cd2795717e)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- add setStatus unit tests - ([b3116e9](https://github.com/michen00/invisible-squiggles/commit/b3116e9c92ad5a675c4822072d9d97ef89daa1a3)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- strengthen double-toggle integration test - ([7b20be2](https://github.com/michen00/invisible-squiggles/commit/7b20be20edeff787e212a4fa48530a12c8dbef2e)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- rename misleading E2E status bar tests - ([0d3472a](https://github.com/michen00/invisible-squiggles/commit/0d3472abc203ba1961d7ae9b3c42650391cc6cdf)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- remove misleading activation tests - ([9281d79](https://github.com/michen00/invisible-squiggles/commit/9281d79037363c8088ccf17baeb13b77161199ea)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- consolidate redundant unit tests - ([dfd32dc](https://github.com/michen00/invisible-squiggles/commit/dfd32dcce1f8e158b06540f679bab80c78936d15)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 
 ### 💚 Continuous Integration
 
-- **(.github/workflows/ci.yml)** run pre-commit - ([b026389](https://github.com/michen00/invisible-squiggles/commit/b026389eb20173fe2f5717c334fe9bb9ab52dfe8)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- **(.github/workflows/ci.yml)** skip setup-python - ([3d76fad](https://github.com/michen00/invisible-squiggles/commit/3d76fad3f247e2ab0fae10c0a9a0ea7cfa78e838)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- **(.github/workflows/ci.yml)** run pre-commit - ([03b10c6](https://github.com/michen00/invisible-squiggles/commit/03b10c6031afdb734f4401b223ccf3745f71e529)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(pre-commit)** add a workflow for updates - ([8716b67](https://github.com/michen00/invisible-squiggles/commit/8716b6792984d3e258d6123e48a7b1b83a940e76)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- simplify interaction logic - ([700323d](https://github.com/michen00/invisible-squiggles/commit/700323d09a10ec6661eddca0381822c463b587a9)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 
 ### 👷 Build
 
 - **(.pre-commit-config.yaml)** reorganize hooks - ([7001d5d](https://github.com/michen00/invisible-squiggles/commit/7001d5db4449bae984182d64636afb9f5fa45d46)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(Makefile)** include omitted hooks - ([50e75ec](https://github.com/michen00/invisible-squiggles/commit/50e75ecf51fcf8adffde80f3e5cc252b9056f9e0)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
-- update .gitignore - ([4d407c6](https://github.com/michen00/invisible-squiggles/commit/4d407c6f0df6c9d61e7a4a6d29e2cb2d5097bf03)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- **(deps-dev)** bump @typescript-eslint/parser from 8.50.1 to 8.51.0 - ([d11bdbb](https://github.com/michen00/invisible-squiggles/commit/d11bdbb5306a04ca6bb9c5b2f431422683fbd409)) - [dependabot[bot]](mailto:49699333+dependabot[bot]@users.noreply.github.com)
+- **(deps-dev)** bump @typescript-eslint/eslint-plugin from 8.50.1 to 8.51.0 (#71) - ([82e2e4d](https://github.com/michen00/invisible-squiggles/commit/82e2e4d2dc0bdada198efe2ecc686d1057f27fdb)) - [dependabot[bot]](mailto:49699333+dependabot[bot]@users.noreply.github.com)
+- **(deps-dev)** bump qs in the npm_and_yarn group across 1 directory (#70) - ([6b4cc65](https://github.com/michen00/invisible-squiggles/commit/6b4cc65a62e472977172e2cfe4c24c931994c288)) - [dependabot[bot]](mailto:49699333+dependabot[bot]@users.noreply.github.com)
+- **(deps-dev)** bump @typescript-eslint/eslint-plugin - ([9346e16](https://github.com/michen00/invisible-squiggles/commit/9346e1660ef5d14a2fb8eb53634950273874413e)) - [dependabot[bot]](mailto:49699333+dependabot[bot]@users.noreply.github.com)
+- **(deps-dev)** bump @typescript-eslint/parser from 8.50.0 to 8.50.1 - ([7fc95b9](https://github.com/michen00/invisible-squiggles/commit/7fc95b929ae62580d1f12c86f92d659f895e018e)) - [dependabot[bot]](mailto:49699333+dependabot[bot]@users.noreply.github.com)
+- mark additional dependencies as peer - ([33c8612](https://github.com/michen00/invisible-squiggles/commit/33c8612782f7e699c19eb7c2422286549cbeb135)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- remove an unused extension - ([caaa2a4](https://github.com/michen00/invisible-squiggles/commit/caaa2a4a779f47fab1d6b3b0f7ef4e59256b07a2)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 
 ### 📝 Documentation
 
-- **(CONTRIBUTING.md)** improve release guidance - ([9ec66e2](https://github.com/michen00/invisible-squiggles/commit/9ec66e20066a18d371cf2da3182fc37cf75470c7)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- **(CHANGELOG.md)** update for unreleased items - ([7e53637](https://github.com/michen00/invisible-squiggles/commit/7e536370bd6d4419da97257078e54e4350217fdc)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- **(CONTRIBUTING.md)** improve release guidance - ([e388875](https://github.com/michen00/invisible-squiggles/commit/e38887597f48360ad9eb4d053936ccf6df7c4bc4)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- **(README.md)** update problem icons behavior - ([b1ca471](https://github.com/michen00/invisible-squiggles/commit/b1ca4712b9b388c2976eddc731ef65bb6b761960)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- **(src/extension.ts)** clarify a comment - ([644161e](https://github.com/michen00/invisible-squiggles/commit/644161e97ee56f6bc4adec34a37bb79bfddf259a)) - [Michael I Chen](mailto:michael.chen.0@gmail.com)
 
 ### ♻️ Refactor
 
+- update E2E tests and avoid redundancy - ([7082072](https://github.com/michen00/invisible-squiggles/commit/708207286a929cac2273ddf60ec0d10ea50a87f4)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - exit on error instead of warning - ([27ff320](https://github.com/michen00/invisible-squiggles/commit/27ff32072fd23270b61893284ea1f81dd5803eb9)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 
 ### ⚙️ Miscellaneous Tasks
 
 - **(.editorconfig)** remove an invalid key - ([be54bd1](https://github.com/michen00/invisible-squiggles/commit/be54bd18f41d9634d03efa931d464d695490328f)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- **(.pre-commit-config.yaml)** update hooks - ([7e0053a](https://github.com/michen00/invisible-squiggles/commit/7e0053abc2fd2b489b9524a63312667a24934256)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(.yamllint)** drop yamlfmt - ([f23956d](https://github.com/michen00/invisible-squiggles/commit/f23956d6e5c4f2026a511aa4657ab80fa7a61f96)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(Makefile)** improve the portability of colors - ([9802145](https://github.com/michen00/invisible-squiggles/commit/9802145aad6ffe9fd7c6a655430631d34a9e8d3f)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(Makefile)** improve security - ([746a531](https://github.com/michen00/invisible-squiggles/commit/746a531cbdea5c0197c7a7e2bac468e8745f578b)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(Makefile)** update to match boilerplate - ([6c58415](https://github.com/michen00/invisible-squiggles/commit/6c5841583fe74942804a4637c2fb7ad352f9213a)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- **(package.json)** remove a staling comment - ([7212e8f](https://github.com/michen00/invisible-squiggles/commit/7212e8f0cc30b9e98fd8c09e21327fa72d5ab614)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- **(src/extension.ts)** revert to a safer type - ([bec9cce](https://github.com/michen00/invisible-squiggles/commit/bec9cce18b47c4d9b277f6b605a6eb7ca547785c)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- update .gitignore - ([9062a4a](https://github.com/michen00/invisible-squiggles/commit/9062a4aeb4d617381a732ff534dfe15925632687)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- autoupdate pre-commit hooks - ([2c879f8](https://github.com/michen00/invisible-squiggles/commit/2c879f8a3491fac3fe3ca410f8b65f60e635f768)) - [pre-commit-ci[bot]](mailto:66853113+pre-commit-ci[bot]@users.noreply.github.com)
 - remove a python-specific pre-commit hook - ([39fe15d](https://github.com/michen00/invisible-squiggles/commit/39fe15dff3a3b1e99145044d0aaed6e38a40de9c)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 
 ## [0.3.0](https://github.com/michen00/invisible-squiggles/compare/v0.2.1..v0.3.0) - 2025-12-21

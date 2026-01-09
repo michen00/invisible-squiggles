@@ -2,6 +2,8 @@ import * as assert from "assert";
 import { afterEach, describe, it } from "mocha";
 import sinon from "sinon";
 import {
+  ORIGINAL_COLORS_KEY,
+  restoreAndCleanup,
   ToggleSquigglesConfig,
   toggleSquigglesCore,
   TRANSPARENT_COLOR,
@@ -457,6 +459,160 @@ describe("toggleSquigglesCore", () => {
       assert.ok(result1.newCustomizations);
       assert.ok(result2.newCustomizations);
       assert.ok(result3.newCustomizations);
+    });
+  });
+});
+
+describe("restoreAndCleanup", () => {
+  describe("when originalColors key exists with valid JSON", () => {
+    it("should restore original colors and remove the key", () => {
+      const originalColors = {
+        "editorError.background": "#ff0000",
+        "editorError.border": "#ff0000",
+      };
+      const customizations: Record<string, string | undefined> = {
+        "editorError.background": TRANSPARENT_COLOR,
+        "editorError.border": TRANSPARENT_COLOR,
+        "editorError.foreground": TRANSPARENT_COLOR,
+        [ORIGINAL_COLORS_KEY]: JSON.stringify(originalColors),
+      };
+
+      const result = restoreAndCleanup(customizations);
+
+      assert.ok(result, "Should return a result");
+      assert.strictEqual(result!["editorError.background"], "#ff0000");
+      assert.strictEqual(result!["editorError.border"], "#ff0000");
+      assert.strictEqual(result![ORIGINAL_COLORS_KEY], undefined);
+    });
+
+    it("should clear transparent colors not in storedColors", () => {
+      const originalColors = {
+        "editorError.background": "#ff0000",
+      };
+      const customizations: Record<string, string | undefined> = {
+        "editorError.background": TRANSPARENT_COLOR,
+        "editorError.border": TRANSPARENT_COLOR, // Not in originalColors
+        "editorError.foreground": TRANSPARENT_COLOR, // Not in originalColors
+        [ORIGINAL_COLORS_KEY]: JSON.stringify(originalColors),
+      };
+
+      const result = restoreAndCleanup(customizations);
+
+      assert.ok(result);
+      assert.strictEqual(result!["editorError.background"], "#ff0000");
+      assert.strictEqual(result!["editorError.border"], undefined);
+      assert.strictEqual(result!["editorError.foreground"], undefined);
+    });
+
+    it("should preserve non-squiggle customizations", () => {
+      const originalColors = { "editorError.background": "#ff0000" };
+      const customizations: Record<string, string | undefined> = {
+        "editorError.background": TRANSPARENT_COLOR,
+        "custom.setting": "custom-value",
+        [ORIGINAL_COLORS_KEY]: JSON.stringify(originalColors),
+      };
+
+      const result = restoreAndCleanup(customizations);
+
+      assert.ok(result);
+      assert.strictEqual(result!["custom.setting"], "custom-value");
+    });
+  });
+
+  describe("when originalColors key is missing or invalid", () => {
+    it("should return null when key does not exist", () => {
+      const customizations: Record<string, string | undefined> = {
+        "editorError.background": TRANSPARENT_COLOR,
+      };
+
+      const result = restoreAndCleanup(customizations);
+
+      assert.strictEqual(result, null);
+    });
+
+    it("should clean up null key and return cleaned object", () => {
+      const customizations: Record<string, string | null | undefined> = {
+        "editorError.background": "#ff0000",
+        [ORIGINAL_COLORS_KEY]: null,
+      };
+
+      const result = restoreAndCleanup(customizations);
+
+      assert.ok(result);
+      assert.strictEqual(result![ORIGINAL_COLORS_KEY], undefined);
+      assert.strictEqual(result!["editorError.background"], "#ff0000");
+    });
+
+    it("should handle invalid JSON gracefully", () => {
+      const consoleErrorStub = sinon.stub(console, "error");
+      const customizations: Record<string, string | undefined> = {
+        "editorError.background": TRANSPARENT_COLOR,
+        [ORIGINAL_COLORS_KEY]: "invalid json{",
+      };
+
+      const result = restoreAndCleanup(customizations);
+
+      assert.ok(result);
+      // Should clear transparent colors (no valid stored colors to restore)
+      assert.strictEqual(result!["editorError.background"], undefined);
+      assert.strictEqual(result![ORIGINAL_COLORS_KEY], undefined);
+      assert.ok(consoleErrorStub.called);
+      sinon.restore();
+    });
+
+    it("should clean up non-string originalColors value", () => {
+      const customizations: Record<string, string | undefined> = {
+        "editorError.background": TRANSPARENT_COLOR,
+        [ORIGINAL_COLORS_KEY]: 123 as any,
+      };
+
+      const result = restoreAndCleanup(customizations);
+
+      // Non-string value means key exists but is invalid - should clean it up
+      assert.ok(result);
+      assert.strictEqual(result![ORIGINAL_COLORS_KEY], undefined);
+      // Transparent color preserved (no valid colors to restore from)
+      assert.strictEqual(result!["editorError.background"], TRANSPARENT_COLOR);
+    });
+  });
+
+  describe("edge cases", () => {
+    it("should handle empty originalColors object", () => {
+      const customizations: Record<string, string | undefined> = {
+        "editorError.background": TRANSPARENT_COLOR,
+        [ORIGINAL_COLORS_KEY]: JSON.stringify({}),
+      };
+
+      const result = restoreAndCleanup(customizations);
+
+      assert.ok(result);
+      // No colors to restore, but transparent should be cleared
+      assert.strictEqual(result!["editorError.background"], undefined);
+      assert.strictEqual(result![ORIGINAL_COLORS_KEY], undefined);
+    });
+
+    it("should handle all squiggle types", () => {
+      const originalColors = {
+        "editorError.background": "#ff0000",
+        "editorWarning.background": "#ffaa00",
+        "editorInfo.background": "#00aaff",
+        "editorHint.foreground": "#00ff00",
+      };
+      const customizations: Record<string, string | undefined> = {
+        "editorError.background": TRANSPARENT_COLOR,
+        "editorWarning.background": TRANSPARENT_COLOR,
+        "editorInfo.background": TRANSPARENT_COLOR,
+        "editorHint.foreground": TRANSPARENT_COLOR,
+        [ORIGINAL_COLORS_KEY]: JSON.stringify(originalColors),
+      };
+
+      const result = restoreAndCleanup(customizations);
+
+      assert.ok(result);
+      assert.strictEqual(result!["editorError.background"], "#ff0000");
+      assert.strictEqual(result!["editorWarning.background"], "#ffaa00");
+      assert.strictEqual(result!["editorInfo.background"], "#00aaff");
+      assert.strictEqual(result!["editorHint.foreground"], "#00ff00");
     });
   });
 });

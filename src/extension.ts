@@ -224,7 +224,7 @@ export function toggleSquigglesCore(
  * @param currentCustomizations - Current workbench color customizations
  * @returns New customizations with colors restored and key removed, or null if no restoration needed
  */
-function restoreAndCleanup(
+export function restoreAndCleanup(
   currentCustomizations: Record<string, string | null | undefined>
 ): Record<string, string | null | undefined> | null {
   const storedJson = currentCustomizations[ORIGINAL_COLORS_KEY];

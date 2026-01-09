@@ -89,6 +89,7 @@
     "test:coverage": "c8 npm run test:unit"
   },
   "c8": {
+    "_comment": "Function coverage is ~43% because VSCode API wrappers (activate, toggleSquiggles, deactivate) require real runtime. Core logic (toggleSquigglesCore, areSquigglesCurrentlyTransparent, setStatus) has 100% branch coverage. Integration/E2E tests cover the wrapper functions.",
     "reporter": [
       "text",
       "text-summary"

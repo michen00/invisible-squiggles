@@ -95,6 +95,30 @@ suite("Extension Integration Tests - Configuration", () => {
     assert.ok(true, "All tested configuration scenarios worked correctly");
   });
 
+  test("showStatusBarMessage setting should not break toggle functionality", async () => {
+    const config = vscode.workspace.getConfiguration("invisibleSquiggles");
+
+    // Enable status bar message
+    await config.update("showStatusBarMessage", true, vscode.ConfigurationTarget.Global);
+    await config.update("hideErrors", true, vscode.ConfigurationTarget.Global);
+    await delay(100);
+
+    const beforeJson = JSON.stringify(getColorCustomizations());
+
+    // Toggle should still work with showStatusBarMessage enabled
+    await toggleAndWaitForChange();
+
+    const afterJson = JSON.stringify(getColorCustomizations());
+
+    assert.ok(
+      beforeJson !== afterJson,
+      "Toggle should still update configuration when showStatusBarMessage is enabled"
+    );
+
+    // Clean up
+    await config.update("showStatusBarMessage", false, vscode.ConfigurationTarget.Global);
+  });
+
   test("Configuration should persist across toggles", async () => {
     const config = vscode.workspace.getConfiguration("invisibleSquiggles");
     const originalHideErrors = config.get<boolean>("hideErrors", true);

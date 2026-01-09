@@ -62,6 +62,7 @@ CLIFF_OUTPUT=""
 HEAD_CHANGELOG=""
 EXPECTED_OUTPUT=""
 STAGED_CONTENT=""
+STAGED_DIFF=""
 
 # Check we're in a git repository
 if [ ! -d .git ]; then
@@ -69,19 +70,22 @@ if [ ! -d .git ]; then
   exit 1
 fi
 
-# Helper to re-stage files, skipping any that no longer exist
+# Helper to re-stage files by applying their original staged diff
 restage_other_files() {
-  if [[ -z "$OTHER_STAGED_FILES" ]]; then
+  if [[ -z "$STAGED_DIFF" || ! -s "$STAGED_DIFF" ]]; then
     return
   fi
   echo "Re-staging other files..."
-  while IFS= read -r file; do
-    if [[ -e $file ]]; then
-      git add -- "$file"
-    else
-      echo "Warning: '$file' no longer exists (was it a new file?)" >&2
-    fi
-  done <<< "$OTHER_STAGED_FILES"
+  # Apply the original staged diff to preserve partial staging (hunks)
+  if ! git apply --cached --allow-empty < "$STAGED_DIFF" 2> /dev/null; then
+    echo "Warning: Could not restore original staging. Re-staging entire files..." >&2
+    # Fallback: re-stage entire files if diff apply fails
+    while IFS= read -r file; do
+      if [[ -e $file ]]; then
+        git add -- "$file"
+      fi
+    done <<< "$OTHER_STAGED_FILES"
+  fi
 }
 
 # Replace the [Unreleased] section in a changelog file with new content
@@ -113,7 +117,7 @@ replace_unreleased() {
 cleanup() {
   local exit_code=$?
   # Remove temp files if they exist
-  rm -f "$TEMP_FILE" "$CLIFF_OUTPUT" "$HEAD_CHANGELOG" "$EXPECTED_OUTPUT" "$STAGED_CONTENT"
+  rm -f "$TEMP_FILE" "$CLIFF_OUTPUT" "$HEAD_CHANGELOG" "$EXPECTED_OUTPUT" "$STAGED_CONTENT" "$STAGED_DIFF"
   rm -f "${CHANGELOG}.new"
   if [[ $STASHED == true ]] && git stash list | head -1 | grep -qF "$STASH_MSG"; then
     echo "Restoring stashed changes to ${CHANGELOG}..." >&2
@@ -142,6 +146,9 @@ if [[ $COMMIT == true ]]; then
   OTHER_STAGED_FILES=$(git diff --cached --name-only | grep -v "^${CHANGELOG}$" || true)
   if [[ -n $OTHER_STAGED_FILES ]]; then
     echo "Temporarily unstaging other files..."
+    # Capture the staged diff first to preserve partial staging (hunks)
+    STAGED_DIFF=$(mktemp)
+    git diff --cached -- "$OTHER_STAGED_FILES" > "$STAGED_DIFF"
     while IFS= read -r file; do
       git restore --staged -- "$file"
     done <<< "$OTHER_STAGED_FILES"

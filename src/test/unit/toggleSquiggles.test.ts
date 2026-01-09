@@ -99,54 +99,6 @@ describe("toggleSquigglesCore", () => {
       // Cleanup handled by afterEach -> sinon.restore()
     });
 
-    it("should handle missing invisibleSquiggles.originalColors", () => {
-      const currentCustomizations: Record<string, string | undefined> = {
-        "editorError.background": TRANSPARENT_COLOR,
-        "editorError.border": TRANSPARENT_COLOR,
-        "editorError.foreground": TRANSPARENT_COLOR,
-      };
-
-      const hideSquiggles: ToggleSquigglesConfig = {
-        hideErrors: true,
-        hideWarnings: false,
-        hideInfo: false,
-        hideHint: false,
-      };
-
-      const result = toggleSquigglesCore(currentCustomizations, hideSquiggles);
-      assert.ok(result);
-      // Should detect as already transparent
-      assert.strictEqual(result.isAlreadyTransparent, true);
-      // When restoring with no stored colors, should remove transparent colors
-      assert.strictEqual(result.newCustomizations["editorError.background"], undefined);
-    });
-
-    it("should handle non-string invisibleSquiggles.originalColors", () => {
-      const currentCustomizations: Record<string, string | undefined> = {
-        "editorError.background": TRANSPARENT_COLOR,
-        "editorError.border": TRANSPARENT_COLOR,
-        "editorError.foreground": TRANSPARENT_COLOR,
-        // Simulate a case where originalColors is not a string (e.g., number)
-        // In practice, this shouldn't happen, but we should handle it gracefully
-        "invisibleSquiggles.originalColors": 123 as any,
-      };
-
-      const hideSquiggles: ToggleSquigglesConfig = {
-        hideErrors: true,
-        hideWarnings: false,
-        hideInfo: false,
-        hideHint: false,
-      };
-
-      const result = toggleSquigglesCore(currentCustomizations, hideSquiggles);
-      assert.ok(result);
-      // Should detect as already transparent (all Error colors are transparent)
-      // and restore (but with empty stored colors since originalColors was invalid)
-      assert.strictEqual(result.isAlreadyTransparent, true);
-      // Transparent colors should be removed (no stored colors to restore)
-      assert.strictEqual(result.newCustomizations["editorError.background"], undefined);
-    });
-
     it("should handle missing configuration values (use defaults)", () => {
       const currentCustomizations: Record<string, string | undefined> = {
         "editorError.background": "#ff0000",

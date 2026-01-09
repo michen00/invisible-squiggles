@@ -47,6 +47,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com) and this p
 - **(deps-dev)** bump qs in the npm_and_yarn group across 1 directory (#70) - ([6b4cc65](https://github.com/michen00/invisible-squiggles/commit/6b4cc65a62e472977172e2cfe4c24c931994c288)) - [dependabot[bot]](mailto:49699333+dependabot[bot]@users.noreply.github.com)
 - **(deps-dev)** bump @typescript-eslint/eslint-plugin - ([9346e16](https://github.com/michen00/invisible-squiggles/commit/9346e1660ef5d14a2fb8eb53634950273874413e)) - [dependabot[bot]](mailto:49699333+dependabot[bot]@users.noreply.github.com)
 - **(deps-dev)** bump @typescript-eslint/parser from 8.50.0 to 8.50.1 - ([7fc95b9](https://github.com/michen00/invisible-squiggles/commit/7fc95b929ae62580d1f12c86f92d659f895e018e)) - [dependabot[bot]](mailto:49699333+dependabot[bot]@users.noreply.github.com)
+- add a changelog helper - ([1a0b7c2](https://github.com/michen00/invisible-squiggles/commit/1a0b7c287154484f2016dce924e4dd5d47c19da8)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - mark additional dependencies as peer - ([33c8612](https://github.com/michen00/invisible-squiggles/commit/33c8612782f7e699c19eb7c2422286549cbeb135)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - remove an unused extension - ([caaa2a4](https://github.com/michen00/invisible-squiggles/commit/caaa2a4a779f47fab1d6b3b0f7ef4e59256b07a2)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 
@@ -56,6 +57,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com) and this p
 - **(CONTRIBUTING.md)** improve release guidance - ([e388875](https://github.com/michen00/invisible-squiggles/commit/e38887597f48360ad9eb4d053936ccf6df7c4bc4)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(README.md)** update problem icons behavior - ([b1ca471](https://github.com/michen00/invisible-squiggles/commit/b1ca4712b9b388c2976eddc731ef65bb6b761960)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(src/extension.ts)** clarify a comment - ([644161e](https://github.com/michen00/invisible-squiggles/commit/644161e97ee56f6bc4adec34a37bb79bfddf259a)) - [Michael I Chen](mailto:michael.chen.0@gmail.com)
+- update CHANGELOG - ([d325949](https://github.com/michen00/invisible-squiggles/commit/d3259498f880c9e184f000bcfe4120e9a190fbe6)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 
 ### ♻️ Refactor
 
@@ -72,7 +74,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com) and this p
 - **(Makefile)** update to match boilerplate - ([6c58415](https://github.com/michen00/invisible-squiggles/commit/6c5841583fe74942804a4637c2fb7ad352f9213a)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(package.json)** remove a staling comment - ([7212e8f](https://github.com/michen00/invisible-squiggles/commit/7212e8f0cc30b9e98fd8c09e21327fa72d5ab614)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(src/extension.ts)** revert to a safer type - ([bec9cce](https://github.com/michen00/invisible-squiggles/commit/bec9cce18b47c4d9b277f6b605a6eb7ca547785c)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
-- update .gitignore - ([9062a4a](https://github.com/michen00/invisible-squiggles/commit/9062a4aeb4d617381a732ff534dfe15925632687)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- update .gitignore - ([77d415e](https://github.com/michen00/invisible-squiggles/commit/77d415eb6b25a458e78b6fa016ff16985a0d9bfa)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - autoupdate pre-commit hooks - ([2c879f8](https://github.com/michen00/invisible-squiggles/commit/2c879f8a3491fac3fe3ca410f8b65f60e635f768)) - [pre-commit-ci[bot]](mailto:66853113+pre-commit-ci[bot]@users.noreply.github.com)
 - remove a python-specific pre-commit hook - ([39fe15d](https://github.com/michen00/invisible-squiggles/commit/39fe15dff3a3b1e99145044d0aaed6e38a40de9c)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 

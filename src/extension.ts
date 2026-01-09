@@ -215,9 +215,8 @@ export function toggleSquigglesCore(
     Object.assign(newCustomizations, transparentColorsToApply);
   }
 
-  // Return isInvisibleState (not isAlreadyTransparent) so the caller knows
-  // whether we restored or hid. isAlreadyTransparent only checks transparentColorsToApply,
-  // which can be wrong if user enabled new hide flags while hidden.
+  // Return isInvisibleState to indicate whether we're restoring from the invisible state.
+  // This correctly handles cases where hide flags change while colors are hidden.
   return {
     newCustomizations,
     isAlreadyTransparent: isInvisibleState,

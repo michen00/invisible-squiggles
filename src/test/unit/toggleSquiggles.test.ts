@@ -303,6 +303,117 @@ describe("toggleSquigglesCore", () => {
         "Stale transparent colors with no stored original should be cleared"
       );
     });
+
+    it("should restore all colors when ALL hide flags are disabled while invisible", () => {
+      // BUG SCENARIO:
+      // 1. User toggles with all types checked → all transparent
+      // 2. User unchecks ALL hide flags while invisible
+      // 3. User toggles → should restore, but currently returns unchanged (stuck transparent)
+
+      const originalColors = {
+        "editorError.background": "#ff0000",
+        "editorError.border": "#ff0000",
+        "editorError.foreground": "#ff0000",
+        "editorWarning.background": "#ffaa00",
+        "editorWarning.border": "#ffaa00",
+        "editorWarning.foreground": "#ffaa00",
+      };
+
+      const customizations: Record<string, string | undefined> = {
+        "editorError.background": TRANSPARENT_COLOR,
+        "editorError.border": TRANSPARENT_COLOR,
+        "editorError.foreground": TRANSPARENT_COLOR,
+        "editorWarning.background": TRANSPARENT_COLOR,
+        "editorWarning.border": TRANSPARENT_COLOR,
+        "editorWarning.foreground": TRANSPARENT_COLOR,
+        "invisibleSquiggles.originalColors": JSON.stringify(originalColors),
+      };
+
+      // ALL hide flags disabled while squiggles are invisible
+      const config: ToggleSquigglesConfig = {
+        hideErrors: false,
+        hideWarnings: false,
+        hideInfo: false,
+        hideHint: false,
+      };
+
+      const result = toggleSquigglesCore(customizations, config);
+
+      // Should detect we're in "invisible" state via originalColors and restore
+      assert.strictEqual(
+        result.newCustomizations["editorError.background"],
+        "#ff0000",
+        "Error colors should be restored even when all hide flags are disabled"
+      );
+      assert.strictEqual(
+        result.newCustomizations["editorWarning.background"],
+        "#ffaa00",
+        "Warning colors should be restored even when all hide flags are disabled"
+      );
+      // originalColors should be cleared after restore
+      assert.strictEqual(
+        result.newCustomizations["invisibleSquiggles.originalColors"],
+        null,
+        "originalColors should be cleared after restore"
+      );
+    });
+
+    it("should use originalColors presence to detect invisible state, not checkbox state", () => {
+      // The presence of originalColors indicates we're in "invisible" state
+      // Checkbox state should be ignored during restore - restore everything in originalColors
+
+      const originalColors = {
+        "editorError.background": "#ff0000",
+        "editorError.border": "#ff0000",
+        "editorError.foreground": "#ff0000",
+        "editorWarning.background": "#ffaa00",
+        "editorWarning.border": "#ffaa00",
+        "editorWarning.foreground": "#ffaa00",
+        "editorInfo.background": "#00aaff",
+        "editorInfo.border": "#00aaff",
+        "editorInfo.foreground": "#00aaff",
+      };
+
+      const customizations: Record<string, string | undefined> = {
+        "editorError.background": TRANSPARENT_COLOR,
+        "editorError.border": TRANSPARENT_COLOR,
+        "editorError.foreground": TRANSPARENT_COLOR,
+        "editorWarning.background": TRANSPARENT_COLOR,
+        "editorWarning.border": TRANSPARENT_COLOR,
+        "editorWarning.foreground": TRANSPARENT_COLOR,
+        "editorInfo.background": TRANSPARENT_COLOR,
+        "editorInfo.border": TRANSPARENT_COLOR,
+        "editorInfo.foreground": TRANSPARENT_COLOR,
+        "invisibleSquiggles.originalColors": JSON.stringify(originalColors),
+      };
+
+      // Only one hide flag enabled - but we should still restore ALL stored colors
+      const config: ToggleSquigglesConfig = {
+        hideErrors: false,
+        hideWarnings: true, // Only this one checked
+        hideInfo: false,
+        hideHint: false,
+      };
+
+      const result = toggleSquigglesCore(customizations, config);
+
+      // ALL colors from originalColors should be restored, not just Warning
+      assert.strictEqual(
+        result.newCustomizations["editorError.background"],
+        "#ff0000",
+        "Error should restore from originalColors regardless of hideErrors setting"
+      );
+      assert.strictEqual(
+        result.newCustomizations["editorWarning.background"],
+        "#ffaa00",
+        "Warning should restore from originalColors"
+      );
+      assert.strictEqual(
+        result.newCustomizations["editorInfo.background"],
+        "#00aaff",
+        "Info should restore from originalColors regardless of hideInfo setting"
+      );
+    });
   });
 
   describe("concurrent execution simulation", () => {

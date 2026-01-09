@@ -140,6 +140,10 @@ publish: install ## Publish the extension to the VS Code Marketplace
 	@$(PREPARE_README); \
     npx vsce publish
 
+.PHONY: update-unreleased
+update-unreleased: ## Update the Unreleased section of CHANGELOG.md and commit
+	@scripts/update-unreleased.sh --commit
+
 .PHONY: check
 check: install ## Run checks and tests
 	npm run test

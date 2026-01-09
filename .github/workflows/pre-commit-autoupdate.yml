@@ -63,6 +63,6 @@ jobs:
           title: "chore: autoupdate pre-commit hooks"
           body: |
             This PR updates pre-commit hooks to their latest versions.
-          commit-message: "chore(pre-commit): bump hooks"
+          commit-message: "chore(pre-commit): bump hook versions"
           delete-branch: true
           base: main

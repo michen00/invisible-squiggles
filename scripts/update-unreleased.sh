@@ -64,7 +64,7 @@ fi
 
 # Helper to re-stage files, skipping any that no longer exist
 restage_other_files() {
-  if [[ -z $OTHER_STAGED_FILES ]]; then
+  if [[ -z "$OTHER_STAGED_FILES" ]]; then
     return
   fi
   echo "Re-staging other files..."

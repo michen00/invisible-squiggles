@@ -413,6 +413,67 @@ describe("toggleSquigglesCore", () => {
         "Info should restore from originalColors regardless of hideInfo setting"
       );
     });
+
+    it("should return isAlreadyTransparent=true when restoring, even if new hide flags were enabled while hidden", () => {
+      // BUG SCENARIO:
+      // 1. User toggles with hideErrors=true → Error transparent, originalColors stored
+      // 2. User enables hideWarnings=true while hidden (Warning NOT transparent yet)
+      // 3. User toggles → should RESTORE and return isAlreadyTransparent=true
+      //
+      // Previously, isAlreadyTransparent checked transparentColorsToApply (Error+Warning),
+      // but Warning wasn't transparent, so it returned false even though we were restoring.
+      // This caused the status bar to incorrectly show "hidden" after a restore.
+
+      const originalColors = {
+        "editorError.background": "#ff0000",
+        "editorError.border": "#ff0000",
+        "editorError.foreground": "#ff0000",
+      };
+
+      const customizations: Record<string, string | undefined> = {
+        // Error IS transparent (was hidden in step 1)
+        "editorError.background": TRANSPARENT_COLOR,
+        "editorError.border": TRANSPARENT_COLOR,
+        "editorError.foreground": TRANSPARENT_COLOR,
+        // Warning is NOT transparent (user just enabled hideWarnings in step 2)
+        "editorWarning.background": "#ffaa00",
+        "editorWarning.border": "#ffaa00",
+        "editorWarning.foreground": "#ffaa00",
+        "invisibleSquiggles.originalColors": JSON.stringify(originalColors),
+      };
+
+      // Both hide flags enabled - but Warning wasn't hidden when toggle happened
+      const config: ToggleSquigglesConfig = {
+        hideErrors: true,
+        hideWarnings: true, // Newly enabled while hidden
+        hideInfo: false,
+        hideHint: false,
+      };
+
+      const result = toggleSquigglesCore(customizations, config);
+
+      // Should restore Error colors
+      assert.strictEqual(
+        result.newCustomizations["editorError.background"],
+        "#ff0000",
+        "Error should be restored"
+      );
+
+      // isAlreadyTransparent should be TRUE because we're in restore mode
+      // (originalColors existed, so we restore regardless of current transparency)
+      assert.strictEqual(
+        result.isAlreadyTransparent,
+        true,
+        "isAlreadyTransparent should be true when restoring, so status bar shows 'visible'"
+      );
+
+      // originalColors should be cleared
+      assert.strictEqual(
+        result.newCustomizations["invisibleSquiggles.originalColors"],
+        null,
+        "originalColors should be cleared after restore"
+      );
+    });
   });
 
   describe("concurrent execution simulation", () => {

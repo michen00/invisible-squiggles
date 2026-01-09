@@ -56,6 +56,13 @@ CHANGELOG="CHANGELOG.md"
 STASHED=false
 STASH_MSG="update-unreleased: auto-stash ${CHANGELOG}"
 
+# Temp file variables (initialized empty for cleanup trap)
+TEMP_FILE=""
+CLIFF_OUTPUT=""
+HEAD_CHANGELOG=""
+EXPECTED_OUTPUT=""
+STAGED_CONTENT=""
+
 # Check we're in a git repository
 if [ ! -d .git ]; then
   echo "Error: Must be run from the root of a git repository." >&2
@@ -77,9 +84,37 @@ restage_other_files() {
   done <<< "$OTHER_STAGED_FILES"
 }
 
+# Replace the [Unreleased] section in a changelog file with new content
+# Usage: replace_unreleased <changelog_file> <new_content_file>
+# Output: Writes to stdout
+replace_unreleased() {
+  local changelog_file="$1"
+  local new_content_file="$2"
+  awk -v new_content="$new_content_file" '
+    BEGIN { in_unreleased = 0 }
+    /^## \[Unreleased\]/ {
+      in_unreleased = 1
+      while ((getline line < new_content) > 0) { print line }
+      close(new_content)
+      next
+    }
+    in_unreleased && /^## \[/ && !/^## \[Unreleased\]/ {
+      in_unreleased = 0
+      print ""
+      print
+      next
+    }
+    in_unreleased { next }
+    { print }
+  ' "$changelog_file"
+}
+
 # Cleanup function to restore state on error
 cleanup() {
   local exit_code=$?
+  # Remove temp files if they exist
+  rm -f "$TEMP_FILE" "$CLIFF_OUTPUT" "$HEAD_CHANGELOG" "$EXPECTED_OUTPUT" "$STAGED_CONTENT"
+  rm -f "${CHANGELOG}.new"
   if [[ $STASHED == true ]] && git stash list | head -1 | grep -qF "$STASH_MSG"; then
     echo "Restoring stashed changes to ${CHANGELOG}..." >&2
     git stash pop --quiet
@@ -149,52 +184,15 @@ awk '
 # Check if we got valid content
 if [ ! -s "$TEMP_FILE" ]; then
   echo "Error: No Unreleased section found in git cliff output" >&2
-  rm -f "$TEMP_FILE" "$CLIFF_OUTPUT"
   exit 1
 fi
 
-# Remove trailing blank lines from the extracted section
-# but ensure it ends with exactly one newline
-sed -i.bak -e :a -e '/^\n*$/{$d;N;ba' -e '}' "$TEMP_FILE" 2> /dev/null || # spellchecker:disable-line
-  sed -i '' -e :a -e '/^\n*$/{$d;N;ba' -e '}' "$TEMP_FILE"                # spellchecker:disable-line
-rm -f "${TEMP_FILE}.bak"
+# Trim trailing whitespace from the content, then rewrite with a single trailing newline
+content=$(< "$TEMP_FILE")
+printf "%s\n" "${content%"${content##*[![:space:]]}"}" > "$TEMP_FILE"
 
-# Now replace the Unreleased section in CHANGELOG.md
-# We need to:
-# 1. Keep everything before "## [Unreleased]"
-# 2. Insert the new Unreleased content
-# 3. Keep everything from the next "## [" section onwards
-
-awk -v new_content="$TEMP_FILE" '
-  BEGIN { in_unreleased = 0; printed_new = 0 }
-
-  # When we hit the Unreleased header, start skipping
-  /^## \[Unreleased\]/ {
-    in_unreleased = 1
-    # Print the new content
-    while ((getline line < new_content) > 0) {
-      print line
-    }
-    close(new_content)
-    printed_new = 1
-    next
-  }
-
-  # When we hit the next version section, stop skipping
-  in_unreleased && /^## \[/ && !/^## \[Unreleased\]/ {
-    in_unreleased = 0
-    # Ensure blank line before next section
-    print ""
-    print
-    next
-  }
-
-  # Skip lines while in the old Unreleased section
-  in_unreleased { next }
-
-  # Print all other lines
-  { print }
-' "$CHANGELOG" > "${CHANGELOG}.new"
+# Replace the Unreleased section in CHANGELOG.md with the new content
+replace_unreleased "$CHANGELOG" "$TEMP_FILE" > "${CHANGELOG}.new"
 
 # If CHANGELOG.md is already staged, verify it matches what we'd generate
 if [[ $CHANGELOG_ALREADY_STAGED == true ]]; then
@@ -204,24 +202,7 @@ if [[ $CHANGELOG_ALREADY_STAGED == true ]]; then
   git show "HEAD:${CHANGELOG}" > "$HEAD_CHANGELOG"
 
   # Apply git cliff's Unreleased section to HEAD version
-  awk -v new_content="$TEMP_FILE" '
-    BEGIN { in_unreleased = 0; printed_new = 0 }
-    /^## \[Unreleased\]/ {
-      in_unreleased = 1
-      while ((getline line < new_content) > 0) { print line }
-      close(new_content)
-      printed_new = 1
-      next
-    }
-    in_unreleased && /^## \[/ && !/^## \[Unreleased\]/ {
-      in_unreleased = 0
-      print ""
-      print
-      next
-    }
-    in_unreleased { next }
-    { print }
-  ' "$HEAD_CHANGELOG" > "$EXPECTED_OUTPUT"
+  replace_unreleased "$HEAD_CHANGELOG" "$TEMP_FILE" > "$EXPECTED_OUTPUT"
 
   # Get the staged version and compare
   STAGED_CONTENT=$(mktemp)
@@ -230,7 +211,6 @@ if [[ $CHANGELOG_ALREADY_STAGED == true ]]; then
   if diff -q "$STAGED_CONTENT" "$EXPECTED_OUTPUT" > /dev/null 2>&1; then
     # Staged content matches - no need to update, just commit
     echo "Staged ${CHANGELOG} already matches git cliff output."
-    rm -f "$STAGED_CONTENT" "$EXPECTED_OUTPUT" "$HEAD_CHANGELOG" "${CHANGELOG}.new" "$TEMP_FILE" "$CLIFF_OUTPUT"
 
     # Commit the already-staged changes
     git commit --no-verify -m "$COMMIT_MSG" -- "$CHANGELOG"
@@ -240,16 +220,12 @@ if [[ $CHANGELOG_ALREADY_STAGED == true ]]; then
     # Staged content differs from what we'd generate
     echo "Error: ${CHANGELOG} has staged changes that differ from git cliff output." >&2
     echo "Unstage with: git restore --staged ${CHANGELOG}" >&2
-    rm -f "$STAGED_CONTENT" "$EXPECTED_OUTPUT" "$HEAD_CHANGELOG" "${CHANGELOG}.new" "$TEMP_FILE" "$CLIFF_OUTPUT"
     exit 1
   fi
 fi
 
 # Replace the original file
 mv "${CHANGELOG}.new" "$CHANGELOG"
-
-# Cleanup
-rm -f "$TEMP_FILE" "$CLIFF_OUTPUT"
 
 # Check if git cliff produced any changes (comparing to HEAD)
 if git diff --quiet HEAD -- "$CHANGELOG" 2> /dev/null; then

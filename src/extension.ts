@@ -138,6 +138,8 @@ export function toggleSquigglesCore(
     }
   })();
 
+  const hasStoredColors = Object.keys(storedColors).length > 0;
+
   const transparentColorsToApply = Object.fromEntries(
     SQUIGGLE_TYPES.flatMap((type) => {
       const hideKey = HIDE_KEY_BY_TYPE[type];
@@ -149,8 +151,18 @@ export function toggleSquigglesCore(
     })
   );
 
-  // If no colors to apply, return current state unchanged
-  if (Object.keys(transparentColorsToApply).length === 0) {
+  // Detect "invisible" state: originalColors exists (regardless of current checkbox settings)
+  // This handles the case where user unchecks all flags while invisible
+  const isInvisibleState =
+    hasStoredColors ||
+    (Object.keys(transparentColorsToApply).length > 0 &&
+      Object.entries(transparentColorsToApply).every(
+        ([key, value]) =>
+          currentCustomizations[key]?.toLowerCase() === value.toLowerCase()
+      ));
+
+  // If no colors to apply AND not in invisible state, return unchanged
+  if (Object.keys(transparentColorsToApply).length === 0 && !hasStoredColors) {
     return {
       newCustomizations: { ...currentCustomizations },
       isAlreadyTransparent: false,
@@ -166,30 +178,23 @@ export function toggleSquigglesCore(
 
   const newCustomizations = { ...currentCustomizations };
 
-  if (isAlreadyTransparent) {
-    // Restore previous colors (if any), otherwise clear the customizations explicitly.
-    Object.keys(transparentColorsToApply).forEach((key) => {
+  if (isInvisibleState) {
+    // Restore ALL colors from storedColors, regardless of current checkbox settings
+    Object.keys(storedColors).forEach((key) => {
       const storedValue = (storedColors as Record<string, unknown>)[key];
       if (typeof storedValue === "string") {
         newCustomizations[key] = storedValue;
-      } else {
-        newCustomizations[key] = undefined;
       }
     });
 
-    // Also restore any squiggle colors that were previously made transparent
-    // but are no longer in the current configuration (e.g., user disabled hideErrors).
-    // This prevents stale transparent colors from persisting after config changes.
+    // Clear any transparent squiggle colors not in storedColors
     Object.keys(TRANSPARENT_COLORS).forEach((key) => {
       if (
-        !(key in transparentColorsToApply) &&
         typeof newCustomizations[key] === "string" &&
         newCustomizations[key]!.toLowerCase() === TRANSPARENT_COLOR
       ) {
-        const storedValue = (storedColors as Record<string, unknown>)[key];
-        if (typeof storedValue === "string") {
-          newCustomizations[key] = storedValue;
-        } else {
+        // Only clear if not already restored from storedColors
+        if (!(key in storedColors)) {
           newCustomizations[key] = undefined;
         }
       }
@@ -232,7 +237,7 @@ async function toggleSquiggles(): Promise<void> {
   };
 
   const currentCustomizations =
-    config.get<Record<string, string | null | undefined>>("colorCustomizations") || {};
+    config.get<Record<string, string>>("colorCustomizations") || {};
 
   const result = toggleSquigglesCore(currentCustomizations, hideSquiggles);
 

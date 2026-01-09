@@ -1,6 +1,6 @@
 # invisible-squiggles
 
-The **Invisible Squiggles** VSCode extension allows you to **toggle error, warning, info, and hint squiggles** for a distraction-free coding experience.
+The **Invisible Squiggles** VSCode extension allows you to **selectively toggle error, warning, info, and hint squiggles** for a distraction-free coding experience.
 
 ![demo](https://github.com/user-attachments/assets/50bce932-ee6a-4422-88d1-a500b81eac57)
 
@@ -8,9 +8,9 @@ The **Invisible Squiggles** VSCode extension allows you to **toggle error, warni
 
 ## 🔹 Features
 
-- ✅ **Toggle squiggles on/off** from the **status bar** or **command palette**
-- ✅ **Supports hint, info, error, and warning squiggles**
-- ✅ **When squiggles are hidden, problem icons in the Problems panel are also made less visible for a fully distraction-free experience.**
+- ✅ **Toggle squiggles on/off globally or by type** from the **status bar** or **command palette**
+- ✅ **Independently control hint, info, warning, and error squiggles**
+- ✅ When squiggles are hidden, problem icons in the Problems panel are also made less visible for a fully distraction-free experience.
 
 ---
 

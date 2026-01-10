@@ -101,6 +101,50 @@ describe("toggleSquigglesCore", () => {
       // Cleanup handled by afterEach -> sinon.restore()
     });
 
+    it("should handle JSON primitive in originalColors (manual edit edge case)", () => {
+      // If someone manually edits settings to put a JSON primitive instead of object,
+      // the code should handle it gracefully without throwing TypeError on `in` operator
+      const testCases = [
+        { value: '"hello"', description: "string" },
+        { value: "123", description: "number" },
+        { value: "true", description: "boolean" },
+        { value: "null", description: "null" },
+        { value: "[1, 2, 3]", description: "array" },
+      ];
+
+      for (const { value, description } of testCases) {
+        const currentCustomizations: Record<string, string | undefined> = {
+          "editorError.background": TRANSPARENT_COLOR,
+          "editorError.border": TRANSPARENT_COLOR,
+          "editorError.foreground": TRANSPARENT_COLOR,
+          "invisibleSquiggles.originalColors": value,
+        };
+
+        const hideSquiggles: ToggleSquigglesConfig = {
+          hideErrors: true,
+          hideWarnings: false,
+          hideInfo: false,
+          hideHint: false,
+        };
+
+        // Should not throw TypeError
+        const result = toggleSquigglesCore(currentCustomizations, hideSquiggles);
+        assert.ok(result, `Should handle ${description} without crashing`);
+        // Should treat as invisible state (marker key exists) and restore
+        assert.strictEqual(
+          result.isAlreadyTransparent,
+          true,
+          `Should detect invisible state for ${description}`
+        );
+        // Transparent colors should be cleared since storedColors is empty/invalid
+        assert.strictEqual(
+          result.newCustomizations["editorError.background"],
+          undefined,
+          `Should clear transparent colors for ${description}`
+        );
+      }
+    });
+
     it("should handle missing configuration values (use defaults)", () => {
       const currentCustomizations: Record<string, string | undefined> = {
         "editorError.background": "#ff0000",
@@ -303,11 +347,11 @@ describe("toggleSquigglesCore", () => {
         "#ffaa00",
         "Warning colors should be restored even when all hide flags are disabled"
       );
-      // originalColors should be cleared after restore
+      // Marker key is set to `null` to signal removal (restoreAndCleanup converts to undefined)
       assert.strictEqual(
         result.newCustomizations["invisibleSquiggles.originalColors"],
         null,
-        "originalColors should be cleared after restore"
+        "originalColors should be marked for removal after restore"
       );
     });
 
@@ -421,11 +465,138 @@ describe("toggleSquigglesCore", () => {
         "isAlreadyTransparent should be true when restoring, so status bar shows 'visible'"
       );
 
-      // originalColors should be cleared
+      // Marker key is set to `null` to signal removal (restoreAndCleanup converts to undefined)
       assert.strictEqual(
         result.newCustomizations["invisibleSquiggles.originalColors"],
         null,
-        "originalColors should be cleared after restore"
+        "originalColors should be marked for removal after restore"
+      );
+    });
+
+    it("should recover when transparent colors exist without marker key (settings sync conflict)", () => {
+      // BUG SCENARIO (the fix for this test):
+      // User has transparent squiggle colors but the marker key is missing
+      // (e.g., settings sync conflict, manual edit, or legacy state)
+      // Without the fix:
+      // 1. Toggle treats state as visible (marker missing)
+      // 2. Saves transparent colors as "originals"
+      // 3. Applies transparency again (no visible change)
+      // 4. Now "originals" are transparent, making restoration impossible
+      //
+      // With the fix:
+      // 1. Toggle detects transparency without marker
+      // 2. Clears transparent colors (restores to default/visible)
+      // 3. User can then toggle again to hide properly
+
+      const customizations: Record<string, string | undefined> = {
+        // Transparent colors WITHOUT the marker key
+        "editorError.background": TRANSPARENT_COLOR,
+        "editorError.border": TRANSPARENT_COLOR,
+        "editorError.foreground": TRANSPARENT_COLOR,
+        // NO invisibleSquiggles.originalColors key!
+      };
+
+      const config: ToggleSquigglesConfig = {
+        hideErrors: true,
+        hideWarnings: false,
+        hideInfo: false,
+        hideHint: false,
+      };
+
+      const result = toggleSquigglesCore(customizations, config);
+
+      // Should detect stuck transparent state and restore by clearing transparent colors
+      assert.strictEqual(
+        result.isAlreadyTransparent,
+        true,
+        "Should detect transparent state even without marker key"
+      );
+
+      // Transparent colors should be cleared (set to undefined) since there are no originals to restore
+      assert.strictEqual(
+        result.newCustomizations["editorError.background"],
+        undefined,
+        "Transparent colors should be cleared when no originals exist"
+      );
+      assert.strictEqual(
+        result.newCustomizations["editorError.border"],
+        undefined,
+        "Transparent colors should be cleared when no originals exist"
+      );
+      assert.strictEqual(
+        result.newCustomizations["editorError.foreground"],
+        undefined,
+        "Transparent colors should be cleared when no originals exist"
+      );
+
+      // Should NOT create a marker key since we're restoring, not hiding
+      assert.ok(
+        result.newCustomizations["invisibleSquiggles.originalColors"] === undefined ||
+          result.newCustomizations["invisibleSquiggles.originalColors"] === null,
+        "Should not create marker key when recovering from stuck state"
+      );
+
+      // User can now toggle again to hide properly
+      const result2 = toggleSquigglesCore(result.newCustomizations, config);
+      assert.strictEqual(
+        result2.isAlreadyTransparent,
+        false,
+        "Second toggle should apply transparency normally"
+      );
+      assert.strictEqual(
+        result2.newCustomizations["editorError.background"],
+        TRANSPARENT_COLOR,
+        "Should apply transparent colors on second toggle"
+      );
+    });
+
+    it("should not falsely detect stuck state when only some colors are transparent", () => {
+      // Edge case: only SOME colors are transparent (partial transparency)
+      // This should NOT trigger the recovery logic since it's not a "stuck" state
+      // areSquigglesCurrentlyTransparent returns false when not ALL configured colors are transparent
+
+      const customizations: Record<string, string | undefined> = {
+        // Only background is transparent, border and foreground are not
+        "editorError.background": TRANSPARENT_COLOR,
+        "editorError.border": "#ff0000",
+        "editorError.foreground": "#ff0000",
+        // NO marker key
+      };
+
+      const config: ToggleSquigglesConfig = {
+        hideErrors: true,
+        hideWarnings: false,
+        hideInfo: false,
+        hideHint: false,
+      };
+
+      const result = toggleSquigglesCore(customizations, config);
+
+      // Should NOT detect as stuck transparent state (not all colors are transparent)
+      assert.strictEqual(
+        result.isAlreadyTransparent,
+        false,
+        "Should not falsely detect stuck state when only some colors are transparent"
+      );
+
+      // Should save partial transparency as original and apply full transparency
+      assert.strictEqual(
+        result.newCustomizations["editorError.background"],
+        TRANSPARENT_COLOR
+      );
+      assert.strictEqual(
+        result.newCustomizations["editorError.border"],
+        TRANSPARENT_COLOR
+      );
+      assert.strictEqual(
+        result.newCustomizations["editorError.foreground"],
+        TRANSPARENT_COLOR
+      );
+
+      // Should have created marker key with the partial original
+      assert.ok(
+        result.newCustomizations["invisibleSquiggles.originalColors"],
+        "Should create marker key when applying transparency"
       );
     });
   });
@@ -561,10 +732,10 @@ describe("restoreAndCleanup", () => {
     });
 
     it("should clean up non-string originalColors value", () => {
-      const customizations: Record<string, string | undefined> = {
+      const customizations = {
         "editorError.background": TRANSPARENT_COLOR,
-        [ORIGINAL_COLORS_KEY]: 123 as any,
-      };
+        [ORIGINAL_COLORS_KEY]: 123,
+      } as unknown as Record<string, string | undefined>;
 
       const result = restoreAndCleanup(customizations);
 
@@ -577,6 +748,41 @@ describe("restoreAndCleanup", () => {
   });
 
   describe("edge cases", () => {
+    it("should handle JSON primitive in originalColors (manual edit edge case)", () => {
+      // If someone manually edits settings to put a JSON primitive instead of object,
+      // the code should handle it gracefully without throwing TypeError on `in` operator
+      const testCases = [
+        { value: '"hello"', description: "string" },
+        { value: "123", description: "number" },
+        { value: "true", description: "boolean" },
+        { value: "null", description: "null" },
+        { value: "[1, 2, 3]", description: "array" },
+      ];
+
+      for (const { value, description } of testCases) {
+        const customizations: Record<string, string | undefined> = {
+          "editorError.background": TRANSPARENT_COLOR,
+          [ORIGINAL_COLORS_KEY]: value,
+        };
+
+        // Should not throw TypeError
+        const result = restoreAndCleanup(customizations);
+        assert.ok(result, `Should return result for ${description}`);
+        // Marker key should be cleared
+        assert.strictEqual(
+          result![ORIGINAL_COLORS_KEY],
+          undefined,
+          `Should clear marker key for ${description}`
+        );
+        // Transparent colors should be cleared since storedColors is empty/invalid
+        assert.strictEqual(
+          result!["editorError.background"],
+          undefined,
+          `Should clear transparent colors for ${description}`
+        );
+      }
+    });
+
     it("should handle empty originalColors object", () => {
       const customizations: Record<string, string | undefined> = {
         "editorError.background": TRANSPARENT_COLOR,

@@ -93,6 +93,7 @@ describe("Color Logic", () => {
         "#ff0000"
       );
       assert.strictEqual(result.newCustomizations["editorError.border"], "#ff0000");
+      // Marker key is set to `null` to signal removal (restoreAndCleanup converts to undefined)
       assert.strictEqual(
         result.newCustomizations["invisibleSquiggles.originalColors"],
         null

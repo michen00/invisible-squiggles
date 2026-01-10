@@ -35,7 +35,7 @@ repos:
 
   # git commit policy
   - repo: https://github.com/michen00/custom-commit-hooks
-    rev: v0.0.1
+    rev: v0.0.3
     hooks:
       - id: enhance-scope # commit-msg
       - id: conventional-merge-commit # prepare-commit-msg
@@ -91,7 +91,7 @@ repos:
       - id: yamllint
         args: [--strict]
   - repo: https://github.com/crate-ci/typos
-    rev: v1.41.0
+    rev: v1.42.0
     hooks:
       - id: typos
   - repo: https://github.com/codespell-project/codespell

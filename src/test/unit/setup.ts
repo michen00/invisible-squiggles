@@ -19,6 +19,15 @@ const configStore: Record<string, Record<string, unknown>> = {
   invisibleSquiggles: {},
 };
 
+// Track config update calls for verification in tests
+interface ConfigUpdateCall {
+  section: string;
+  key: string;
+  value: unknown;
+  target: number;
+}
+const configUpdateCalls: ConfigUpdateCall[] = [];
+
 /**
  * Resets the mock configuration store to empty state.
  * Note: Current unit tests don't rely on config state (they test pure functions),
@@ -27,6 +36,41 @@ const configStore: Record<string, Record<string, unknown>> = {
 function resetMockConfigStore(): void {
   configStore.workbench = {};
   configStore.invisibleSquiggles = {};
+  configUpdateCalls.length = 0;
+}
+
+/**
+ * Sets a value in the mock config store.
+ * Use this to set up initial state before testing functions that read config.
+ */
+export function setMockConfig(section: string, key: string, value: unknown): void {
+  if (!configStore[section]) {
+    configStore[section] = {};
+  }
+  configStore[section]![key] = value;
+}
+
+/**
+ * Gets a value from the mock config store.
+ * Use this to verify config state after testing functions that write config.
+ */
+export function getMockConfig(section: string, key: string): unknown {
+  return configStore[section]?.[key];
+}
+
+/**
+ * Gets all config update calls made during the test.
+ * Use this to verify that config.update was called with expected arguments.
+ */
+export function getConfigUpdateCalls(): ReadonlyArray<ConfigUpdateCall> {
+  return configUpdateCalls;
+}
+
+/**
+ * Clears config update call history.
+ */
+export function clearConfigUpdateCalls(): void {
+  configUpdateCalls.length = 0;
 }
 
 // Mocha root hooks - automatically run before each test
@@ -42,7 +86,16 @@ function createMockConfig(section: string) {
       const sectionConfig = configStore[section] || {};
       return key in sectionConfig ? sectionConfig[key] : defaultValue;
     },
-    update: () => Promise.resolve(),
+    update: (key: string, value: unknown, target: number) => {
+      // Track the update call
+      configUpdateCalls.push({ section, key, value, target });
+      // Actually update the store so subsequent reads see the new value
+      if (!configStore[section]) {
+        configStore[section] = {};
+      }
+      configStore[section]![key] = value;
+      return Promise.resolve();
+    },
   };
 }
 

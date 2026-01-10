@@ -103,14 +103,12 @@ line-length=72
 # For example, use the following regex if you only want to allow email addresses from foo.com
 # regex=[^@]+@foo.com
 
-# [ignore-by-title]
+[ignore-by-title]
 # Ignore certain rules for commits of which the title matches a regex
 # E.g. Match commit titles that start with "Release"
 # regex=^Release(.*)
-
-# Ignore certain rules, you can reference them by their id or by their full name
-# Use 'all' to ignore all rules
-# ignore=T1,body-min-length
+regex=^chore: merge .*
+ignore=body-is-missing,body-min-length,title-max-length
 
 # [ignore-by-body]
 # Ignore certain rules for commits of which the body has a line that matches a regex

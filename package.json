@@ -28,7 +28,7 @@
     "onStartupFinished"
   ],
   "engines": {
-    "vscode": "^1.100.0"
+    "vscode": "^1.108.0"
   },
   "main": "./dist/extension.js",
   "contributes": {

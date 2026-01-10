@@ -65,16 +65,30 @@ jobs:
       - name: Run unit tests with coverage
         run: npm run test:coverage
 
+  get-vscode-version:
+    name: Get VSCode version
+    runs-on: ubuntu-latest
+    outputs:
+      min: ${{ steps.version.outputs.min }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Get minimum VSCode version
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').engines.vscode.replace('^', '')")
+          echo "min=$VERSION" >> "$GITHUB_OUTPUT"
+
   e2e-tests:
     name: E2E tests (VSCode ${{ matrix.vscode }})
+    needs: get-vscode-version
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
       fail-fast: true
       matrix:
         vscode:
-          - "1.100.0" # Minimum supported version
-          - "stable" # Latest stable version
+          - ${{ needs.get-vscode-version.outputs.min }}
+          - "stable"
     steps:
       - name: Checkout
         uses: actions/checkout@v6

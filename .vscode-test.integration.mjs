@@ -1,8 +1,13 @@
+import { createRequire } from "module";
 import { defineConfig } from "@vscode/test-cli";
+
+const require = createRequire(import.meta.url);
+const pkg = require("./package.json");
+const minVersion = pkg.engines.vscode.replace("^", "");
 
 export default defineConfig({
   files: ["out/test/integration/**/*.test.js"],
-  version: "1.100.0",
+  version: minVersion,
   mocha: {
     timeout: 30000,
   },

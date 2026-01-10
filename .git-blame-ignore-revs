@@ -17,3 +17,4 @@ c9f34039cfd999087aa344208827220c38341229  # style: edit whitespace
 8a8a8ba43f9a312314cd5488d7699306ae5d458b  # style: format indentations/whitespace
 a54d01f8ad9acbce301fd957707b73b00d9bd6ef  # style(Makefile): adjust indentation
 151e2f705d55595d449cd7b6d3d83d33c0cc9fc8  # style(src/extension.ts): add a line break
+a150fa92d545c291b80e94d50d1a6466c69bc908  # style(src/extension.ts): add a line break

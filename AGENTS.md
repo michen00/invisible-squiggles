@@ -121,7 +121,7 @@ Use [Conventional Commits](https://www.conventionalcommits.org/) format:
 - **Lowercase after colon**: first word is typically lowercase
 - **Summary line**: ≤ 50 characters
 - If the body is included:
-  - \*\*
+  - **Single blank line**: Leave a single blank line between the summary and the body
   - **Body lines**: ≤ 72 characters
 
 **Format**: `<type>[optional scope]: <description>`

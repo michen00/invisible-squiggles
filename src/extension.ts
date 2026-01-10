@@ -159,10 +159,8 @@ export function toggleSquigglesCore(
 
   // Detect "invisible" state: originalColors key exists (regardless of current checkbox settings)
   // This handles the case where user unchecks all flags while invisible
-  const isInvisibleState =
-    ORIGINAL_COLORS_KEY in currentCustomizations &&
-    currentCustomizations[ORIGINAL_COLORS_KEY] !== null &&
-    currentCustomizations[ORIGINAL_COLORS_KEY] !== undefined;
+  // eslint-disable-next-line eqeqeq -- intentional: != null checks for both null and undefined
+  const isInvisibleState = currentCustomizations[ORIGINAL_COLORS_KEY] != null;
 
   // If no colors to apply AND not in invisible state, return unchanged
   if (Object.keys(transparentColorsToApply).length === 0 && !isInvisibleState) {

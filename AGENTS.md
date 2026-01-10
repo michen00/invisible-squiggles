@@ -1,79 +1,45 @@
 # AGENTS.md
 
-This file contains **agent-focused** instructions for working on this repository (build/test/dev workflow, conventions, and key architecture notes).
+This file provides agent-focused instructions for working on this repository. Project-specific details are marked as examples.
 
 For more context, see `README.md`, `CLAUDE.md`, and `.github/copilot-instructions.md` (these documents should be consistent with each other).
 
 ## Project overview
 
-**invisible-squiggles** is a VSCode extension that toggles **error, warning, info, and hint** squiggles for distraction-free coding.
+**Example project**: VSCode extension that toggles error, warning, info, and hint squiggles by setting `workbench.colorCustomizations` colors to `#00000000`.
 
-It works by manipulating VSCode’s `workbench.colorCustomizations` setting to make diagnostic squiggles transparent by setting colors to `#00000000`.
+**Key behavior**:
 
-## Key user-facing behavior
-
-- **Command**: `invisible-squiggles.toggle` (“Toggle Squiggles”) via Command Palette and status bar button (👁️)
-- **Squiggle types**: Hint, Info, Warning, Error
-- **Persistence**: updates are written to **global** settings (`ConfigurationTarget.Global`)
+- Command: `invisible-squiggles.toggle` via Command Palette and status bar (👁️)
+- Squiggle types: Hint, Info, Warning, Error
+- Persistence: global settings (`ConfigurationTarget.Global`)
 
 ## Development commands
 
-Install dependencies:
+Adapt commands to your project structure.
 
 ```bash
-npm install
-```
-
-Type-check + lint + build (development):
-
-```bash
-npm run compile
-```
-
-Production build (optimized bundle):
-
-```bash
-npm run package
-```
-
-Watch mode (TypeScript + ESBuild watchers):
-
-```bash
-npm run watch
-```
-
-Type check only:
-
-```bash
-npm run check-types
-```
-
-Lint only:
-
-```bash
-npm run lint
-```
-
-Run tests:
-
-```bash
-npm test
+npm install          # Install dependencies
+npm run compile      # Type-check + lint + build (dev)
+npm run package      # Production build (optimized bundle)
+npm run watch        # Watch mode (TypeScript + ESBuild)
+npm run check-types  # Type check only
+npm run lint         # Lint only
+npm test             # Run all tests
 ```
 
 **Note**: Unit tests (`npm run test:unit`) run without VSCode and work in CI. Integration and E2E tests require the VSCode runtime.
 
 ### Testing Infrastructure
 
-The project includes comprehensive testing infrastructure:
+**Example test types**:
 
-**Test Types**:
+- **Unit tests** (`npm run test:unit`): Fast (< 5s), mocked APIs, located in `src/test/unit/`
+- **Integration tests** (`npm run test:integration`): Real APIs, located in `src/test/integration/`
+- **E2E tests** (`npm run test:e2e`): Extension Development Host, located in `src/test/e2e/`
+- **Coverage** (`npm run test:coverage`): Coverage reports with threshold warnings
 
-- **Unit tests** (`npm run test:unit`): Fast tests (< 5 seconds) with mocked VSCode APIs, located in `src/test/unit/`
-- **Integration tests** (`npm run test:integration`): Tests with real VSCode APIs, located in `src/test/integration/`
-- **E2E tests** (`npm run test:e2e`): Full Extension Development Host tests, located in `src/test/e2e/`
-- **Coverage** (`npm run test:coverage`): Generates coverage reports with per-metric threshold warnings
-
-**Test Structure**:
+**Example structure**:
 
 ```tree
 src/test/
@@ -83,53 +49,49 @@ src/test/
 └── helpers/           # Test utilities and mocks
 ```
 
-**Running Tests**:
+## Manual verification
 
-- `npm run test:unit` - Run unit tests only (fast, no VSCode required)
-- `npm run test:integration` - Run integration tests (requires VSCode)
-- `npm run test:e2e` - Run E2E tests (requires Extension Development Host)
-- `npm run test:coverage` - Run all tests with coverage report
+Test changes before committing.
 
-## Manual verification (recommended after changes)
+**Example (VSCode extension)**:
 
-- Press `F5` in VSCode to launch an Extension Development Host
-- Run “Toggle Squiggles” (Command Palette: `Ctrl/Cmd+Shift+P`)
-- Verify:
-  - The status bar eye (👁️) appears
-  - Toggling hides/shows configured squiggle types
-- Reload with `Ctrl/Cmd+R` after code changes
+1. Press `F5` to launch Extension Development Host
+2. Run "Toggle Squiggles" (Command Palette: `Ctrl/Cmd+Shift+P`)
+3. Verify status bar icon (👁️) appears and toggling works
+4. Reload with `Ctrl/Cmd+R` after code changes
 
-## Architecture notes (how it works)
+## Architecture notes
 
-- **Main entry point**: `src/extension.ts`
-- The extension:
-  - Reads current `workbench.colorCustomizations`
-  - Stores original squiggle colors in `invisibleSquiggles.originalColors` (JSON string)
-  - Applies transparent colors (`#00000000`) to configured squiggle color keys
-  - Restores original colors when toggled back
+Describe entry points, data flow, and key files.
+
+**Example architecture**:
+
+1. **Entry point**: `src/extension.ts`
+2. Read current `workbench.colorCustomizations`
+3. Store original colors in `invisibleSquiggles.originalColors` (JSON string)
+4. Apply transparent colors (`#00000000`) to configured squiggle color keys
+5. Restore original colors when toggled back
 
 ## Conventions
+
+**Example**:
 
 - **Language**: TypeScript (strict)
 - **Build**: ESBuild bundles to `dist/` (CommonJS; `vscode` is external)
 
 ### Commit Guidelines
 
-Use [Conventional Commits](https://www.conventionalcommits.org/) format:
+Follow project's commit standard.
 
-- **Imperative mood**: "add feature" (not "added feature" or "adds feature")
-- **Lowercase after colon**: first word is typically lowercase
-- **Summary line**: ≤ 50 characters
-- If the body is included:
-  - **Single blank line**: Leave a single blank line between the summary and the body
-  - **Body lines**: ≤ 72 characters
+**Example (Conventional Commits)**:
 
-**Format**: `<type>[optional scope]: <description>`
+- Format: `<type>[optional scope]: <description>`
+- Imperative mood, lowercase after colon, ≤50 char summary
+- Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `build`, `ci`
+- Examples: `refactor!: consolidate redundant configurations`, `fix: restore colors after multiple toggles`, `docs(README.md): describe keyboard shortcuts`
 
-**Types**: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `build`, `ci`
+## Guidance
 
-**Examples**:
-
-- `refactor!: consolidate redundant configurations`
-- `fix: restore colors after multiple toggles`
-- `docs(README.md): describe keyboard shortcuts`
+- Use explicit, structured instructions with absolute file paths
+- Cite code with line numbers when referencing existing code
+- Keep instructions concise to preserve context window

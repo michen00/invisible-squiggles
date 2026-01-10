@@ -356,7 +356,8 @@ export async function deactivate(): Promise<void> {
   try {
     const config = vscode.workspace.getConfiguration("workbench");
     const currentCustomizations =
-      config.get<Record<string, string | null | undefined>>("colorCustomizations") || {};
+      config.get<Record<string, string | null | undefined>>("colorCustomizations") ||
+      {};
 
     const restoredCustomizations = restoreAndCleanup(currentCustomizations);
     if (restoredCustomizations) {

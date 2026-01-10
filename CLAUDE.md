@@ -1,181 +1,53 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code. For full details, see `AGENTS.md`.
 
-## Project Overview
-
-This is a VSCode extension that toggles error, warning, info, and hint squiggles for distraction-free coding. The extension manipulates VSCode's `workbench.colorCustomizations` to make diagnostic squiggles transparent by setting colors to `#00000000`.
-
-## Essential Development Commands
-
-### Build and Development
+## Quick Reference
 
 ```bash
-npm install              # Install dependencies (required after cloning)
-npm run compile          # Type check + lint + build (development)
-npm run package          # Type check + lint + optimized build (production)
-npm run watch            # Start both TypeScript and ESBuild watchers
-npm run check-types      # TypeScript type validation only
-npm run lint             # ESLint validation only
-npm test                 # Run all tests (unit + integration + E2E)
-npm run test:unit        # Run unit tests only (fast, < 5 seconds)
-npm run test:integration # Run integration tests (requires VSCode)
-npm run test:e2e         # Run E2E tests (requires Extension Development Host)
-npm run test:coverage    # Run all tests with coverage report
+npm run compile      # Build (type-check + lint + bundle)
+npm run test:unit    # Fast tests (<5s, no VSCode needed)
+npm run package      # Production build
 ```
 
-### Testing Infrastructure
+## What This Extension Does
 
-**Test Types**:
+VSCode extension that toggles diagnostic squiggles (errors, warnings, info, hints) by setting `workbench.colorCustomizations` colors to `#00000000` (transparent).
 
-- **Unit tests**: Located in `src/test/unit/`, use mocked VSCode APIs, execute in < 5 seconds
-- **Integration tests**: Located in `src/test/integration/`, use real VSCode APIs
-- **E2E tests**: Located in `src/test/e2e/`, run in Extension Development Host
-- **Coverage**: Configured with c8, per-metric thresholds (warning only, doesn't fail build)
+## Architecture (Single File)
 
-**Test Helpers**: `src/test/helpers/` contains mock VSCode APIs and test utilities
+**Entry point**: `src/extension.ts` — all logic is here.
 
-**Coverage**: Reports show line, branch, function, and statement coverage with per-metric thresholds (warnings only).
+**Core flow**:
 
-### VSCode Extension Testing
+1. `activate()` → registers command + status bar item
+2. `toggleSquiggles()` → stores original colors in `invisibleSquiggles.originalColors`, applies transparent colors
+3. `setStatus()` → updates status bar icon (👁️)
 
-Press `F5` in VSCode to launch Extension Development Host, then:
-
-- Test the "Toggle Squiggles" command via Command Palette (`Ctrl/Cmd+Shift+P`)
-- Verify the eye icon (👁️) appears in the status bar
-- Use `Ctrl/Cmd+R` to reload after making code changes
-
-Note: Integration and E2E tests require VSCode runtime and will fail in headless/CI environments. Unit tests can run without VSCode.
-
-## Architecture
-
-### Core Mechanism
-
-The extension works by:
-
-1. Reading current `workbench.colorCustomizations` settings
-2. Storing original squiggle colors in a JSON string within settings (`invisibleSquiggles.originalColors`)
-3. Applying transparent colors (`#00000000`) to configured squiggle types
-4. Restoring original colors when toggled back
-
-### Key Components
-
-**Main Entry Point**: `src/extension.ts`
-
-- `activate()`: Registers command, creates status bar item, sets initial state
-- `toggleSquiggles()`: Core logic that applies/restores color customizations
-- `setStatus()`: Updates status bar icon and tooltip based on squiggle visibility state
-
-**Squiggle Types Managed**: Hint, Info, Error, Warning
-
-For each type, the extension manages three color properties:
+**Color keys managed** (for each type: Error, Warning, Info, Hint):
 
 - `editor{Type}.background`
 - `editor{Type}.border`
 - `editor{Type}.foreground`
 
-**Configuration Settings** (`package.json` contributions):
+**Critical**: All updates use `ConfigurationTarget.Global`.
 
-- `invisibleSquiggles.hideErrors` (default: true)
-- `invisibleSquiggles.hideWarnings` (default: true)
-- `invisibleSquiggles.hideInfo` (default: true)
-- `invisibleSquiggles.hideHint` (default: true)
-- `invisibleSquiggles.showStatusBarMessage` (default: false) - Shows temporary status message on toggle
+## Testing
 
-**Command Registration**: `invisible-squiggles.toggle` - Accessible via Command Palette and status bar button
+- **Unit tests** (`src/test/unit/`): Mocked VSCode APIs, run anywhere
+- **Integration/E2E**: Require VSCode runtime, skip in CI
+- Press `F5` in VSCode to test manually
 
-### Build System
+## Commits
 
-**ESBuild** (`esbuild.js`):
-
-- Entry point: `src/extension.ts`
-- Output: `dist/extension.js` (single bundled file)
-- Format: CommonJS
-- External: `vscode` module
-- Production mode: Minified, no sourcemaps
-- Development mode: Sourcemaps enabled
-
-**TypeScript** (`tsconfig.json`):
-
-- Target: ES2022
-- Module: Node16
-- Strict mode enabled
-- Output for tests: `out/` directory
-
-### State Management
-
-The extension maintains state through:
-
-1. **Global Settings**: `workbench.colorCustomizations` persisted by VSCode
-2. **Hidden State**: Original colors stored as JSON string in `invisibleSquiggles.originalColors`
-3. **Status Bar**: Visual indicator of current squiggle visibility
-
-Important: All color updates use `ConfigurationTarget.Global` to affect all workspaces.
-
-## Commit Guidelines
-
-Use [Conventional Commits](https://www.conventionalcommits.org/) format:
+Conventional Commits format. Imperative mood, lowercase after colon, ≤50 char summary.
 
 ```text
-<type>[optional scope]: <description>
-
-[optional body]
-
-[optional footer(s)]
+feat|fix|docs|refactor|test|chore: description
 ```
 
-**Rules**:
+## Don't
 
-- **Imperative mood**: "add feature" not "added feature" or "adds feature"
-- **Lowercase after colon**: first word is lowercase unless a proper noun (e.g., `feat: add ESLint rule`)
-- **Summary line**: ≤ 50 characters
-- **Body lines**: ≤ 72 characters (wrap longer explanations)
-
-**Types**: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `build`, `ci`
-
-**Examples**:
-
-- `refactor!: consolidate redundant configurations`
-- `fix: restore colors after multiple toggles`
-- `docs(README.md): describe keyboard shortcuts`
-
-## Release Process
-
-1. Update `CHANGELOG.md` (use `git cliff --unreleased` to generate entries)
-2. Update version in `package.json`
-3. Build and test: `make rebuild && make check`
-4. Test locally: `make install-vsix`
-5. Commit changes: `git commit -am "chore: release v<version>"`
-6. Create signed tag: `git tag -a v<version> -m v<version> -s`
-7. Push with tags: `git push --follow-tags`
-8. Publish to Marketplace: `npx vsce publish`
-9. Create GitHub release from the tag
-
-## Git Hooks
-
-The repository supports both custom git hooks (`.githooks/`) and pre-commit hooks (`.pre-commit-config.yaml`):
-
-- `make enable-pre-commit-only` - Enable pre-commit hooks (requires pre-commit installed)
-- `make enable-commit-hooks-only` - Enable custom commit hooks only
-- `make disable-git-hooks` - Disable all hooks
-
-Pre-commit hooks include: gitleaks, prettier, markdownlint, typos, codespell, shellcheck, and format validators.
-
-## Codebase Context
-
-**Source Structure**:
-
-- `src/extension.ts` - Main extension logic (single file)
-- `src/test/unit/` - Unit tests (mocked VSCode APIs)
-- `src/test/integration/` - Integration tests (real VSCode APIs)
-- `src/test/e2e/` - End-to-end tests (Extension Development Host)
-- `src/test/helpers/` - Test utilities and mocks
-
-**Build Output Directories**:
-
-- `dist/` - ESBuild production bundle
-- `out/` - TypeScript test compilation
-
-**Makefile Targets**: Run `make help` to see available commands including `build`, `rebuild`, `build-vsix`, `install-vsix`, `check`, `clean`, and git hook management.
-
-This is a focused single-purpose extension with minimal complexity. All core logic resides in one file.
+- Don't add new dependencies without good reason
+- Don't create new files for small changes — this is a single-file extension
+- Don't run integration/E2E tests in CI (they need VSCode)

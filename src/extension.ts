@@ -117,7 +117,9 @@ export interface ToggleSquigglesConfig {
  */
 export interface ToggleSquigglesResult {
   // VS Code can retain old workbench.colorCustomizations keys when updating objects.
-  // Setting a color key to `undefined` explicitly clears that customization.
+  // - Color keys (e.g., editorError.background): set to `undefined` to clear
+  // - Marker key (ORIGINAL_COLORS_KEY): set to `null` to mark for removal,
+  //   then `restoreAndCleanup` converts to `undefined` on next activation
   newCustomizations: Record<string, string | null | undefined>;
   isAlreadyTransparent: boolean;
   shouldShowMessage: boolean;
@@ -139,7 +141,12 @@ export function toggleSquigglesCore(
       return {};
     }
     try {
-      return JSON.parse(storedJson);
+      const parsed: unknown = JSON.parse(storedJson);
+      // Validate it's a plain object (not null, array, or primitive)
+      if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+        return {};
+      }
+      return parsed as Record<string, unknown>;
     } catch (error) {
       console.error("Error parsing saved colors JSON:", error);
       return {};
@@ -160,7 +167,16 @@ export function toggleSquigglesCore(
   // Detect "invisible" state: originalColors key exists (regardless of current checkbox settings)
   // This handles the case where user unchecks all flags while invisible
   // eslint-disable-next-line eqeqeq -- intentional: != null checks for both null and undefined
-  const isInvisibleState = currentCustomizations[ORIGINAL_COLORS_KEY] != null;
+  const hasMarkerKey = currentCustomizations[ORIGINAL_COLORS_KEY] != null;
+
+  // Fallback: detect transparency when marker key is missing (settings sync conflict, manual edit, legacy state)
+  // If we find transparent colors without the marker, don't save them as "originals" - that would make restoration impossible
+  const hasTransparentWithoutMarker =
+    !hasMarkerKey &&
+    areSquigglesCurrentlyTransparent(currentCustomizations, hideSquiggles) === true;
+
+  // Combined invisible state: either has marker OR stuck in transparent state without marker
+  const isInvisibleState = hasMarkerKey || hasTransparentWithoutMarker;
 
   // If no colors to apply AND not in invisible state, return unchanged
   if (Object.keys(transparentColorsToApply).length === 0 && !isInvisibleState) {
@@ -174,15 +190,19 @@ export function toggleSquigglesCore(
   const newCustomizations = { ...currentCustomizations };
 
   if (isInvisibleState) {
-    // Restore ALL colors from storedColors, regardless of current checkbox settings
-    Object.keys(storedColors).forEach((key) => {
-      const storedValue = (storedColors as Record<string, unknown>)[key];
-      if (typeof storedValue === "string") {
-        newCustomizations[key] = storedValue;
-      }
-    });
+    // Restore colors from storedColors if we have them (marker key existed)
+    // If stuck transparent without marker, storedColors will be empty and we just clear transparent colors
+    if (hasMarkerKey) {
+      Object.keys(storedColors).forEach((key) => {
+        const storedValue = (storedColors as Record<string, unknown>)[key];
+        if (typeof storedValue === "string") {
+          newCustomizations[key] = storedValue;
+        }
+      });
+    }
 
     // Clear any transparent squiggle colors not in storedColors
+    // (If stuck without marker, storedColors is empty so this clears ALL transparent colors)
     ALL_SQUIGGLE_COLOR_KEYS.forEach((key) => {
       if (
         typeof newCustomizations[key] === "string" &&
@@ -193,8 +213,11 @@ export function toggleSquigglesCore(
       }
     });
 
-    // Explicitly clear this marker key. VS Code may retain old object keys otherwise.
-    newCustomizations[ORIGINAL_COLORS_KEY] = null;
+    // Mark marker key for removal. Using `null` signals "remove this key" to VS Code.
+    // Note: `restoreAndCleanup` will convert this to `undefined` on next activation.
+    if (hasMarkerKey) {
+      newCustomizations[ORIGINAL_COLORS_KEY] = null;
+    }
   } else {
     // Save current state and apply transparency
     const savedColors = Object.fromEntries(
@@ -241,7 +264,11 @@ export function restoreAndCleanup(
   // Parse stored colors
   let storedColors: Record<string, string> = {};
   try {
-    storedColors = JSON.parse(storedJson);
+    const parsed: unknown = JSON.parse(storedJson);
+    // Validate it's a plain object (not null, array, or primitive)
+    if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+      storedColors = parsed as Record<string, string>;
+    }
   } catch (error) {
     console.error("Error parsing saved colors JSON during cleanup:", error);
   }

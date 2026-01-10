@@ -114,19 +114,30 @@ Important: All color updates use `ConfigurationTarget.Global` to affect all work
 
 ## Commit Guidelines
 
-Use Conventional Commits format:
+Use [Conventional Commits](https://www.conventionalcommits.org/) format:
 
 ```text
 <type>[optional scope]: <description>
+
+[optional body]
+
+[optional footer(s)]
 ```
 
-Common types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `build`, `ci`
+**Rules**:
 
-Examples:
+- **Imperative mood**: "add feature" not "added feature" or "adds feature"
+- **Lowercase after colon**: first word is lowercase unless a proper noun (e.g., `feat: add ESLint rule`)
+- **Summary line**: ≤ 50 characters
+- **Body lines**: ≤ 72 characters (wrap longer explanations)
 
-- `feat: add command for selective squiggle type toggling`
-- `fix: restore original colors correctly after multiple toggles`
-- `docs: update README with keyboard shortcut instructions`
+**Types**: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `build`, `ci`
+
+**Examples**:
+
+- `refactor!: consolidate redundant configurations`
+- `fix: restore colors after multiple toggles`
+- `docs(README.md): describe keyboard shortcuts`
 
 ## Release Process
 

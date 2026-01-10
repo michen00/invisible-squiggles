@@ -255,7 +255,7 @@ make enable-pre-commit-only
 
 ### Commit Message Guidelines
 
-**Use Conventional Commit format for all commits:**
+**Use [Conventional Commits](https://www.conventionalcommits.org/) format:**
 
 ```text
 <type>[optional scope]: <description>
@@ -264,6 +264,13 @@ make enable-pre-commit-only
 
 [optional footer(s)]
 ```
+
+**Rules:**
+
+- **Imperative mood**: "add feature" not "added feature" or "adds feature"
+- **Lowercase after colon**: first word is lowercase unless a proper noun (e.g., `feat: add ESLint rule`)
+- **Summary line**: ≤ 50 characters
+- **Body lines**: ≤ 72 characters (wrap longer explanations)
 
 **Common types:**
 
@@ -279,10 +286,9 @@ make enable-pre-commit-only
 
 **Examples:**
 
-- `feat: add toggle command for hiding all squiggles`
-- `fix: resolve status bar icon not updating correctly`
-- `docs: update README with new installation instructions`
-- `build: add comprehensive Copilot coding agent instructions`
+- `refactor!: consolidate redundant configurations`
+- `fix: restore colors after multiple toggles`
+- `docs(README.md): describe keyboard shortcuts`
 
 **For coding agents:** Always use conventional commit format when making changes to maintain consistency with the project's commit history.
 

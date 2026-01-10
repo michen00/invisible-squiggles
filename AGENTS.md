@@ -112,4 +112,24 @@ src/test/
 
 - **Language**: TypeScript (strict)
 - **Build**: ESBuild bundles to `dist/` (CommonJS; `vscode` is external)
-- **Commits**: Conventional Commits (examples: `feat: ...`, `fix: ...`, `docs: ...`)
+
+### Commit Guidelines
+
+Use [Conventional Commits](https://www.conventionalcommits.org/) format:
+
+- **Imperative mood**: "add feature" (not "added feature" or "adds feature")
+- **Lowercase after colon**: first word is typically lowercase
+- **Summary line**: ≤ 50 characters
+- If the body is included:
+  - \*\*
+  - **Body lines**: ≤ 72 characters
+
+**Format**: `<type>[optional scope]: <description>`
+
+**Types**: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `build`, `ci`
+
+**Examples**:
+
+- `refactor!: consolidate redundant configurations`
+- `fix: restore colors after multiple toggles`
+- `docs(README.md): describe keyboard shortcuts`

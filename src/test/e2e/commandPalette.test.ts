@@ -29,6 +29,11 @@ suite("Extension E2E Tests - Command Palette", () => {
   test("Extension Development Host should launch with extension loaded", async () => {
     const extension = vscode.extensions.getExtension("michen00.invisible-squiggles");
     assert.ok(extension, "Extension should be loaded");
+
+    // Extension uses onStartupFinished activation, so ensure it's activated
+    if (!extension.isActive) {
+      await extension.activate();
+    }
     assert.ok(extension.isActive, "Extension should be active");
   });
 

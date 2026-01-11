@@ -179,8 +179,8 @@ And finally, when you are satisfied with your changes, open a new PR.
 9. Get the latest main: `git switch main && git pull`
 10. Create a signed tag: `git tag -a vX.Y.Z -m vX.Y.Z -s`
 11. Push with tags: `git push --follow-tags`
-12. Create a GitHub release from the tag: `gh release create vX.Y.Z --generate-notes`
-13. Review the release notes and edit them if needed.
+12. Create a GitHub release from the tag: `make release VERSION=vX.Y.Z`
+13. Review the release notes and edit them if needed (via GitHub web UI).
 14. Publish to the VSCode Marketplace: `make publish`
 
 [issues]: https://github.com/michen00/invisible-squiggles/issues

@@ -144,6 +144,12 @@ publish: install ## Publish the extension to the VS Code Marketplace
 update-unreleased: ## Update the Unreleased section of CHANGELOG.md and commit
 	@scripts/update-unreleased.sh --commit
 
+.PHONY: release
+release: ## Create a GitHub release (VERSION=vX.Y.Z)
+	@if [ -z "$(VERSION)" ]; then echo "Usage: make release VERSION=vX.Y.Z"; exit 1; fi
+	@git rev-parse --verify refs/tags/$(VERSION) >/dev/null 2>&1 || { echo "Error: Tag $(VERSION) does not exist"; exit 1; }
+	gh release create $(VERSION) --generate-notes --discussion-category "Announcements"
+
 .PHONY: check
 check: install ## Run checks and tests
 	npm run test

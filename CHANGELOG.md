@@ -46,7 +46,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com) and this p
 
 - Michael I Chen
 
-## [0.2.1](https://github.com/michen00/invisible-squiggles/compare/v0.2.0..v0.2.1) - 2025-12-21
+## [0.2.1](https://github.com/michen00/invisible-squiggles/compare/v0.2.0..v0.2.1) - 2025-12-20
 
 ### ✨ Features
 
@@ -98,7 +98,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com) and this p
 - Michael I Chen
 - Madhur Dixit
 
-## [0.1.1](https://github.com/michen00/invisible-squiggles/compare/v0.1.0..v0.1.1) - 2024-12-10
+## [0.1.1](https://github.com/michen00/invisible-squiggles/compare/v0.1.0..v0.1.1) - 2024-12-09
 
 _Documentation updates only._
 
@@ -106,7 +106,7 @@ _Documentation updates only._
 
 - Michael I Chen
 
-## [0.1.0] - 2024-12-10
+## [0.1.0] - 2024-12-09
 
 ### ✨ Features
 

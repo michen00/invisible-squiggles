@@ -6,7 +6,7 @@
 
 - VSCode extension toggles error/warning/info/hint squiggles transparent.
 - Command: `invisible-squiggles.toggle`, status bar eye (👁️), global settings only.
-- Runtime: Node 20.x/22.x; VSCode ^1.100.0; ESBuild bundles to `dist/`.
+- Runtime: Node 20.x/22.x; VSCode (min version from package.json)/stable; ESBuild bundles to `dist/`.
 - Main code: `src/extension.ts`. Tests: `src/test/{unit,integration,e2e,helpers}/`.
 
 ## Core Commands (preferred order)

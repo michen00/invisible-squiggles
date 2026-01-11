@@ -6,7 +6,7 @@ All notable changes will be documented in this file. See [conventional commits](
 
 The format is based on [Keep a Changelog](https://keepachangelog.com) and this project adheres to [Semantic Versioning](https://semver.org).
 
-## [Unreleased]
+## [0.3.1](https://github.com/michen00/invisible-squiggles/compare/v0.3.0..v0.3.1) - 2026-01-11
 
 ### 🐛 Fixes
 

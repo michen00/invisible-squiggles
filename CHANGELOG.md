@@ -49,10 +49,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com) and this p
 ### 👷 Build
 
 - **(.pre-commit-config.yaml)** reorganize hooks - ([7001d5d](https://github.com/michen00/invisible-squiggles/commit/7001d5db4449bae984182d64636afb9f5fa45d46)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
-- **(CLAUDE.md)** optimize for Claude Code - ([7c05c10](https://github.com/michen00/invisible-squiggles/commit/7c05c107ff391cab8791b9cd3a19272b1880ea32)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- **(CLAUDE.md)** optimize for Claude Code - ([7367b48](https://github.com/michen00/invisible-squiggles/commit/7367b487292d783fac92900b51e4bcd739153247)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(Makefile)** include omitted hooks - ([50e75ec](https://github.com/michen00/invisible-squiggles/commit/50e75ecf51fcf8adffde80f3e5cc252b9056f9e0)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
-- **(agents)** add commit guidelines - ([4ef7fd0](https://github.com/michen00/invisible-squiggles/commit/4ef7fd04498daf4e425a3612ce6ea6b736f6a8ca)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
-- **(copilot-instructions)** optimize for Copilot - ([a4af884](https://github.com/michen00/invisible-squiggles/commit/a4af884bb3305bc6ddf83fc2a6a5e64ff2db936c)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- **(agents)** add commit guidelines - ([1926920](https://github.com/michen00/invisible-squiggles/commit/19269201d58dbd4bfef71cf2767899f40d874f8e)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- **(copilot-instructions)** optimize for Copilot - ([50566db](https://github.com/michen00/invisible-squiggles/commit/50566dbd0d5b2a88ad1f18c187a790e96e5507ff)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(deps-dev)** bump @types/vscode from 1.107.0 to 1.108.0 (#84) - ([f59f24f](https://github.com/michen00/invisible-squiggles/commit/f59f24f88a3297b3919a406dc90a5d7dc0beb35c)) - [dependabot[bot]](mailto:49699333+dependabot[bot]@users.noreply.github.com)
 - **(deps-dev)** bump @typescript-eslint/eslint-plugin - ([16085f3](https://github.com/michen00/invisible-squiggles/commit/16085f317e0db3a22440cb7e365d466a24fcacc7)) - [dependabot[bot]](mailto:49699333+dependabot[bot]@users.noreply.github.com)
 - **(deps-dev)** bump @typescript-eslint/parser from 8.50.1 to 8.51.0 - ([d11bdbb](https://github.com/michen00/invisible-squiggles/commit/d11bdbb5306a04ca6bb9c5b2f431422683fbd409)) - [dependabot[bot]](mailto:49699333+dependabot[bot]@users.noreply.github.com)
@@ -65,14 +65,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com) and this p
 
 ### 📝 Documentation
 
-- **(AGENTS.md)** streamline agent instructions - ([a347c8e](https://github.com/michen00/invisible-squiggles/commit/a347c8e15fe8040bb15e39ca71ab650d4a098ec2)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
-- **(CHANGELOG.md)** autoupdate Unreleased section - ([954a4a4](https://github.com/michen00/invisible-squiggles/commit/954a4a4cb685a46c9a0a86ba5f98ae1f5ccc2d8c)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- **(AGENTS.md)** streamline agent instructions - ([821041b](https://github.com/michen00/invisible-squiggles/commit/821041b8d15b01675b5c75a45b449e49e1ffc03a)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- **(CHANGELOG.md)** autoupdate Unreleased section - ([cfd6587](https://github.com/michen00/invisible-squiggles/commit/cfd6587f0dcbaeb5eb1940ad744c7c91c2e82d77)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(CHANGELOG.md)** update for unreleased items - ([7e53637](https://github.com/michen00/invisible-squiggles/commit/7e536370bd6d4419da97257078e54e4350217fdc)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(CONTRIBUTING.md)** update release instructions - ([2f1584f](https://github.com/michen00/invisible-squiggles/commit/2f1584fde38c8e87ba18af5378365e36573e3474)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(CONTRIBUTING.md)** improve release guidance - ([e388875](https://github.com/michen00/invisible-squiggles/commit/e38887597f48360ad9eb4d053936ccf6df7c4bc4)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(README.md)** update problem icons behavior - ([b1ca471](https://github.com/michen00/invisible-squiggles/commit/b1ca4712b9b388c2976eddc731ef65bb6b761960)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(src/extension.ts)** clarify a comment - ([644161e](https://github.com/michen00/invisible-squiggles/commit/644161e97ee56f6bc4adec34a37bb79bfddf259a)) - [Michael I Chen](mailto:michael.chen.0@gmail.com)
-- clarify commit guidelines for blank lines - ([2718232](https://github.com/michen00/invisible-squiggles/commit/27182320e0e053ed9ecff7427d9939dc8feb8fea)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- add a note to review release notes - ([619f673](https://github.com/michen00/invisible-squiggles/commit/619f673eb0fc55893fee37df26ecebe8d7e3dd29)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- clarify commit guidelines for blank lines - ([200acf3](https://github.com/michen00/invisible-squiggles/commit/200acf390ec0f9040e2c4d9618498eed315c046d)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - highlight selective toggle feature details - ([886379f](https://github.com/michen00/invisible-squiggles/commit/886379f14ea877d9a22f4ae031ac2269e49193a4)) - [Michael I Chen](mailto:michael.chen.0@gmail.com)
 - update CHANGELOG - ([3e1f3bb](https://github.com/michen00/invisible-squiggles/commit/3e1f3bb6325a61c06ace0279240b42b82890323f)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 
@@ -98,10 +99,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com) and this p
 - **(Makefile)** update to match boilerplate - ([6c58415](https://github.com/michen00/invisible-squiggles/commit/6c5841583fe74942804a4637c2fb7ad352f9213a)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(package.json)** remove a staling comment - ([7212e8f](https://github.com/michen00/invisible-squiggles/commit/7212e8f0cc30b9e98fd8c09e21327fa72d5ab614)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - **(src/extension.ts)** revert to a safer type - ([bec9cce](https://github.com/michen00/invisible-squiggles/commit/bec9cce18b47c4d9b277f6b605a6eb7ca547785c)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
-- update .github/copilot-instructions.md - ([b31b8f3](https://github.com/michen00/invisible-squiggles/commit/b31b8f3453cc3d5080146742685b233e78be37f2)) - [Michael I Chen](mailto:michael.chen.0@gmail.com)
+- update .github/copilot-instructions.md - ([f2d4ff0](https://github.com/michen00/invisible-squiggles/commit/f2d4ff0ab6b34ecc124e832609374f26750d1c64)) - [Michael I Chen](mailto:michael.chen.0@gmail.com)
+- update VSCode version handling - ([c468a4c](https://github.com/michen00/invisible-squiggles/commit/c468a4c3c00948528c15bd40e8b7a93eb79a68b2)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
+- update VSCode engine version - ([bc31df1](https://github.com/michen00/invisible-squiggles/commit/bc31df127057c3262ac4b778dd7e266bd5ae027f)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - provide issue templates (#86) - ([281c32a](https://github.com/michen00/invisible-squiggles/commit/281c32a8730eaf9a2f898a03ca65f4cf49fd536a)) - [Michael I Chen](mailto:michael.chen.0@gmail.com)
-- update VSCode version handling - ([9daa8f5](https://github.com/michen00/invisible-squiggles/commit/9daa8f5186e3918505fc658591620c9e609fdf3f)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
-- update VSCode engine version - ([44c1f22](https://github.com/michen00/invisible-squiggles/commit/44c1f2238c97d5451d2c6bb11eed2fcc3acf01b0)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - bump a hook version - ([a793b7e](https://github.com/michen00/invisible-squiggles/commit/a793b7e53feb30441febf8e8a617153043c98c1e)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - update custom-commit-hooks - ([bd5abff](https://github.com/michen00/invisible-squiggles/commit/bd5abff1636fe1b9d61974c3ee02e512575bf144)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 - quote variable expansion - ([1b8c8ec](https://github.com/michen00/invisible-squiggles/commit/1b8c8ec376066e7d2d556721fd7202e5e3e85162)) - [Michael I Chen](mailto:michael.chen.0@gmail.com)

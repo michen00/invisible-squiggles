@@ -89,7 +89,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com) and this p
 
 - reverted my other changes only keeping the bug fix as noted! - ([766c760](https://github.com/michen00/invisible-squiggles/commit/766c760afd4570bfd8c2dcc76798c0de937df8e6)) - [Madhur Dixit](mailto:madhurdixit37@gmail.com)
 
-### Build
+### 👷 Build
 
 - [**breaking**]revise tsconfig.json - ([6d7b3b7](https://github.com/michen00/invisible-squiggles/commit/6d7b3b7bc33c8ad8b65c741011f439bfd4a51111)) - [Michael I Chen](mailto:michael.chen@aicadium.ai)
 

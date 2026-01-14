@@ -35,7 +35,7 @@ repos:
 
   # git commit policy
   - repo: https://github.com/michen00/custom-commit-hooks
-    rev: v0.0.3
+    rev: v0.0.4
     hooks:
       - id: enhance-scope # commit-msg
       - id: conventional-merge-commit # prepare-commit-msg

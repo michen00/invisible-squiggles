@@ -111,6 +111,8 @@ jobs:
         with:
           timeout_minutes: 5
           max_attempts: 2
+          polling_interval_seconds: 2
+          retry_on: error
           command: |
             xvfb-run -a npm run test:integration -- --code-version ${{ matrix.vscode }}
       - name: Run E2E tests

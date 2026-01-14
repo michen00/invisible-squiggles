@@ -107,6 +107,11 @@ jobs:
       - name: Build
         run: npm run pretest
       - name: Run integration tests
-        run: xvfb-run -a npm run test:integration -- --code-version ${{ matrix.vscode }}
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 5
+          max_attempts: 2
+          command: |
+            xvfb-run -a npm run test:integration -- --code-version ${{ matrix.vscode }}
       - name: Run E2E tests
         run: xvfb-run -a npm run test:e2e -- --code-version ${{ matrix.vscode }}

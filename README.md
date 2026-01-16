@@ -1,16 +1,14 @@
 # invisible-squiggles
 
-[![VS Marketplace Version](https://vsmarketplacebadges.dev/version-short/michen00.invisible-squiggles.svg)](https://marketplace.visualstudio.com/items?itemName=michen00.invisible-squiggles)
-
-<!-- [![Open VSX Version](https://img.shields.io/open-vsx/v/michen00/invisible-squiggles)][openvsx] -->
-
-[![VS Marketplace Installs](https://vsmarketplacebadges.dev/installs-short/michen00.invisible-squiggles.svg)](https://marketplace.visualstudio.com/items?itemName=michen00.invisible-squiggles)
-[![VS Marketplace Rating](https://vsmarketplacebadges.dev/rating-star/michen00.invisible-squiggles.svg)](https://marketplace.visualstudio.com/items?itemName=michen00.invisible-squiggles)
+[![VS Marketplace Version](https://vsmarketplacebadges.dev/version-short/michen00.invisible-squiggles.svg)]([vsmarketplace])
+[![VS Marketplace Installs](https://vsmarketplacebadges.dev/installs-short/michen00.invisible-squiggles.svg)]([vsmarketplace])
+[![VS Marketplace Rating](https://vsmarketplacebadges.dev/rating-star/michen00.invisible-squiggles.svg)]([vsmarketplace])
 
 [![Build Status](https://img.shields.io/github/actions/workflow/status/michen00/invisible-squiggles/test.yml?style=flat-square&label=Tests)](https://github.com/michen00/invisible-squiggles/actions)
 [![Coverage](https://img.shields.io/codecov/c/github/michen00/invisible-squiggles?style=flat-square)](https://codecov.io/gh/michen00/invisible-squiggles)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
 
+<!-- [![Open VSX Version](https://img.shields.io/open-vsx/v/michen00/invisible-squiggles)][openvsx] -->
 <!-- [![Maturity](https://img.shields.io/badge/maturity-stable-green?style=flat-square)](CHANGELOG.md) -->
 
 [![License](https://img.shields.io/github/license/michen00/invisible-squiggles?style=flat-square)](LICENSE)

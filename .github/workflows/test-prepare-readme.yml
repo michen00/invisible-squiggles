@@ -1,0 +1,37 @@
+name: Test prepare-readme.sh
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/test-prepare-readme.yml"
+      - "README.md"
+      - "scripts/test-prepare-readme.sh"
+      - "src/bin/prepare-readme.sh"
+  push:
+    branches:
+      - main
+    paths:
+      - "README.md"
+      - "scripts/test-prepare-readme.sh"
+      - ".github/workflows/test-prepare-readme.yml"
+      - "src/bin/prepare-readme.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-prepare-readme:
+    name: Test prepare-readme.sh (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Test prepare-readme.sh
+        run: |
+          OUTPUT_FILE="README.md.processed"
+          src/bin/prepare-readme.sh README.md "$OUTPUT_FILE"
+          scripts/test-prepare-readme.sh "$OUTPUT_FILE"

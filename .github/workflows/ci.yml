@@ -86,13 +86,14 @@ jobs:
           echo "min=$VERSION" >> "$GITHUB_OUTPUT"
 
   e2e-tests:
-    name: E2E tests (VSCode ${{ matrix.vscode }})
+    name: E2E tests (VSCode ${{ matrix.vscode }}, ${{ matrix.os }})
     needs: get-vscode-version
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     strategy:
       fail-fast: true
       matrix:
+        os: [ubuntu-latest, macos-latest]
         vscode:
           - ${{ needs.get-vscode-version.outputs.min }}
           - "stable"
@@ -121,6 +122,15 @@ jobs:
           polling_interval_seconds: 2
           retry_on: error
           command: |
-            xvfb-run -a npm run test:integration -- --code-version ${{ matrix.vscode }}
+            BASE_CMD="npm run test:integration -- --code-version ${{ matrix.vscode }}"
+            if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
+              BASE_CMD="xvfb-run -a $BASE_CMD"
+            fi
+            $BASE_CMD
       - name: Run E2E tests
-        run: xvfb-run -a npm run test:e2e -- --code-version ${{ matrix.vscode }}
+        run: |
+          BASE_CMD="npm run test:e2e -- --code-version ${{ matrix.vscode }}"
+          if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
+            BASE_CMD="xvfb-run -a $BASE_CMD"
+          fi
+          $BASE_CMD

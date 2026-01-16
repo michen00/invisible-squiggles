@@ -2,19 +2,19 @@ name: Test prepare-readme.sh
 
 on:
   pull_request:
+    branches: [main]
     paths:
-      - ".github/workflows/test-prepare-readme.yml"
-      - "README.md"
-      - "scripts/test-prepare-readme.sh"
-      - "src/bin/prepare-readme.sh"
+      - .github/workflows/test-prepare-readme.yml
+      - README.md
+      - scripts/test-prepare-readme.sh
+      - src/bin/prepare-readme.sh
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
-      - "README.md"
-      - "scripts/test-prepare-readme.sh"
-      - ".github/workflows/test-prepare-readme.yml"
-      - "src/bin/prepare-readme.sh"
+      - .github/workflows/test-prepare-readme.yml
+      - README.md
+      - scripts/test-prepare-readme.sh
+      - src/bin/prepare-readme.sh
   workflow_dispatch:
 
 permissions:

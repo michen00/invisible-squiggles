@@ -1,3 +1,4 @@
+---
 extends: default
 
 yaml-files:
@@ -8,7 +9,6 @@ yaml-files:
 rules:
   comments:
     min-spaces-from-content: 1
-  document-start: disable
   line-length:
     ignore: |
       .github/workflows/greet-new-contributors.yml

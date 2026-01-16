@@ -55,12 +55,12 @@ help: ## Show this help message
 ## Build and install ##
 #######################
 
-# Common logic for preparing README for marketplace (strip Documentation section)
+# Common logic for preparing README for marketplace (strip untrusted SVG badges and Documentation section)
 define PREPARE_README
 	set -e; \
     trap 'if [ -f README.md.bak ]; then mv README.md.bak README.md; fi' EXIT; \
     mv README.md README.md.bak; \
-    sed -n '/## .*Documentation/q;p' README.md.bak > README.md; \
+    sed -e '/zenodo\.org.*\.svg/d' -e '/## .*Documentation/,$$d' README.md.bak > README.md; \
     rm -f dist/*.map
 endef
 

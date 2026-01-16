@@ -1,19 +1,21 @@
 # invisible-squiggles
 
-[![VS Marketplace Version](https://vsmarketplacebadges.dev/version-short/michen00.invisible-squiggles.svg)]([vsmarketplace])
-[![VS Marketplace Installs](https://vsmarketplacebadges.dev/installs-short/michen00.invisible-squiggles.svg)]([vsmarketplace])
-[![VS Marketplace Rating](https://vsmarketplacebadges.dev/rating-star/michen00.invisible-squiggles.svg)]([vsmarketplace])
+[vsmarketplace]: https://marketplace.visualstudio.com/items?itemName=michen00.invisible-squiggles
 
-[![Build Status](https://img.shields.io/github/actions/workflow/status/michen00/invisible-squiggles/test.yml?style=flat-square&label=Tests)](https://github.com/michen00/invisible-squiggles/actions)
-[![Coverage](https://img.shields.io/codecov/c/github/michen00/invisible-squiggles?style=flat-square)](https://codecov.io/gh/michen00/invisible-squiggles)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
+[![VS Marketplace Version](https://vsmarketplacebadges.dev/version-short/michen00.invisible-squiggles.svg?style=plastic)][vsmarketplace]
+[![VS Marketplace Installs](https://vsmarketplacebadges.dev/installs-short/michen00.invisible-squiggles.svg?style=plastic)][vsmarketplace]
+[![VS Marketplace Rating](https://vsmarketplacebadges.dev/rating-star/michen00.invisible-squiggles.svg?style=plastic)][vsmarketplace]
 
-<!-- [![Open VSX Version](https://img.shields.io/open-vsx/v/michen00/invisible-squiggles)][openvsx] -->
-<!-- [![Maturity](https://img.shields.io/badge/maturity-stable-green?style=flat-square)](CHANGELOG.md) -->
+[![Build Status](https://img.shields.io/github/actions/workflow/status/michen00/invisible-squiggles/ci.yml?style=plastic)](https://github.com/michen00/invisible-squiggles/actions)
+[![Coverage](https://img.shields.io/codecov/c/github/michen00/invisible-squiggles?style=plastic)](https://codecov.io/gh/michen00/invisible-squiggles)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=plastic)](CONTRIBUTING.md)
 
-[![License](https://img.shields.io/github/license/michen00/invisible-squiggles?style=flat-square)](LICENSE)
+<!-- [![Open VSX Version](https://img.shields.io/open-vsx/v/michen00/invisible-squiggles?style=plastic)][https://open-vsx.org/extension/michen00/invisible-squiggles] -->
+<!-- [![Maturity](https://img.shields.io/badge/maturity-stable-green?style=plastic)](CHANGELOG.md) -->
 
-<!-- [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.YOUR_ZENODO_ID.svg)](https://doi.org/10.5281/zenodo.YOUR_ZENODO_ID) -->
+[![License](https://img.shields.io/github/license/michen00/invisible-squiggles?style=plastic)](LICENSE)
+
+<!-- [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.YOUR_ZENODO_ID.svg?style=plastic)](https://doi.org/10.5281/zenodo.YOUR_ZENODO_ID) -->
 
 The **Invisible Squiggles** VSCode extension allows you to **selectively toggle error, warning, info, and hint squiggles** for a distraction-free coding experience.
 

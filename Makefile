@@ -60,7 +60,7 @@ define PREPARE_README
 	set -e; \
     trap 'if [ -f README.md.bak ]; then mv README.md.bak README.md; fi' EXIT; \
     mv README.md README.md.bak; \
-    sed -e '/zenodo\.org.*\.svg/d' -e '/## .*Documentation/,$$d' README.md.bak | perl -0777 -pe 's/\s+$$/\n/' > README.md; \
+    src/bin/prepare-readme.sh README.md.bak README.md; \
     rm -f dist/*.map
 endef
 
@@ -153,6 +153,7 @@ release: ## Create a GitHub release (VERSION=vX.Y.Z)
 .PHONY: check
 check: install ## Run checks and tests
 	npm run test
+	scripts/test-prepare-readme.sh
 
 .PHONY: clean
 TO_REMOVE := \

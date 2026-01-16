@@ -64,6 +64,13 @@ jobs:
         run: npm run pretest
       - name: Run unit tests with coverage
         run: npm run test:coverage
+      - name: Upload coverage to Codecov
+        if: matrix.node == '22.x'
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage/lcov.info
+          fail_ci_if_error: false
 
   get-vscode-version:
     name: Get VSCode version

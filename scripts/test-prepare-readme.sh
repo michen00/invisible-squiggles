@@ -78,8 +78,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-TMP_ORIG="/tmp/prepare-readme-orig-$$.md"
-TMP_OUT="/tmp/prepare-readme-out-$$.md"
+TMP_ORIG=$(mktemp)
+TMP_OUT=$(mktemp)
 
 # Copy input files
 cp "$INPUT" "$TMP_ORIG"

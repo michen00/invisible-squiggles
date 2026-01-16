@@ -10,7 +10,7 @@
 [![Coverage](https://img.shields.io/codecov/c/github/michen00/invisible-squiggles?style=plastic)](https://codecov.io/gh/michen00/invisible-squiggles)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=plastic)](CONTRIBUTING.md)
 
-<!-- [![Open VSX Version](https://img.shields.io/open-vsx/v/michen00/invisible-squiggles?style=plastic)][https://open-vsx.org/extension/michen00/invisible-squiggles] -->
+<!-- [![Open VSX Version](https://img.shields.io/open-vsx/v/michen00/invisible-squiggles?style=plastic)](https://open-vsx.org/extension/michen00/invisible-squiggles) -->
 <!-- [![Maturity](https://img.shields.io/badge/maturity-stable-green?style=plastic)](CHANGELOG.md) -->
 
 [![License](https://img.shields.io/github/license/michen00/invisible-squiggles?style=plastic)](LICENSE)

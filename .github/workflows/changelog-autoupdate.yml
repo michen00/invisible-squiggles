@@ -1,6 +1,5 @@
 ---
 name: Changelog autoupdate
-
 on:
   schedule:
     - cron: "0 0 * * 1" # Run every Monday at 00:00
@@ -20,18 +19,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0 # Full history needed for git cliff
-
       - name: Install git-cliff
         uses: taiki-e/install-action@v2
         with:
           tool: git-cliff
-
       - name: Update Unreleased section
-        run: |
-          scripts/update-unreleased.sh
-
+        run: scripts/update-unreleased.sh
       - name: Push changes and create PR
         uses: peter-evans/create-pull-request@v8
         with:

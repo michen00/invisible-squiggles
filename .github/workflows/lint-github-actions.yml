@@ -1,14 +1,12 @@
-name: Lint GitHub Actions workflows
-
+---
+name: lint GitHub Actions workflows
 on:
   pull_request:
-    paths:
-      - ".github/workflows/**"
+    branches: [main]
+    paths: [".github/workflows/**"]
   push:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/**"
+    branches: [main]
+    paths: [".github/workflows/**"]
   workflow_dispatch:
 
 permissions:

@@ -1,3 +1,4 @@
+---
 extends: default
 
 yaml-files:
@@ -8,9 +9,9 @@ yaml-files:
 rules:
   comments:
     min-spaces-from-content: 1
-  document-start: disable
   line-length:
     ignore: |
+      .github/workflows/dependabot-automerge.yml
       .github/workflows/greet-new-contributors.yml
     max: 88
     allow-non-breakable-words: true

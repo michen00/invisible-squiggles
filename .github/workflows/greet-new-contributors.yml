@@ -36,19 +36,18 @@ jobs:
             }
 
             return 'false';
-
       - name: greet first interactions
         if: steps.bot-author-check.outputs.result != 'true'
         uses: actions/first-interaction@v3
         with:
           issue_message: |
-            🎉 Welcome to the `invisible-squiggles` community! 🎉
+            🎉 Welcome to the `template` community! 🎉
 
             Thank you for your contribution! We appreciate your time and effort in submitting this issue. A maintainer will review it soon. If you have any questions, feel free to ask!
 
             Thank you for your cooperation 🙏
           pr_message: |
-            🎉 Welcome to the `invisible-squiggles` community! 🎉
+            🎉 Welcome to the `template` community! 🎉
 
             Thank you for your contribution! We appreciate your time and effort in submitting this pull request. A maintainer will review it soon. If you have any questions, feel free to ask!
 

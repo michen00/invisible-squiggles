@@ -135,6 +135,8 @@ postprocessors = [
     { pattern = '\$REPO', replace = "https://github.com/michen00/invisible-squiggles" },
     # Link commit hashes in scopes **(hash)** - preserve parentheses
     { pattern = '\*\*\(([a-f0-9]{7,})\)\*\*', replace = "**([`${1}`](https://github.com/michen00/invisible-squiggles/commit/${1}))**" },
+    # Replace work email with personal email
+    { pattern = 'michael\.chen@aicadium\.ai', replace = "michael.chen.0@gmail.com" },
 ]
 
 # render body even when there are no releases to process

@@ -26,6 +26,11 @@ jobs:
           tool: git-cliff
       - name: Update Unreleased section
         run: scripts/update-unreleased.sh
+      - name: Format CHANGELOG.md
+        uses: DavidAnson/markdownlint-cli2-action@v22
+        with:
+          globs: |
+            CHANGELOG.md
       - name: Push changes and create PR
         uses: peter-evans/create-pull-request@v8
         with:

@@ -31,23 +31,54 @@ body = """
     {% for commit in group_commits
     | filter(attribute="scope")
     | sort(attribute="scope") %}
-        - **({{commit.scope}})**{% if commit.breaking %} [**breaking**]{% endif %} \
-            {{ commit.message }} - ([{{ commit.id | truncate(length=7, end="") }}]($REPO/commit/{{ commit.id }})) - [{{ commit.author.name }}](mailto:{{ commit.author.email }})
+        - **({{commit.scope}})**{% if commit.breaking %} ❗{% endif %} \
+            {{ commit.message }} - ([{{ commit.id | truncate(length=7, end="") }}]($REPO/commit/{{ commit.id }}))
     {%- endfor -%}
     {% raw %}\n{% endraw %}\
     {%- for commit in group_commits %}
         {%- if commit.scope -%}
         {% else -%}
-            - {% if commit.breaking %} [**breaking**]{% endif %}\
-                {{ commit.message }} - ([{{ commit.id | truncate(length=7, end="") }}]($REPO/commit/{{ commit.id }})) - [{{ commit.author.name }}](mailto:{{ commit.author.email }})
+            - {% if commit.breaking %} ❗{% endif %}\
+                {{ commit.message }} - ([{{ commit.id | truncate(length=7, end="") }}]($REPO/commit/{{ commit.id }}))
         {% endif -%}
     {% endfor -%}
 {% endfor %}
 {% set unique_authors = commits | map(attribute="author.name") | unique %}\
 {% if unique_authors | length > 0 %}\
     ### 👥 Contributors
-    {% for author in unique_authors %}\
-        - {{ author }}
+    {% for author_name in unique_authors %}\
+        {% if not author_name is containing("[bot]") %}\
+            {% set author_commits = commits | filter(attribute="author.name", value=author_name) %}\
+            {% set last_commit = author_commits | last %}\
+            {% set author_email = last_commit.author.email %}\
+            {% set github_username = "" %}\
+            {% if last_commit.remote.username is defined and last_commit.remote.username %}\
+                {% set github_username = last_commit.remote.username %}\
+            {% elif author_email is containing("@users.noreply.github.com") %}\
+                {% set email_parts = author_email | split(pat="@") %}\
+                {% set username_part = email_parts[0] | split(pat="+") | last %}\
+                {% set github_username = username_part %}\
+            {% endif %}\
+            {% if author_name and author_name != "" %}\
+                {% if github_username != "" %}\
+                    {% if author_email != "" %}\
+                - [@{{ github_username }}](https://github.com/{{ github_username }}) | [{{ author_name }}](mailto:{{ author_email }})
+                    {% else %}\
+                - [@{{ github_username }}](https://github.com/{{ github_username }}) | {{ author_name }}
+                    {% endif %}\
+                {% elif author_email != "" %}\
+                - [{{ author_name }}](mailto:{{ author_email }})
+                {% else %}\
+                - {{ author_name }}
+                {% endif %}\
+            {% elif author_email != "" %}\
+                {% if github_username != "" %}\
+                - [@{{ github_username }}](https://github.com/{{ github_username }}) | [{{ author_email }}](mailto:{{ author_email }})
+                {% else %}\
+                - [{{ author_email }}](mailto:{{ author_email }})
+                {% endif %}\
+            {% endif %}\
+        {% endif %}\
     {% endfor %}\
 {% endif %}\
 """
@@ -116,16 +147,16 @@ commit_parsers = [
     { message = "^revert", group = "<!-- 03 -->⏪️ Revert" },
 
     # Internal categories (SKIP)
-    { message = "^test", skip = true },
-    { message = "^ci", skip = true },
-    { message = "^build", skip = true },
-    { message = "^refactor", skip = true },
-    { message = "^style", skip = true },
-    { message = "^chore", skip = true },
-    { message = "^doc", skip = true },
+    { message = "^ci", group = "<!-- 04 -->💚 Continuous Integration", skip = true },
+    { message = "^build", group = "<!-- 05 -->👷 Build", skip = true },
+    { message = "^doc", group = "<!-- 06 -->📝 Documentation", skip = true },
+    { message = "^refactor", group = "<!-- 07 -->♻️ Refactor", skip = true },
+    { message = "^style", group = "<!-- 08 -->🎨 Styling", skip = true },
+    { message = "^chore", group = "<!-- 09 -->⚙️ Miscellaneous Tasks", skip = true },
+    { message = "^revert", group = "<!-- 10 -->⏪️ Revert", skip = true },
 
     # Catch-all for non-conventional commits
-    { message = "^.*", skip = true },
+    { message = "^.*", group = "<!-- 11 -->🔍 Other", skip = true },
 ]
 
 protect_breaking_commits = true

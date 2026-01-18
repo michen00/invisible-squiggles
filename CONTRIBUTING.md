@@ -187,4 +187,4 @@ And finally, when you are satisfied with your changes, open a new PR.
 [issues_new]: https://github.com/michen00/invisible-squiggles/issues/new
 [issues_bugs]: https://github.com/michen00/invisible-squiggles/issues?q=label%3Abug
 [discussions]: https://github.com/michen00/invisible-squiggles/discussions
-[discussions_new]: https://github.com/michen00/invisible-squiggles/discussions/new
+[discussions_new]: https://github.com/michen00/invisible-squiggles/discussions/new/choose

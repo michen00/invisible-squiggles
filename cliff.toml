@@ -82,7 +82,8 @@ body = """
 {% endfor %}
 {% set unique_authors = commits | map(attribute="author.name") | unique %}\
 {% if unique_authors | length > 0 %}\
-    ### 👥 Contributors
+    ### 👥 Contributors\
+    {% raw %}\n{% endraw %}
     {% for author_name in unique_authors %}\
         {% if not author_name is containing("[bot]") %}\
             {% set author_commits = commits | filter(attribute="author.name", value=author_name) %}\

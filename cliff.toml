@@ -16,6 +16,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com) and this p
 """
 
 body = """
+{% macro author_link(commit) -%}
+    {% set github_username = "" %}\
+    {% if commit.remote.username is defined and commit.remote.username %}\
+        {% set github_username = commit.remote.username %}\
+    {% elif commit.author.email is containing("@users.noreply.github.com") %}\
+        {% set email_parts = commit.author.email | split(pat="@") %}\
+        {% set username_part = email_parts[0] | split(pat="+") | last %}\
+        {% set github_username = username_part %}\
+    {% endif %}\
+    {% if github_username != "" %}\
+        [@{{ github_username }}](https://github.com/{{ github_username }})\
+    {% elif commit.author.name and commit.author.name != "" %}\
+        {% if commit.author.email and commit.author.email != "" %}\
+            [{{ commit.author.name }}](mailto:{{ commit.author.email }})\
+        {% else %}\
+            {{ commit.author.name }}\
+        {% endif %}\
+    {% elif commit.author.email and commit.author.email != "" %}\
+        [{{ commit.author.email }}](mailto:{{ commit.author.email }})\
+    {% endif %}
+{%- endmacro %}
 {% if version %}\
     {% if previous.version %}\
         ## [{{ version | trim_start_matches(pat="v") }}]($REPO/compare/{{ previous.version }}..{{ version }}) - {{ timestamp | date(format="%Y-%m-%d") }}
@@ -32,25 +53,7 @@ body = """
     | sort(attribute="scope") %}
         - **({{commit.scope}})**{% if commit.breaking %} ❗{% endif %} \
             {{ commit.message | split(pat="\n") | first }} - ([{{ commit.id | truncate(length=7, end="") }}]($REPO/commit/{{ commit.id }})) - \
-            {% set github_username = "" %}\
-            {% if commit.remote.username is defined and commit.remote.username %}\
-                {% set github_username = commit.remote.username %}\
-            {% elif commit.author.email is containing("@users.noreply.github.com") %}\
-                {% set email_parts = commit.author.email | split(pat="@") %}\
-                {% set username_part = email_parts[0] | split(pat="+") | last %}\
-                {% set github_username = username_part %}\
-            {% endif %}\
-            {% if github_username != "" %}\
-                [@{{ github_username }}](https://github.com/{{ github_username }})\
-            {% elif commit.author.name and commit.author.name != "" %}\
-                {% if commit.author.email and commit.author.email != "" %}\
-                    [{{ commit.author.name }}](mailto:{{ commit.author.email }})\
-                {% else %}\
-                    {{ commit.author.name }}\
-                {% endif %}\
-            {% elif commit.author.email and commit.author.email != "" %}\
-                [{{ commit.author.email }}](mailto:{{ commit.author.email }})\
-            {% endif %}
+            {{ self::author_link(commit=commit) }}
     {%- endfor -%}
     {% raw %}\n{% endraw %}\
     {%- for commit in group_commits %}
@@ -58,25 +61,7 @@ body = """
         {% else -%}
             - {% if commit.breaking %} ❗{% endif %}\
                 {{ commit.message | split(pat="\n") | first }} - ([{{ commit.id | truncate(length=7, end="") }}]($REPO/commit/{{ commit.id }})) - \
-                {% set github_username = "" %}\
-                {% if commit.remote.username is defined and commit.remote.username %}\
-                    {% set github_username = commit.remote.username %}\
-                {% elif commit.author.email is containing("@users.noreply.github.com") %}\
-                    {% set email_parts = commit.author.email | split(pat="@") %}\
-                    {% set username_part = email_parts[0] | split(pat="+") | last %}\
-                    {% set github_username = username_part %}\
-                {% endif %}\
-                {% if github_username != "" %}\
-                    [@{{ github_username }}](https://github.com/{{ github_username }})\
-                {% elif commit.author.name and commit.author.name != "" %}\
-                    {% if commit.author.email and commit.author.email != "" %}\
-                        [{{ commit.author.name }}](mailto:{{ commit.author.email }})\
-                    {% else %}\
-                        {{ commit.author.name }}\
-                    {% endif %}\
-                {% elif commit.author.email and commit.author.email != "" %}\
-                    [{{ commit.author.email }}](mailto:{{ commit.author.email }})\
-                {% endif %}
+                {{ self::author_link(commit=commit) }}
         {% endif -%}
     {% endfor -%}
 {% endfor %}

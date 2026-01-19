@@ -14,7 +14,7 @@ trap cleanup EXIT
 TMP_OUT=$(mktemp)
 
 # Run the prepare script
-src/bin/prepare-readme.sh "$INPUT" "$TMP_OUT"
+scripts/prepare-readme.sh "$INPUT" "$TMP_OUT"
 
 # Compare with expected output
 if ! diff -u "$EXPECTED" "$TMP_OUT"; then

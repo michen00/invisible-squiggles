@@ -8,14 +8,14 @@ on:
       - .github/workflows/test-prepare-readme.yml
       - README.md
       - scripts/test-prepare-readme.sh
-      - src/bin/prepare-readme.sh
+      - scripts/prepare-readme.sh
   push:
     branches: [main]
     paths:
       - .github/workflows/test-prepare-readme.yml
       - README.md
       - scripts/test-prepare-readme.sh
-      - src/bin/prepare-readme.sh
+      - scripts/prepare-readme.sh
   workflow_dispatch:
 
 permissions:

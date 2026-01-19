@@ -61,7 +61,7 @@ define PREPARE_DOCS
     trap 'if [ -f README.md.bak ]; then mv README.md.bak README.md; fi; if [ -f CHANGELOG.md.bak ]; then mv CHANGELOG.md.bak CHANGELOG.md; fi' EXIT; \
     mv README.md README.md.bak; \
     cp CHANGELOG.md CHANGELOG.md.bak; \
-    src/bin/prepare-readme.sh README.md.bak README.md; \
+    scripts/prepare-readme.sh README.md.bak README.md; \
     perl -i -0777 -pe 's/<!--.*?-->//gs; s/^\n+//; s/\n\n\n+/\n\n/g; s/\n+$$/\n/' README.md CHANGELOG.md; \
     rm -f dist/*.map
 endef

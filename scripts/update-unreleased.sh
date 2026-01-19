@@ -47,11 +47,22 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     -c | --commit)
       SHOULD_COMMIT=true
+      # Only consume next arg if it's not a recognized option
+      # This allows --commit to work with other options in any order
       if [[ $# -gt 1 ]] && [[ -n "${2:-}" ]]; then
-        # Next arg exists and is not empty - capture it as commit args
-        # (even if it starts with -, as commit args like -m are valid)
-        COMMIT="$2"
-        shift 2
+        case "$2" in
+          -c | --commit | -l | --changelog | -C | --cliff-args | -h | --help)
+            # Next arg is an option, don't consume it
+            COMMIT=""
+            shift
+            ;;
+          *)
+            # Next arg is not an option - capture it as commit args
+            # (even if it starts with -, as commit args like -m are valid)
+            COMMIT="$2"
+            shift 2
+            ;;
+        esac
       else
         # No arg or empty string: use defaults
         COMMIT=""

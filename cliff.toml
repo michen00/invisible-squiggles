@@ -192,10 +192,9 @@ commit_parsers = [
     { message = "^refactor", group = "<!-- 07 -->♻️ Refactor", skip = true },
     { message = "^style", group = "<!-- 08 -->🎨 Styling", skip = true },
     { message = "^chore", group = "<!-- 09 -->⚙️ Miscellaneous Tasks", skip = true },
-    { message = "^revert", group = "<!-- 10 -->⏪️ Revert", skip = true },
 
     # Catch-all for non-conventional commits
-    { message = "^.*", group = "<!-- 11 -->🔍 Other", skip = true },
+    { message = "^.*", group = "<!-- 10 -->🔍 Other", skip = true },
 ]
 
 protect_breaking_commits = true

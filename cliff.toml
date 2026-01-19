@@ -10,7 +10,6 @@ breaking_always_bump_major = false
 # https://keats.github.io/tera/docs/#introduction
 header = """
 <!-- markdownlint-configure-file { "no-duplicate-heading": false } -->\n
-\n
 # Changelog\n
 All notable changes will be documented in this file. See [conventional commits](https://www.conventionalcommits.org) for commit guidelines.\n
 The format is based on [Keep a Changelog](https://keepachangelog.com) and this project adheres to [Semantic Versioning](https://semver.org).\n
@@ -26,13 +25,13 @@ body = """
 {% else %}\
     ## [Unreleased]
 {% endif %}\
-{% for group, group_commits in commits | unique(attribute="message") | group_by(attribute="group") %}
+{% for group, group_commits in commits | filter(attribute="merge_commit", value=false) | unique(attribute="message") | group_by(attribute="group") %}
     ### {{ group | striptags | trim | upper_first }}
     {% for commit in group_commits
     | filter(attribute="scope")
     | sort(attribute="scope") %}
         - **({{commit.scope}})**{% if commit.breaking %} ❗{% endif %} \
-            {{ commit.message }} - ([{{ commit.id | truncate(length=7, end="") }}]($REPO/commit/{{ commit.id }})) - \
+            {{ commit.message | split(pat="\n") | first }} - ([{{ commit.id | truncate(length=7, end="") }}]($REPO/commit/{{ commit.id }})) - \
             {% set github_username = "" %}\
             {% if commit.remote.username is defined and commit.remote.username %}\
                 {% set github_username = commit.remote.username %}\
@@ -58,7 +57,7 @@ body = """
         {%- if commit.scope -%}
         {% else -%}
             - {% if commit.breaking %} ❗{% endif %}\
-                {{ commit.message }} - ([{{ commit.id | truncate(length=7, end="") }}]($REPO/commit/{{ commit.id }})) - \
+                {{ commit.message | split(pat="\n") | first }} - ([{{ commit.id | truncate(length=7, end="") }}]($REPO/commit/{{ commit.id }})) - \
                 {% set github_username = "" %}\
                 {% if commit.remote.username is defined and commit.remote.username %}\
                     {% set github_username = commit.remote.username %}\
@@ -119,6 +118,7 @@ body = """
         {% endif %}\
     {% endfor %}\
 {% endif %}\
+{% raw %}\n{% endraw %}
 """
 
 footer = """
@@ -164,8 +164,6 @@ split_commits = false
 commit_preprocessors = [
     # Link issue/PR numbers (#123) - GitHub uses same URL space for both
     { pattern = '#([0-9]+)', replace = "[#${1}](<REPO>/issues/${1})" },
-    # Link standalone commit hashes (7+ hex chars) in commit messages
-    { pattern = '\b([a-f0-9]{7,40})\b', replace = "[`${1}`](<REPO>/commit/${1})" },
 ]
 
 commit_parsers = [
@@ -186,15 +184,16 @@ commit_parsers = [
     { message = "^revert", group = "<!-- 03 -->⏪️ Revert" },
 
     # Internal categories (SKIP)
-    { message = "^ci", group = "<!-- 04 -->💚 Continuous Integration", skip = true },
+    { message = "^doc", group = "<!-- 04 -->📝 Documentation", skip = true },
     { message = "^build", group = "<!-- 05 -->👷 Build", skip = true },
-    { message = "^doc", group = "<!-- 06 -->📝 Documentation", skip = true },
-    { message = "^refactor", group = "<!-- 07 -->♻️ Refactor", skip = true },
-    { message = "^style", group = "<!-- 08 -->🎨 Styling", skip = true },
-    { message = "^chore", group = "<!-- 09 -->⚙️ Miscellaneous Tasks", skip = true },
+    { message = "^ci", group = "<!-- 06 -->💚 Continuous Integration", skip = true },
+    { message = "^test", group = "<!-- 07 -->🧪 Tests", skip = true },
+    { message = "^refactor", group = "<!-- 08 -->♻️ Refactor", skip = true },
+    { message = "^style", group = "<!-- 09 -->🎨 Styling", skip = true },
+    { message = "^chore", group = "<!-- 10 -->⚙️ Miscellaneous Tasks", skip = true },
 
     # Catch-all for non-conventional commits
-    { message = "^.*", group = "<!-- 10 -->🔍 Other", skip = true },
+    { message = "^.*", group = "<!-- 11 -->🔍 Other", skip = false },
 ]
 
 protect_breaking_commits = true

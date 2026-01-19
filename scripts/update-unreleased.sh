@@ -140,8 +140,9 @@ fi
 STASHED=false
 STASH_REF=""
 STASH_MSG="update-unreleased: auto-stash ${CHANGELOG}"
+STAGED_DIFFS_DIR=""
 
-# Helper to re-stage files, skipping any that no longer exist
+# Helper to re-stage files, preserving partial staging
 restage_other_files() {
   if [[ -z $OTHER_STAGED_FILES ]]; then
     return
@@ -149,11 +150,31 @@ restage_other_files() {
   echo "Re-staging other files..."
   while IFS= read -r file; do
     if [[ -e $file ]]; then
-      git add -- "$file"
+      # If we have a saved staged diff, apply it to preserve partial staging
+      if [[ -n "$STAGED_DIFFS_DIR" ]] && [[ -f "${STAGED_DIFFS_DIR}/${file//\//_}.patch" ]] && [[ -s "${STAGED_DIFFS_DIR}/${file//\//_}.patch" ]]; then
+        # Apply the saved staged diff to restore exact staging state
+        # Use --allow-empty to match previous behavior (though we check for empty above)
+        if git apply --cached --allow-empty "${STAGED_DIFFS_DIR}/${file//\//_}.patch" 2> /dev/null; then
+          # Successfully restored staged diff
+          continue
+        else
+          # Fallback: if patch doesn't apply (file changed), stage entire file
+          echo "Warning: Could not restore partial staging for '$file', staging entire file" >&2
+          git add -- "$file"
+        fi
+      else
+        # No saved diff or empty diff (shouldn't happen, but fallback to full staging)
+        git add -- "$file"
+      fi
     else
       echo "Warning: '$file' no longer exists (was it a new file?)" >&2
     fi
   done <<< "$OTHER_STAGED_FILES"
+  # Clean up temp directory after restaging
+  if [[ -n "$STAGED_DIFFS_DIR" ]] && [[ -d "$STAGED_DIFFS_DIR" ]]; then
+    rm -rf "$STAGED_DIFFS_DIR"
+    STAGED_DIFFS_DIR=""
+  fi
 }
 
 # Cleanup function to restore state on error
@@ -167,6 +188,10 @@ cleanup() {
     fi
   fi
   restage_other_files
+  # Clean up temp directory if it still exists
+  if [[ -n "$STAGED_DIFFS_DIR" ]] && [[ -d "$STAGED_DIFFS_DIR" ]]; then
+    rm -rf "$STAGED_DIFFS_DIR"
+  fi
   exit $exit_code
 }
 trap cleanup EXIT
@@ -189,7 +214,12 @@ if [[ "$SHOULD_COMMIT" == true ]]; then
   OTHER_STAGED_FILES=$(git diff --cached --name-only | grep -v "^${CHANGELOG}$" || true)
   if [[ -n $OTHER_STAGED_FILES ]]; then
     echo "Temporarily unstaging other files..."
+    # Create temp directory to store staged diffs for preserving partial staging
+    STAGED_DIFFS_DIR=$(mktemp -d)
     while IFS= read -r file; do
+      # Save the staged diff before unstaging to preserve partial hunks
+      # This works for both partially staged files and new files
+      git diff --cached -- "$file" > "${STAGED_DIFFS_DIR}/${file//\//_}.patch" 2> /dev/null || true
       git restore --staged -- "$file"
     done <<< "$OTHER_STAGED_FILES"
   fi

@@ -2,7 +2,6 @@
 name: Dependabot auto-merge
 on:
   pull_request:
-    types: [opened, reopened, synchronize]
 
 # A ruleset that requires status checks to pass must be configured for the repository.
 

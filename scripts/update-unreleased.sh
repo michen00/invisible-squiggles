@@ -47,12 +47,13 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     -c | --commit)
       SHOULD_COMMIT=true
-      if [[ $# -gt 1 ]] && [[ "${2:-}" != -* ]] && [[ -n "${2:-}" ]]; then
-        # Next arg exists, doesn't start with -, and is not empty
+      if [[ $# -gt 1 ]] && [[ -n "${2:-}" ]]; then
+        # Next arg exists and is not empty - capture it as commit args
+        # (even if it starts with -, as commit args like -m are valid)
         COMMIT="$2"
         shift 2
       else
-        # No arg or arg starts with - or is empty string: use defaults
+        # No arg or empty string: use defaults
         COMMIT=""
         shift
       fi
@@ -120,7 +121,9 @@ if [[ -n "$CLIFF_ARGS" ]]; then
   read -ra CLIFF_ARGS_ARRAY <<< "$CLIFF_ARGS"
 fi
 if [[ -n "$COMMIT" ]]; then
-  read -ra COMMIT_ARGS_ARRAY <<< "$COMMIT"
+  # Use eval to properly parse shell-quoted arguments
+  # This safely handles quoted strings like "-m 'Custom message'"
+  eval "COMMIT_ARGS_ARRAY=($COMMIT)"
 fi
 
 STASHED=false

@@ -56,11 +56,13 @@ help: ## Show this help message
 #######################
 
 # Common logic for preparing README for marketplace (strip untrusted SVG badges and Documentation section)
-define PREPARE_README
+define PREPARE_DOCS
 	set -e; \
-    trap 'if [ -f README.md.bak ]; then mv README.md.bak README.md; fi' EXIT; \
+    trap 'if [ -f README.md.bak ]; then mv README.md.bak README.md; fi; if [ -f CHANGELOG.md.bak ]; then mv CHANGELOG.md.bak CHANGELOG.md; fi' EXIT; \
     mv README.md README.md.bak; \
+    cp CHANGELOG.md CHANGELOG.md.bak; \
     src/bin/prepare-readme.sh README.md.bak README.md; \
+    perl -i -0777 -pe 's/<!--.*?-->//gs; s/^\n+//; s/\n\n\n+/\n\n/g; s/\n+$$/\n/' README.md CHANGELOG.md; \
     rm -f dist/*.map
 endef
 
@@ -128,7 +130,7 @@ rebuild: clean build ## Clean and build from scratch
 
 .PHONY: build-vsix
 build-vsix: install ## Build the extension as a VSIX file
-	@$(PREPARE_README); \
+	@$(PREPARE_DOCS); \
     npx vsce package
 
 .PHONY: install-vsix
@@ -137,7 +139,7 @@ install-vsix: build-vsix ## Build and install VSIX locally for testing
 
 .PHONY: publish
 publish: install ## Publish the extension to the VS Code Marketplace
-	@$(PREPARE_README); \
+	@$(PREPARE_DOCS); \
     npx vsce publish
 
 .PHONY: update-unreleased

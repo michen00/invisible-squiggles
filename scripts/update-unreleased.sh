@@ -170,8 +170,8 @@ fi
 COMMIT_MSG="docs(${CHANGELOG}): autoupdate Unreleased section"
 
 # Check if the last commit was an auto-update (avoid infinite loop)
-LAST_COMMIT_MSG=$(git log -1 --pretty=%s 2> /dev/null || echo "")
-LAST_COMMIT_FILES=$(git diff-tree --no-commit-id --name-only -r HEAD 2> /dev/null || echo "")
+LAST_COMMIT_MSG=$(git log -1 --pretty=%s 2> /dev/null || true)
+LAST_COMMIT_FILES=$(git diff-tree --no-commit-id --name-only -r HEAD 2> /dev/null || true)
 if [[ $LAST_COMMIT_MSG == "$COMMIT_MSG" && $LAST_COMMIT_FILES == "$CHANGELOG" ]]; then
   echo "Skipping: Last commit was already a CHANGELOG auto-update."
   echo "No new commits to include."
@@ -360,7 +360,7 @@ if ! git diff --quiet "$CHANGELOG" 2> /dev/null; then
   git stash push -m "$STASH_MSG" -- "$CHANGELOG"
   STASHED=true
   # Track the stash reference (most recent stash matching our message)
-  STASH_REF=$(git stash list | grep -m1 -F "$STASH_MSG" | cut -d: -f1 || echo "")
+  STASH_REF=$(git stash list | grep -m1 -F "$STASH_MSG" | cut -d: -f1 || true)
 fi
 
 TEMP_FILE=$(mktemp)

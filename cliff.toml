@@ -16,7 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com) and this p
 """
 
 body = """
-{% macro get_github_username(commit) -%}
+{% macro author_link(commit) -%}
     {% set github_username = "" %}\
     {% if commit.remote.username is defined and commit.remote.username %}\
         {% set github_username = commit.remote.username %}\
@@ -25,10 +25,6 @@ body = """
         {% set username_part = email_parts[0] | split(pat="+") | last %}\
         {% set github_username = username_part %}\
     {% endif %}\
-    {{- github_username -}}
-{%- endmacro %}
-{% macro author_link(commit) -%}
-    {% set github_username = self::get_github_username(commit=commit) %}\
     {% if github_username != "" %}\
         [@{{ github_username }}](https://github.com/{{ github_username }})\
     {% elif commit.author.name and commit.author.name != "" %}\
@@ -40,12 +36,7 @@ body = """
     {% elif commit.author.email and commit.author.email != "" %}\
         [{{ commit.author.email }}](mailto:{{ commit.author.email }})\
     {% endif %}
-{%- endmacro %}
-{% macro commit_line(commit) -%}
-- {% if commit.scope %}**({{commit.scope}})** {% endif %}{% if commit.breaking %} ❗{% endif %}\
-    {{ commit.message | split(pat="\n") | first }} - ([{{ commit.id | truncate(length=7, end="") }}]($REPO/commit/{{ commit.id }})) - \
-    {{ self::author_link(commit=commit) }}
-{% endmacro %}
+{%- endmacro -%}
 {% if version %}\
     {% if previous.version %}\
         ## [{{ version | trim_start_matches(pat="v") }}]($REPO/compare/{{ previous.version }}..{{ version }}) - {{ timestamp | date(format="%Y-%m-%d") }}
@@ -55,31 +46,25 @@ body = """
 {% else %}\
     ## [Unreleased]
 {% endif %}\
-{% for group, group_commits in commits | filter(attribute="merge_commit", value=false) | unique(attribute="message") | group_by(attribute="group") -%}
+{% for group, group_commits in commits | filter(attribute="merge_commit", value=false) | unique(attribute="message") | group_by(attribute="group") %}
     ### {{ group | striptags | trim | upper_first }}
-    {%- for commit in group_commits
+    {% for commit in group_commits
     | filter(attribute="scope")
-    | sort(attribute="scope") -%}
-        {{ self::commit_line(commit=commit) }}
-    {% endfor %}
-    {%- set has_scoped = false -%}
-    {%- set has_unscoped = false -%}
-    {%- for commit in group_commits -%}
-        {%- if commit.scope -%}
-            {%- set has_scoped = true -%}
-        {%- else -%}
-            {%- set has_unscoped = true -%}
-        {%- endif -%}
+    | sort(attribute="scope") %}
+        - **({{commit.scope}})**{% if commit.breaking %} ❗{% endif %} \
+            {{ commit.message | split(pat="\n") | first }} - ([{{ commit.id | truncate(length=7, end="") }}]($REPO/commit/{{ commit.id }})) - \
+            {{ self::author_link(commit=commit) }}
     {%- endfor -%}
-    {%- if has_scoped and has_unscoped -%}
     {% raw %}\n{% endraw %}\
-    {%- endif -%}
-    {%- for commit in group_commits -%}
-        {%- if not commit.scope -%}
-            {{ self::commit_line(commit=commit) }}
-        {%- endif -%}
-    {% endfor %}
-{%- endfor %}
+    {%- for commit in group_commits %}
+        {%- if commit.scope -%}
+        {% else -%}
+            - {% if commit.breaking %} ❗{% endif %}\
+                {{ commit.message | split(pat="\n") | first }} - ([{{ commit.id | truncate(length=7, end="") }}]($REPO/commit/{{ commit.id }})) - \
+                {{ self::author_link(commit=commit) }}
+        {% endif -%}
+    {% endfor -%}
+{% endfor %}
 {% set unique_authors = commits | map(attribute="author.name") | unique %}\
 {% if unique_authors | length > 0 %}\
     ### 👥 Contributors\
@@ -89,7 +74,14 @@ body = """
             {% set author_commits = commits | filter(attribute="author.name", value=author_name) %}\
             {% set last_commit = author_commits | last %}\
             {% set author_email = last_commit.author.email %}\
-            {% set github_username = self::get_github_username(commit=last_commit) %}\
+            {% set github_username = "" %}\
+            {% if last_commit.remote.username is defined and last_commit.remote.username %}\
+                {% set github_username = last_commit.remote.username %}\
+            {% elif author_email is containing("@users.noreply.github.com") %}\
+                {% set email_parts = author_email | split(pat="@") %}\
+                {% set username_part = email_parts[0] | split(pat="+") | last %}\
+                {% set github_username = username_part %}\
+            {% endif %}\
             {% if author_name and author_name != "" %}\
                 {% if github_username != "" %}\
                     {% if author_email != "" %}\

@@ -184,7 +184,9 @@ parse_shell_args() {
 CLIFF_ARGS_ARRAY=()
 COMMIT_ARGS_ARRAY=()
 if [[ -n "$CLIFF_ARGS" ]]; then
-  read -ra CLIFF_ARGS_ARRAY <<< "$CLIFF_ARGS"
+  # Parse shell-quoted arguments safely without eval
+  # This handles quoted strings like "--foo 'bar baz'" without code execution
+  readarray -d '' CLIFF_ARGS_ARRAY < <(parse_shell_args "$CLIFF_ARGS")
 fi
 if [[ -n "$COMMIT" ]]; then
   # Parse shell-quoted arguments safely without eval

@@ -7,9 +7,11 @@ COMMIT=""
 SHOULD_COMMIT=false
 CHANGELOG="CHANGELOG.md"
 CLIFF_ARGS=""
+
 # Initialize arrays early to avoid unbound variable errors with set -u
 CLIFF_ARGS_ARRAY=()
 COMMIT_ARGS_ARRAY=()
+
 # Initialize temporary file variables for cleanup
 TEMP_FILE=""
 CLIFF_OUTPUT=""

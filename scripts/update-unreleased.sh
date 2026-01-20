@@ -262,9 +262,16 @@ restage_other_files() {
     if [[ -n "$STAGED_DIFFS_DIR" ]] && [[ -f "$patch_file" ]] && [[ -s "$patch_file" ]]; then
       # Apply the saved staged diff to restore exact staging state
       if ! git apply --cached --allow-empty "$patch_file" 2> /dev/null; then
-        # Fallback: if patch doesn't apply (file changed), stage entire file
-        echo "Warning: Could not restore partial staging for '$file', staging entire file" >&2
-        git add -- "$file"
+        # Fallback: if patch doesn't apply, try to be smarter about re-staging.
+        echo "Warning: Could not restore partial staging for '$file', attempting to stage based on patch type." >&2
+        if grep -q '^deleted file mode' "$patch_file"; then
+          # The patch was for a deletion. `git apply` likely failed because the file was re-created.
+          # Respect the original intent and stage the deletion.
+          git rm --cached --ignore-unmatch -- "$file"
+        else
+          # For modifications or new files, staging the whole file is a reasonable fallback.
+          git add -- "$file"
+        fi
       fi
     else
       # No saved diff or empty diff (shouldn't happen, but fallback to full staging)

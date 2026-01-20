@@ -34,15 +34,13 @@ Options:
   -h, --help          Show this help message and exit.
 
 Examples:
-  $SCRIPT_NAME                                            # Update CHANGELOG.md only
-  $SCRIPT_NAME --commit                                   # Update, stage, and commit CHANGELOG.md (with defaults)
-  $SCRIPT_NAME --commit -- -m "Custom message"            # Commit with custom message (recommended)
-  $SCRIPT_NAME --commit "-m 'Custom message'"             # Commit with custom message (backward compatibility)
-  $SCRIPT_NAME -l HISTORY.md                              # Update HISTORY.md instead
-  $SCRIPT_NAME --cliff-args -- --config custom-cliff.toml  # Pass args to git-cliff (recommended)
-  $SCRIPT_NAME --cliff-args "--config custom-cliff.toml"   # Pass args to git-cliff (backward compatibility)
+  $SCRIPT_NAME                                                          # Update CHANGELOG.md only
+  $SCRIPT_NAME --commit                                                 # Update, stage, and commit CHANGELOG.md (with defaults)
+  $SCRIPT_NAME --commit -- -m "Custom message"                          # Commit with custom message
+  $SCRIPT_NAME -l HISTORY.md                                            # Update HISTORY.md instead
+  $SCRIPT_NAME --cliff-args -- --config custom-cliff.toml               # Pass args to git-cliff
   $SCRIPT_NAME --cliff-args -- --config file.toml --commit -- -m "msg"  # Both with -- separators
-  $SCRIPT_NAME --help                                     # Show this help message
+  $SCRIPT_NAME --help                                                   # Show this help message
 
 Requirements:
   - git cliff must be installed and available in PATH

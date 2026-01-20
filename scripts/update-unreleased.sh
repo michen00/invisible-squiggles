@@ -10,6 +10,12 @@ CLIFF_ARGS=""
 # Initialize arrays early to avoid unbound variable errors with set -u
 CLIFF_ARGS_ARRAY=()
 COMMIT_ARGS_ARRAY=()
+# Initialize temporary file variables for cleanup
+TEMP_FILE=""
+CLIFF_OUTPUT=""
+HEAD_CHANGELOG=""
+EXPECTED_OUTPUT=""
+STAGED_CONTENT=""
 
 usage() {
   cat << EOF
@@ -312,6 +318,7 @@ commit_changelog() {
 # Cleanup function to restore state on error
 cleanup() {
   local exit_code=$?
+  rm -f "$TEMP_FILE" "$CLIFF_OUTPUT" "$HEAD_CHANGELOG" "$EXPECTED_OUTPUT" "$STAGED_CONTENT"
   if [[ $STASHED == true ]] && [[ -n "$STASH_REF" ]]; then
     # Check if stash still exists before trying to pop
     if git stash list | grep -q "^${STASH_REF}"; then

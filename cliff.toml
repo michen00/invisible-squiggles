@@ -16,7 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com) and this p
 """
 
 body = """
-{% macro author_link(commit) -%}
+{% macro get_github_username(commit) -%}
     {% set github_username = "" %}\
     {% if commit.remote.username is defined and commit.remote.username %}\
         {% set github_username = commit.remote.username %}\
@@ -25,6 +25,10 @@ body = """
         {% set username_part = email_parts[0] | split(pat="+") | last %}\
         {% set github_username = username_part %}\
     {% endif %}\
+    {{ github_username }}
+{%- endmacro -%}
+{% macro author_link(commit) -%}
+    {% set github_username = self::get_github_username(commit=commit) %}\
     {% if github_username != "" %}\
         [@{{ github_username }}](https://github.com/{{ github_username }})\
     {% elif commit.author.name and commit.author.name != "" %}\
@@ -74,14 +78,7 @@ body = """
             {% set author_commits = commits | filter(attribute="author.name", value=author_name) %}\
             {% set last_commit = author_commits | last %}\
             {% set author_email = last_commit.author.email %}\
-            {% set github_username = "" %}\
-            {% if last_commit.remote.username is defined and last_commit.remote.username %}\
-                {% set github_username = last_commit.remote.username %}\
-            {% elif author_email is containing("@users.noreply.github.com") %}\
-                {% set email_parts = author_email | split(pat="@") %}\
-                {% set username_part = email_parts[0] | split(pat="+") | last %}\
-                {% set github_username = username_part %}\
-            {% endif %}\
+            {% set github_username = self::get_github_username(commit=last_commit) %}\
             {% if author_name and author_name != "" %}\
                 {% if github_username != "" %}\
                     {% if author_email != "" %}\

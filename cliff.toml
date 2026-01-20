@@ -166,7 +166,7 @@ commit_parsers = [
     { message = "^perf", group = "<!-- 02 -->⚡ Performance" },
     { message = "^revert", group = "<!-- 03 -->⏪️ Revert" },
 
-    # Internal categories (SKIP)
+    # Internal categories (SKIP); breaking changes are allowed
     { message = "^doc", group = "<!-- 04 -->📝 Documentation", skip = true },
     { message = "^build", group = "<!-- 05 -->👷 Build", skip = true },
     { message = "^ci", group = "<!-- 06 -->💚 Continuous Integration", skip = true },

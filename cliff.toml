@@ -45,7 +45,7 @@ body = """
 - {% if commit.scope %}**({{commit.scope}})** {% endif %}{% if commit.breaking %} ❗{% endif %}\
     {{ commit.message | split(pat="\n") | first }} - ([{{ commit.id | truncate(length=7, end="") }}]($REPO/commit/{{ commit.id }})) - \
     {{ self::author_link(commit=commit) }}
-{%- endmacro %}
+{% endmacro %}
 {% if version %}\
     {% if previous.version %}\
         ## [{{ version | trim_start_matches(pat="v") }}]($REPO/compare/{{ previous.version }}..{{ version }}) - {{ timestamp | date(format="%Y-%m-%d") }}
@@ -55,13 +55,13 @@ body = """
 {% else %}\
     ## [Unreleased]
 {% endif %}\
-{% for group, group_commits in commits | filter(attribute="merge_commit", value=false) | unique(attribute="message") | group_by(attribute="group") %}
+{% for group, group_commits in commits | filter(attribute="merge_commit", value=false) | unique(attribute="message") | group_by(attribute="group") -%}
     ### {{ group | striptags | trim | upper_first }}
-    {% for commit in group_commits
+    {%- for commit in group_commits
     | filter(attribute="scope")
-    | sort(attribute="scope") %}
+    | sort(attribute="scope") -%}
         {{ self::commit_line(commit=commit) }}
-    {%- endfor -%}
+    {% endfor %}
     {%- set has_scoped = false -%}
     {%- set has_unscoped = false -%}
     {%- for commit in group_commits -%}
@@ -74,12 +74,12 @@ body = """
     {%- if has_scoped and has_unscoped -%}
     {% raw %}\n{% endraw %}\
     {%- endif -%}
-    {% for commit in group_commits %}
-        {% if not commit.scope %}
+    {%- for commit in group_commits -%}
+        {%- if not commit.scope -%}
             {{ self::commit_line(commit=commit) }}
-        {% endif %}
+        {%- endif -%}
     {% endfor %}
-{% endfor %}
+{%- endfor %}
 {% set unique_authors = commits | map(attribute="author.name") | unique %}\
 {% if unique_authors | length > 0 %}\
     ### 👥 Contributors\

@@ -258,7 +258,7 @@ cleanup() {
     # Check if stash still exists before trying to pop
     if git stash list | grep -q "^${STASH_REF}"; then
       echo "Restoring stashed changes to ${CHANGELOG}..." >&2
-      git stash pop --quiet "$STASH_REF" 2> /dev/null || git stash pop --quiet
+      git stash pop --quiet "$STASH_REF" 2> /dev/null
     fi
   fi
   restage_other_files
@@ -464,7 +464,7 @@ if git cat-file -e "HEAD:${CHANGELOG}" 2> /dev/null && git diff --quiet HEAD -- 
   # File exists in HEAD and matches - already up-to-date
   if [[ $STASHED == true ]] && [[ -n "$STASH_REF" ]]; then
     # Restore user's original uncommitted changes
-    git stash pop --quiet "$STASH_REF" 2> /dev/null || git stash pop --quiet
+    git stash pop --quiet "$STASH_REF" 2> /dev/null
     STASHED=false
     STASH_REF=""
     echo "Unreleased section is already up-to-date (your changes preserved)."
@@ -535,7 +535,7 @@ if [[ $HAS_USER_EDITS == true ]] && [[ -n "$STASH_REF" ]]; then
     # Reset file to HEAD (discard the git cliff update)
     git checkout HEAD -- "$CHANGELOG"
     # Restore user's original uncommitted changes
-    git stash pop --quiet "$STASH_REF" 2> /dev/null || git stash pop --quiet
+    git stash pop --quiet "$STASH_REF" 2> /dev/null
     STASHED=false
     STASH_REF=""
     restage_other_files

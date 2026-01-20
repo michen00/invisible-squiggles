@@ -341,18 +341,10 @@ if command -v perl > /dev/null 2>&1; then
   # This removes all trailing whitespace (spaces, tabs, newlines) and adds exactly one newline
   perl -i -0777 -pe 's/\s*$/\n/' "$TEMP_FILE" 2> /dev/null || true
 else
-  # Fallback: try sed (GNU vs BSD)
-  if sed --version > /dev/null 2>&1; then
-    # GNU sed
-    sed -i -e :a -e '/^\n*$/{$d;N;ba' -e '}' "$TEMP_FILE" 2> /dev/null || true # spellchecker:disable-line
-  else
-    # BSD sed (macOS)
-    sed -i '' -e :a -e '/^\n*$/{$d;N;ba' -e '}' "$TEMP_FILE" 2> /dev/null || true # spellchecker:disable-line
-  fi
-  # Ensure file ends with exactly one newline
-  if [[ -s "$TEMP_FILE" ]] && [[ $(tail -c1 "$TEMP_FILE" | wc -l) -eq 0 ]]; then
-    printf '\n' >> "$TEMP_FILE"
-  fi
+  # Fallback: use shell parameter expansion to trim trailing whitespace
+  # and add a single newline. This is more portable and correct than sed.
+  content=$(< "$TEMP_FILE")
+  printf "%s\n" "${content%"${content##*[![:space:]]}"}" > "$TEMP_FILE"
 fi
 
 # Now replace the Unreleased section in CHANGELOG.md

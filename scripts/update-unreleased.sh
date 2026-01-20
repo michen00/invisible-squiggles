@@ -409,17 +409,20 @@ fi
 
 # Define the awk script for replacing Unreleased section (reused in two places)
 REPLACE_UNRELEASED_AWK_SCRIPT='
-  BEGIN { in_unreleased = 0; printed_new = 0 }
-
-  # When we hit the Unreleased header, start skipping
-  /^## \[Unreleased\]/ {
-    in_unreleased = 1
-    # Print the new content
+  function print_new_content() {
     while ((getline line < new_content) > 0) {
       print line
     }
     close(new_content)
     printed_new = 1
+  }
+
+  BEGIN { in_unreleased = 0; printed_new = 0 }
+
+  # When we hit the Unreleased header, start skipping
+  /^## \[Unreleased\]/ {
+    in_unreleased = 1
+    print_new_content()
     next
   }
 
@@ -438,10 +441,7 @@ REPLACE_UNRELEASED_AWK_SCRIPT='
   # If we hit the first version section and Unreleased has not been printed yet, insert it
   !printed_new && /^## \[/ && !/^## \[Unreleased\]/ {
     # Insert Unreleased section before this version
-    while ((getline line < new_content) > 0)
-      print line
-    close(new_content)
-    printed_new = 1
+    print_new_content()
     # Ensure blank line before version section
     print ""
     print
@@ -456,9 +456,7 @@ REPLACE_UNRELEASED_AWK_SCRIPT='
     if (!printed_new) {
       # Add blank line if file does not end with one
       if (NR > 0) print ""
-      while ((getline line < new_content) > 0)
-        print line
-      close(new_content)
+      print_new_content()
     }
   }
 '

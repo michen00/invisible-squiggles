@@ -62,7 +62,9 @@ define PREPARE_DOCS
     mv README.md README.md.bak; \
     cp CHANGELOG.md CHANGELOG.md.bak; \
     scripts/prepare-readme.sh README.md.bak README.md; \
-    perl -i -0777 -pe 's/<!--.*?-->//gs; s/^\n+//; s/\n\n\n+/\n\n/g; s/\n+$$/\n/' README.md CHANGELOG.md; \
+    for f in README.md CHANGELOG.md; do \
+        perl -0777 -pe 's/<!--.*?-->//gs; s/^\n+//; s/\n\n\n+/\n\n/g; s/\n+$$/\n/' "$$f" > "$$f.tmp" && mv "$$f.tmp" "$$f"; \
+    done; \
     rm -f dist/*.map
 endef
 

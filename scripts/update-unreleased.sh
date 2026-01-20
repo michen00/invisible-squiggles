@@ -313,16 +313,12 @@ if [ ! -s "$TEMP_FILE" ]; then
   exit 1
 fi
 
-# Remove trailing blank lines from the extracted section
-# but ensure it ends with exactly one newline
-# Use a cross-platform approach: read file, remove trailing blank lines, ensure single newline
+# Remove trailing whitespace and ensure the extracted section ends with exactly one newline
+# Use a cross-platform approach: read file, remove trailing whitespace, ensure single newline
 if command -v perl > /dev/null 2>&1; then
   # Perl is more reliable across platforms
-  perl -i -pe 'chomp if eof' "$TEMP_FILE" 2> /dev/null || true
-  # Ensure file ends with exactly one newline
-  printf '\n' >> "$TEMP_FILE"
-  # Remove any trailing blank lines (but keep at least one newline)
-  perl -i -0777 -pe 's/\n+$/\n/' "$TEMP_FILE" 2> /dev/null || true
+  # This removes all trailing whitespace (spaces, tabs, newlines) and adds exactly one newline
+  perl -i -0777 -pe 's/\s*$/\n/' "$TEMP_FILE" 2> /dev/null || true
 else
   # Fallback: try sed (GNU vs BSD)
   if sed --version > /dev/null 2>&1; then

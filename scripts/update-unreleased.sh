@@ -206,10 +206,11 @@ restage_other_files() {
   fi
   echo "Re-staging other files..."
   while IFS= read -r file; do
+    local patch_file="${STAGED_DIFFS_DIR}/${file}.patch"
     # If we have a saved staged diff, apply it to preserve partial staging
-    if [[ -n "$STAGED_DIFFS_DIR" ]] && [[ -f "${STAGED_DIFFS_DIR}/${file//\//_}.patch" ]] && [[ -s "${STAGED_DIFFS_DIR}/${file//\//_}.patch" ]]; then
+    if [[ -n "$STAGED_DIFFS_DIR" ]] && [[ -f "$patch_file" ]] && [[ -s "$patch_file" ]]; then
       # Apply the saved staged diff to restore exact staging state
-      if ! git apply --cached --allow-empty "${STAGED_DIFFS_DIR}/${file//\//_}.patch" 2> /dev/null; then
+      if ! git apply --cached --allow-empty "$patch_file" 2> /dev/null; then
         # Fallback: if patch doesn't apply (file changed), stage entire file
         echo "Warning: Could not restore partial staging for '$file', staging entire file" >&2
         git add -- "$file"
@@ -290,9 +291,11 @@ if [[ "$SHOULD_COMMIT" == true ]]; then
     # Create temp directory to store staged diffs for preserving partial staging
     STAGED_DIFFS_DIR=$(mktemp -d)
     while IFS= read -r file; do
+      # Create parent directory for the patch file
+      mkdir -p "$(dirname "${STAGED_DIFFS_DIR}/${file}")"
       # Save the staged diff before unstaging to preserve partial hunks
       # This works for both partially staged files and new files
-      git diff --cached -- "$file" > "${STAGED_DIFFS_DIR}/${file//\//_}.patch" 2> /dev/null || true
+      git diff --cached -- "$file" > "${STAGED_DIFFS_DIR}/${file}.patch" 2> /dev/null || true
       git restore --staged -- "$file"
     done <<< "$OTHER_STAGED_FILES"
   fi

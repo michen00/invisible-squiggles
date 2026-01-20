@@ -225,6 +225,29 @@ restage_other_files() {
   fi
 }
 
+# Commit CHANGELOG with appropriate message handling
+commit_changelog() {
+  # Check if user provided -m or --message in commit args
+  local has_message=false
+  for arg in "${COMMIT_ARGS_ARRAY[@]}"; do
+    if [[ "$arg" == "-m" ]] || [[ "$arg" == "--message" ]]; then
+      has_message=true
+      break
+    fi
+  done
+
+  # Build commit command
+  local commit_cmd=(git commit)
+  if [[ $has_message == false ]]; then
+    commit_cmd+=(-m "$COMMIT_MSG")
+  fi
+  commit_cmd+=("${COMMIT_ARGS_ARRAY[@]}")
+  commit_cmd+=(-- "$CHANGELOG")
+
+  # Execute command
+  "${commit_cmd[@]}"
+}
+
 # Cleanup function to restore state on error
 cleanup() {
   local exit_code=$?
@@ -412,23 +435,7 @@ if [[ $CHANGELOG_ALREADY_STAGED == true ]]; then
     rm -f "$STAGED_CONTENT" "$EXPECTED_OUTPUT" "$HEAD_CHANGELOG" "${CHANGELOG}.new" "$TEMP_FILE" "$CLIFF_OUTPUT"
 
     # Commit the already-staged changes
-    # Check if user provided -m or --message in commit args
-    HAS_MESSAGE=false
-    for arg in "${COMMIT_ARGS_ARRAY[@]}"; do
-      if [[ "$arg" == "-m" ]] || [[ "$arg" == "--message" ]]; then
-        HAS_MESSAGE=true
-        break
-      fi
-    done
-
-    # Build commit command
-    COMMIT_CMD=(git commit)
-    if [[ $HAS_MESSAGE == false ]]; then
-      COMMIT_CMD+=(-m "$COMMIT_MSG")
-    fi
-    COMMIT_CMD+=("${COMMIT_ARGS_ARRAY[@]}")
-    COMMIT_CMD+=(-- "$CHANGELOG")
-    "${COMMIT_CMD[@]}"
+    commit_changelog
     echo "Committed ${CHANGELOG}."
     exit 0
   else
@@ -492,24 +499,7 @@ echo "Successfully updated Unreleased section in $CHANGELOG"
 # Stage and commit if requested
 if [[ "$SHOULD_COMMIT" == true ]]; then
   git add "$CHANGELOG"
-
-  # Check if user provided -m or --message in commit args
-  HAS_MESSAGE=false
-  for arg in "${COMMIT_ARGS_ARRAY[@]}"; do
-    if [[ "$arg" == "-m" ]] || [[ "$arg" == "--message" ]]; then
-      HAS_MESSAGE=true
-      break
-    fi
-  done
-
-  # Build commit command
-  COMMIT_CMD=(git commit)
-  if [[ $HAS_MESSAGE == false ]]; then
-    COMMIT_CMD+=(-m "$COMMIT_MSG")
-  fi
-  COMMIT_CMD+=("${COMMIT_ARGS_ARRAY[@]}")
-  COMMIT_CMD+=(-- "$CHANGELOG")
-  "${COMMIT_CMD[@]}"
+  commit_changelog
 fi
 
 # Now apply user's stashed edits on top (after the commit)

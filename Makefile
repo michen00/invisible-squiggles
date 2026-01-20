@@ -58,7 +58,7 @@ help: ## Show this help message
 # Common logic for preparing README for marketplace (strip untrusted SVG badges and Documentation section)
 define PREPARE_DOCS
 	set -e; \
-    trap 'if [ -f README.md.bak ]; then mv README.md.bak README.md; fi; if [ -f CHANGELOG.md.bak ]; then mv CHANGELOG.md.bak CHANGELOG.md; fi' EXIT; \
+    trap 'for f in README.md CHANGELOG.md; do [ -f "$$f.bak" ] && mv "$$f.bak" "$$f"; done' EXIT; \
     mv README.md README.md.bak; \
     cp CHANGELOG.md CHANGELOG.md.bak; \
     scripts/prepare-readme.sh README.md.bak README.md; \

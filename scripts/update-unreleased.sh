@@ -254,7 +254,7 @@ STAGED_DIFFS_DIR=""
 
 # Helper to re-stage files, preserving partial staging
 restage_other_files() {
-  if [[ -z $OTHER_STAGED_FILES ]]; then
+  if [[ -z "$OTHER_STAGED_FILES" ]]; then
     return
   fi
   echo "Re-staging other files..."

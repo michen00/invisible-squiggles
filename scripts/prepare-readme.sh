@@ -27,4 +27,9 @@ fi
 in="$1"
 out="$2"
 
+if [ ! -f "$in" ]; then
+  echo "Error: Input file not found: $in" >&2
+  exit 1
+fi
+
 sed -e '/zenodo\.org.*\.svg/d' -e '/## .*Documentation/,$d' "$in" | perl -0777 -pe 's/\s+$/\n/' > "$out"

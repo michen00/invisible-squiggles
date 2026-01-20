@@ -204,25 +204,18 @@ restage_other_files() {
   fi
   echo "Re-staging other files..."
   while IFS= read -r file; do
-    if [[ -e $file ]]; then
-      # If we have a saved staged diff, apply it to preserve partial staging
-      if [[ -n "$STAGED_DIFFS_DIR" ]] && [[ -f "${STAGED_DIFFS_DIR}/${file//\//_}.patch" ]] && [[ -s "${STAGED_DIFFS_DIR}/${file//\//_}.patch" ]]; then
-        # Apply the saved staged diff to restore exact staging state
-        # Use --allow-empty to match previous behavior (though we check for empty above)
-        if git apply --cached --allow-empty "${STAGED_DIFFS_DIR}/${file//\//_}.patch" 2> /dev/null; then
-          # Successfully restored staged diff
-          continue
-        else
-          # Fallback: if patch doesn't apply (file changed), stage entire file
-          echo "Warning: Could not restore partial staging for '$file', staging entire file" >&2
-          git add -- "$file"
-        fi
-      else
-        # No saved diff or empty diff (shouldn't happen, but fallback to full staging)
+    # If we have a saved staged diff, apply it to preserve partial staging
+    if [[ -n "$STAGED_DIFFS_DIR" ]] && [[ -f "${STAGED_DIFFS_DIR}/${file//\//_}.patch" ]] && [[ -s "${STAGED_DIFFS_DIR}/${file//\//_}.patch" ]]; then
+      # Apply the saved staged diff to restore exact staging state
+      if ! git apply --cached --allow-empty "${STAGED_DIFFS_DIR}/${file//\//_}.patch" 2> /dev/null; then
+        # Fallback: if patch doesn't apply (file changed), stage entire file
+        echo "Warning: Could not restore partial staging for '$file', staging entire file" >&2
         git add -- "$file"
       fi
     else
-      echo "Warning: '$file' no longer exists (was it a new file?)" >&2
+      # No saved diff or empty diff (shouldn't happen, but fallback to full staging)
+      # This handles both existing files and staged deletions.
+      git add -- "$file"
     fi
   done <<< "$OTHER_STAGED_FILES"
   # Clean up temp directory after restaging

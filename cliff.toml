@@ -37,6 +37,11 @@ body = """
         [{{ commit.author.email }}](mailto:{{ commit.author.email }})\
     {% endif %}
 {%- endmacro %}
+{% macro commit_line(commit) -%}
+- {% if commit.scope %}**({{commit.scope}})** {% endif %}{% if commit.breaking %} ❗{% endif %}\
+    {{ commit.message | split(pat="\n") | first }} - ([{{ commit.id | truncate(length=7, end="") }}]($REPO/commit/{{ commit.id }})) - \
+    {{ self::author_link(commit=commit) }}
+{%- endmacro %}
 {% if version %}\
     {% if previous.version %}\
         ## [{{ version | trim_start_matches(pat="v") }}]($REPO/compare/{{ previous.version }}..{{ version }}) - {{ timestamp | date(format="%Y-%m-%d") }}
@@ -51,19 +56,25 @@ body = """
     {% for commit in group_commits
     | filter(attribute="scope")
     | sort(attribute="scope") %}
-        - **({{commit.scope}})**{% if commit.breaking %} ❗{% endif %} \
-            {{ commit.message | split(pat="\n") | first }} - ([{{ commit.id | truncate(length=7, end="") }}]($REPO/commit/{{ commit.id }})) - \
-            {{ self::author_link(commit=commit) }}
+        {{ self::commit_line(commit=commit) }}
     {%- endfor -%}
-    {% raw %}\n{% endraw %}\
-    {%- for commit in group_commits %}
+    {%- set has_scoped = false -%}
+    {%- set has_unscoped = false -%}
+    {%- for commit in group_commits -%}
         {%- if commit.scope -%}
-        {% else -%}
-            - {% if commit.breaking %} ❗{% endif %}\
-                {{ commit.message | split(pat="\n") | first }} - ([{{ commit.id | truncate(length=7, end="") }}]($REPO/commit/{{ commit.id }})) - \
-                {{ self::author_link(commit=commit) }}
-        {% endif -%}
-    {% endfor -%}
+            {%- set has_scoped = true -%}
+        {%- else -%}
+            {%- set has_unscoped = true -%}
+        {%- endif -%}
+    {%- endfor -%}
+    {%- if has_scoped and has_unscoped -%}
+    {% raw %}\n{% endraw %}\
+    {%- endif -%}
+    {% for commit in group_commits %}
+        {% if not commit.scope %}
+            {{ self::commit_line(commit=commit) }}
+        {% endif %}
+    {% endfor %}
 {% endfor %}
 {% set unique_authors = commits | map(attribute="author.name") | unique %}\
 {% if unique_authors | length > 0 %}\

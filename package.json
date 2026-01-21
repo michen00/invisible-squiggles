@@ -5,8 +5,27 @@
   "publisher": "michen00",
   "description": "toggle the transparency of diagnostic squiggles for distraction-free coding",
   "author": {
-    "name": "Michael I Chen"
+    "name": "Michael I Chen",
+    "email": "michael.chen.0@gmail.com",
+    "url": "https://github.com/michen00"
   },
+  "contributors": [
+    {
+      "name": "Madhur Dixit",
+      "email": "madhurdixit37@gmail.com",
+      "url": "https://github.com/MadhurDixit13"
+    },
+    {
+      "name": "Sneha Joshi",
+      "email": "sjoshi32@hawk.iit.edu",
+      "url": "https://github.com/Joshi2502"
+    },
+    {
+      "name": "Parvati Jayakumar",
+      "email": "parvatijay2901@gmail.com",
+      "url": "https://github.com/parvatijay2901"
+    }
+  ],
   "categories": [
     "Linters",
     "Visualization"

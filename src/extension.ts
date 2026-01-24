@@ -201,14 +201,11 @@ export function toggleSquigglesCore(
       });
     }
 
-    // Clear any transparent squiggle colors not in storedColors
-    // (If stuck without marker, storedColors is empty so this clears ALL transparent colors)
+    // Clear any squiggle colors not in storedColors (whether transparent or not)
+    // This ensures manually-edited colors during the invisible state are ignored when restoring
+    // (If stuck without marker, storedColors is empty so this clears ALL squiggle colors)
     ALL_SQUIGGLE_COLOR_KEYS.forEach((key) => {
-      if (
-        typeof newCustomizations[key] === "string" &&
-        newCustomizations[key]!.toLowerCase() === TRANSPARENT_COLOR &&
-        !(key in storedColors)
-      ) {
+      if (typeof newCustomizations[key] === "string" && !(key in storedColors)) {
         newCustomizations[key] = undefined;
       }
     });
@@ -280,13 +277,10 @@ export function restoreAndCleanup(
     newCustomizations[key] = value;
   });
 
-  // Clear any transparent squiggle colors not in storedColors
+  // Clear any squiggle colors not in storedColors (whether transparent or not)
+  // This ensures manually-edited colors are ignored when restoring
   ALL_SQUIGGLE_COLOR_KEYS.forEach((key) => {
-    if (
-      typeof newCustomizations[key] === "string" &&
-      newCustomizations[key]!.toLowerCase() === TRANSPARENT_COLOR &&
-      !(key in storedColors)
-    ) {
+    if (typeof newCustomizations[key] === "string" && !(key in storedColors)) {
       newCustomizations[key] = undefined;
     }
   });

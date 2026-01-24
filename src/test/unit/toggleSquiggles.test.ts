@@ -601,6 +601,132 @@ describe("toggleSquigglesCore", () => {
     });
   });
 
+  describe("manual edits while squiggles are hidden", () => {
+    it("should ignore non-transparent colors added manually while squiggles are hidden", () => {
+      // BUG SCENARIO:
+      // 1. User has default colors (no custom squiggle colors)
+      // 2. User toggles OFF → originalColors is {}
+      // 3. User manually adds editorError.background: "#00ff00" while squiggles are OFF
+      // 4. User toggles ON → manual edit should be ignored/cleared
+      // 5. Toggle OFF again → should not save the manual edit as "original"
+
+      const hideSquiggles: ToggleSquigglesConfig = {
+        hideErrors: true,
+        hideWarnings: false,
+        hideInfo: false,
+        hideHint: false,
+      };
+
+      // Step 1: Start with no custom colors
+      const initialCustomizations: Record<string, string | undefined> = {};
+
+      // Step 2: Toggle OFF
+      const afterHide = toggleSquigglesCore(initialCustomizations, hideSquiggles);
+      assert.strictEqual(afterHide.newCustomizations["editorError.background"], TRANSPARENT_COLOR);
+      // originalColors should be empty since there were no colors to save
+      assert.strictEqual(afterHide.newCustomizations[ORIGINAL_COLORS_KEY], "{}");
+
+      // Step 3: User manually edits settings.json while squiggles are OFF
+      const manuallyEdited = {
+        ...afterHide.newCustomizations,
+        "editorError.background": "#00ff00", // User added this color manually!
+        "editorError.border": "#00ff00",
+        "editorError.foreground": "#00ff00",
+      };
+
+      // Step 4: Toggle ON (should ignore/clear the manual edits)
+      const afterRestore = toggleSquigglesCore(manuallyEdited, hideSquiggles);
+      assert.strictEqual(
+        afterRestore.isAlreadyTransparent,
+        true,
+        "Should detect invisible state and restore"
+      );
+
+      // Manual edits should be cleared since they weren't in originalColors
+      assert.strictEqual(
+        afterRestore.newCustomizations["editorError.background"],
+        undefined,
+        "Manually-added color should be cleared (not in originalColors)"
+      );
+      assert.strictEqual(
+        afterRestore.newCustomizations["editorError.border"],
+        undefined,
+        "Manually-added color should be cleared (not in originalColors)"
+      );
+      assert.strictEqual(
+        afterRestore.newCustomizations["editorError.foreground"],
+        undefined,
+        "Manually-added color should be cleared (not in originalColors)"
+      );
+
+      // Step 5: Toggle OFF again - should NOT save manual edits as originals
+      const afterSecondHide = toggleSquigglesCore(
+        afterRestore.newCustomizations,
+        hideSquiggles
+      );
+      const savedColors = JSON.parse(
+        afterSecondHide.newCustomizations[ORIGINAL_COLORS_KEY] as string
+      );
+      assert.deepStrictEqual(
+        savedColors,
+        {},
+        "Should not have saved manual edits as original colors"
+      );
+    });
+
+    it("should clear non-transparent manually-edited colors that weren't in originalColors", () => {
+      // Similar scenario but starting with some custom colors
+      const originalColors = {
+        "editorWarning.background": "#ffaa00",
+      };
+
+      const customizations: Record<string, string | undefined> = {
+        // Warning was in originalColors (should be restored)
+        "editorWarning.background": TRANSPARENT_COLOR,
+        "editorWarning.border": TRANSPARENT_COLOR,
+        "editorWarning.foreground": TRANSPARENT_COLOR,
+        // Error was manually added while hidden (should be cleared)
+        "editorError.background": "#00ff00",
+        "editorError.border": "#00ff00",
+        "editorError.foreground": "#00ff00",
+        [ORIGINAL_COLORS_KEY]: JSON.stringify(originalColors),
+      };
+
+      const config: ToggleSquigglesConfig = {
+        hideErrors: true,
+        hideWarnings: true,
+        hideInfo: false,
+        hideHint: false,
+      };
+
+      const result = toggleSquigglesCore(customizations, config);
+
+      // Warning should be restored from originalColors
+      assert.strictEqual(
+        result.newCustomizations["editorWarning.background"],
+        "#ffaa00",
+        "Original colors should be restored"
+      );
+
+      // Error colors (manually added) should be cleared
+      assert.strictEqual(
+        result.newCustomizations["editorError.background"],
+        undefined,
+        "Manually-added colors should be cleared"
+      );
+      assert.strictEqual(
+        result.newCustomizations["editorError.border"],
+        undefined,
+        "Manually-added colors should be cleared"
+      );
+      assert.strictEqual(
+        result.newCustomizations["editorError.foreground"],
+        undefined,
+        "Manually-added colors should be cleared"
+      );
+    });
+  });
+
   describe("concurrent execution simulation", () => {
     it("should handle multiple rapid toggles correctly (last state wins)", () => {
       const initialCustomizations: Record<string, string | undefined> = {

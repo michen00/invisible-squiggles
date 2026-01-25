@@ -87,8 +87,8 @@ describe("toggleSquigglesCore", () => {
       assert.ok(result);
       // Should still restore (but with empty stored colors)
       assert.strictEqual(result.isAlreadyTransparent, true);
-      // Transparent colors should be removed
-      assert.strictEqual(result.newCustomizations["editorError.background"], undefined);
+      // Transparent colors should be removed (null signals VS Code to remove the key)
+      assert.strictEqual(result.newCustomizations["editorError.background"], null);
 
       assert.ok(
         consoleErrorStub.called,
@@ -137,9 +137,10 @@ describe("toggleSquigglesCore", () => {
           `Should detect invisible state for ${description}`
         );
         // Transparent colors should be cleared since storedColors is empty/invalid
+        // (null signals VS Code to remove the key)
         assert.strictEqual(
           result.newCustomizations["editorError.background"],
-          undefined,
+          null,
           `Should clear transparent colors for ${description}`
         );
       }
@@ -293,10 +294,10 @@ describe("toggleSquigglesCore", () => {
         "#ffaa00"
       );
 
-      // Error has no stored original, so should be cleared (undefined)
+      // Error has no stored original, so should be cleared (null signals VS Code to remove)
       assert.strictEqual(
         result.newCustomizations["editorError.background"],
-        undefined,
+        null,
         "Stale transparent colors with no stored original should be cleared"
       );
     });
@@ -512,27 +513,27 @@ describe("toggleSquigglesCore", () => {
         "Should detect transparent state even without marker key"
       );
 
-      // Transparent colors should be cleared (set to undefined) since there are no originals to restore
+      // Transparent colors should be cleared (null signals VS Code to remove) since there are no originals to restore
       assert.strictEqual(
         result.newCustomizations["editorError.background"],
-        undefined,
+        null,
         "Transparent colors should be cleared when no originals exist"
       );
       assert.strictEqual(
         result.newCustomizations["editorError.border"],
-        undefined,
+        null,
         "Transparent colors should be cleared when no originals exist"
       );
       assert.strictEqual(
         result.newCustomizations["editorError.foreground"],
-        undefined,
+        null,
         "Transparent colors should be cleared when no originals exist"
       );
 
-      // Should NOT create a marker key since we're restoring, not hiding
+      // Should NOT create a marker key since we're restoring from stuck state (no marker existed)
+      // The value should be undefined (not present), not null
       assert.ok(
-        result.newCustomizations["invisibleSquiggles.originalColors"] === undefined ||
-          result.newCustomizations["invisibleSquiggles.originalColors"] === null,
+        result.newCustomizations["invisibleSquiggles.originalColors"] === undefined,
         "Should not create marker key when recovering from stuck state"
       );
 
@@ -643,19 +644,20 @@ describe("toggleSquigglesCore", () => {
       );
 
       // Manual edits should be cleared since they weren't in originalColors
+      // (null signals VS Code to remove the key)
       assert.strictEqual(
         afterRestore.newCustomizations["editorError.background"],
-        undefined,
+        null,
         "Manually-added color should be cleared (not in originalColors)"
       );
       assert.strictEqual(
         afterRestore.newCustomizations["editorError.border"],
-        undefined,
+        null,
         "Manually-added color should be cleared (not in originalColors)"
       );
       assert.strictEqual(
         afterRestore.newCustomizations["editorError.foreground"],
-        undefined,
+        null,
         "Manually-added color should be cleared (not in originalColors)"
       );
 
@@ -708,20 +710,20 @@ describe("toggleSquigglesCore", () => {
         "Original colors should be restored"
       );
 
-      // Error colors (manually added) should be cleared
+      // Error colors (manually added) should be cleared (null signals VS Code to remove)
       assert.strictEqual(
         result.newCustomizations["editorError.background"],
-        undefined,
+        null,
         "Manually-added colors should be cleared"
       );
       assert.strictEqual(
         result.newCustomizations["editorError.border"],
-        undefined,
+        null,
         "Manually-added colors should be cleared"
       );
       assert.strictEqual(
         result.newCustomizations["editorError.foreground"],
-        undefined,
+        null,
         "Manually-added colors should be cleared"
       );
     });
@@ -797,8 +799,9 @@ describe("restoreAndCleanup", () => {
 
       assert.ok(result);
       assert.strictEqual(result!["editorError.background"], "#ff0000");
-      assert.strictEqual(result!["editorError.border"], undefined);
-      assert.strictEqual(result!["editorError.foreground"], undefined);
+      // null signals VS Code to remove these keys
+      assert.strictEqual(result!["editorError.border"], null);
+      assert.strictEqual(result!["editorError.foreground"], null);
     });
 
     it("should preserve non-squiggle customizations", () => {
@@ -851,7 +854,8 @@ describe("restoreAndCleanup", () => {
 
       assert.ok(result);
       // Should clear transparent colors (no valid stored colors to restore)
-      assert.strictEqual(result!["editorError.background"], undefined);
+      // null signals VS Code to remove the key
+      assert.strictEqual(result!["editorError.background"], null);
       assert.strictEqual(result![ORIGINAL_COLORS_KEY], undefined);
       assert.ok(consoleErrorStub.called);
       sinon.restore();
@@ -901,9 +905,10 @@ describe("restoreAndCleanup", () => {
           `Should clear marker key for ${description}`
         );
         // Transparent colors should be cleared since storedColors is empty/invalid
+        // (null signals VS Code to remove the key)
         assert.strictEqual(
           result!["editorError.background"],
-          undefined,
+          null,
           `Should clear transparent colors for ${description}`
         );
       }
@@ -918,8 +923,8 @@ describe("restoreAndCleanup", () => {
       const result = restoreAndCleanup(customizations);
 
       assert.ok(result);
-      // No colors to restore, but transparent should be cleared
-      assert.strictEqual(result!["editorError.background"], undefined);
+      // No colors to restore, but transparent should be cleared (null signals VS Code to remove)
+      assert.strictEqual(result!["editorError.background"], null);
       assert.strictEqual(result![ORIGINAL_COLORS_KEY], undefined);
     });
 

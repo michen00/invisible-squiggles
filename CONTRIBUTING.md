@@ -137,6 +137,8 @@ npm run test:unit  # Run unit tests (fast, < 5 seconds)
 
 To test the extension manually, press `F5` in VSCode to launch an Extension Development Host.
 
+> **Important:** After installing a `.vsix` file, run **Developer: Reload Window** (Cmd/Ctrl+Shift+P) to ensure the new version loads. VSCode may cache the old extension otherwise.
+
 #### Committing your changes
 
 Commit the changes using the [conventional commits](https://www.conventionalcommits.org) message style:

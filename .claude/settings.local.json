@@ -5,7 +5,8 @@
       "Bash(npx tsx:*)",
       "Bash(npm run test:unit:*)",
       "Bash(npm run compile:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(git show:*)"
     ]
   }
 }

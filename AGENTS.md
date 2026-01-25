@@ -30,6 +30,17 @@ npm test             # Run all tests
 
 **Note**: Unit tests (`npm run test:unit`) run without VSCode and work in CI. Integration and E2E tests require the VSCode runtime.
 
+### Make Targets
+
+```bash
+make build-vsix      # Package vsix (strips SVG badges for marketplace)
+make install-vsix    # Build + install locally
+make develop         # Setup: npm install + pre-commit hooks
+make check           # Run all tests + validation
+```
+
+**Important:** After installing a `.vsix`, run **Developer: Reload Window** to load the new version.
+
 ### Testing Infrastructure
 
 **Example test types**:

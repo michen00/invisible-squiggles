@@ -114,7 +114,7 @@ describe("toggleSquigglesCore", () => {
       // Cleanup handled by afterEach -> sinon.restore()
     });
 
-    it("should handle JSON primitive in originalColors (manual edit edge case)", () => {
+    describe("should handle JSON primitive in originalColors (manual edit edge case)", () => {
       // If someone manually edits settings to put a JSON primitive instead of object,
       // the code should handle it gracefully without throwing TypeError on `in` operator
       const testCases = [
@@ -125,37 +125,39 @@ describe("toggleSquigglesCore", () => {
         { value: "[1, 2, 3]", description: "array" },
       ];
 
-      for (const { value, description } of testCases) {
-        const currentCustomizations: Record<string, string | undefined> = {
-          "editorError.background": TRANSPARENT_COLOR,
-          "editorError.border": TRANSPARENT_COLOR,
-          "editorError.foreground": TRANSPARENT_COLOR,
-          "invisibleSquiggles.originalColors": value,
-        };
+      testCases.forEach(({ value, description }) => {
+        it(`handles ${description}`, () => {
+          const currentCustomizations: Record<string, string | undefined> = {
+            "editorError.background": TRANSPARENT_COLOR,
+            "editorError.border": TRANSPARENT_COLOR,
+            "editorError.foreground": TRANSPARENT_COLOR,
+            "invisibleSquiggles.originalColors": value,
+          };
 
-        const hideSquiggles: ToggleSquigglesConfig = {
-          hideErrors: true,
-          hideWarnings: false,
-          hideInfo: false,
-          hideHint: false,
-        };
+          const hideSquiggles: ToggleSquigglesConfig = {
+            hideErrors: true,
+            hideWarnings: false,
+            hideInfo: false,
+            hideHint: false,
+          };
 
-        // Should not throw TypeError
-        const result = toggleSquigglesCore(currentCustomizations, hideSquiggles);
-        assert.ok(result, `Should handle ${description} without crashing`);
-        // Should treat as invisible state (marker key exists) and restore
-        assert.strictEqual(
-          result.isAlreadyTransparent,
-          true,
-          `Should detect invisible state for ${description}`
-        );
-        // Transparent colors remain because transparentKeys is empty (invalid format)
-        assert.strictEqual(
-          result.newCustomizations["editorError.background"],
-          TRANSPARENT_COLOR,
-          `Should preserve transparent colors for ${description} (no transparentKeys to clear)`
-        );
-      }
+          // Should not throw TypeError
+          const result = toggleSquigglesCore(currentCustomizations, hideSquiggles);
+          assert.ok(result, `Should handle ${description} without crashing`);
+          // Should treat as invisible state (marker key exists) and restore
+          assert.strictEqual(
+            result.isAlreadyTransparent,
+            true,
+            `Should detect invisible state for ${description}`
+          );
+          // Transparent colors remain because transparentKeys is empty (invalid format)
+          assert.strictEqual(
+            result.newCustomizations["editorError.background"],
+            TRANSPARENT_COLOR,
+            `Should preserve transparent colors for ${description} (no transparentKeys to clear)`
+          );
+        });
+      });
     });
 
     it("should handle missing configuration values (use defaults)", () => {
@@ -966,7 +968,7 @@ describe("restoreAndCleanup", () => {
   });
 
   describe("edge cases", () => {
-    it("should handle JSON primitive in originalColors (manual edit edge case)", () => {
+    describe("should handle JSON primitive in originalColors (manual edit edge case)", () => {
       // If someone manually edits settings to put a JSON primitive instead of object,
       // the code should handle it gracefully without throwing TypeError on `in` operator
       const testCases = [
@@ -977,28 +979,30 @@ describe("restoreAndCleanup", () => {
         { value: "[1, 2, 3]", description: "array" },
       ];
 
-      for (const { value, description } of testCases) {
-        const customizations: Record<string, string | undefined> = {
-          "editorError.background": TRANSPARENT_COLOR,
-          [ORIGINAL_COLORS_KEY]: value,
-        };
+      testCases.forEach(({ value, description }) => {
+        it(`handles ${description}`, () => {
+          const customizations: Record<string, string | undefined> = {
+            "editorError.background": TRANSPARENT_COLOR,
+            [ORIGINAL_COLORS_KEY]: value,
+          };
 
-        // Should not throw TypeError
-        const result = restoreAndCleanup(customizations);
-        assert.ok(result, `Should return result for ${description}`);
-        // Marker key should be cleared
-        assert.strictEqual(
-          result![ORIGINAL_COLORS_KEY],
-          undefined,
-          `Should clear marker key for ${description}`
-        );
-        // Transparent colors remain (transparentKeys is empty due to invalid format)
-        assert.strictEqual(
-          result!["editorError.background"],
-          TRANSPARENT_COLOR,
-          `Should preserve transparent colors for ${description} (no transparentKeys to clear)`
-        );
-      }
+          // Should not throw TypeError
+          const result = restoreAndCleanup(customizations);
+          assert.ok(result, `Should return result for ${description}`);
+          // Marker key should be cleared
+          assert.strictEqual(
+            result![ORIGINAL_COLORS_KEY],
+            undefined,
+            `Should clear marker key for ${description}`
+          );
+          // Transparent colors remain (transparentKeys is empty due to invalid format)
+          assert.strictEqual(
+            result!["editorError.background"],
+            TRANSPARENT_COLOR,
+            `Should preserve transparent colors for ${description} (no transparentKeys to clear)`
+          );
+        });
+      });
     });
 
     it("should handle empty stored data", () => {

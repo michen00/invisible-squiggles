@@ -42,6 +42,23 @@ const HIDE_KEY_BY_TYPE: Record<
 };
 
 /**
+ * Clears any squiggle color keys that are not in storedColors.
+ * This ensures manually-edited colors are ignored when restoring.
+ * @param customizations - The customizations object to modify
+ * @param storedColors - The stored colors object to check against
+ */
+function clearStaleSquiggleColors(
+  customizations: Record<string, string | null | undefined>,
+  storedColors: Record<string, unknown>
+): void {
+  ALL_SQUIGGLE_COLOR_KEYS.forEach((key) => {
+    if (typeof customizations[key] === "string" && !(key in storedColors)) {
+      customizations[key] = undefined;
+    }
+  });
+}
+
+/**
  * Checks if configured squiggle colors are currently set to transparent.
  * Used to determine initial status bar state on activation.
  * @param currentCustomizations - Current workbench color customizations
@@ -204,11 +221,7 @@ export function toggleSquigglesCore(
     // Clear any squiggle colors not in storedColors (whether transparent or not)
     // This ensures manually-edited colors during the invisible state are ignored when restoring
     // (If stuck without marker, storedColors is empty so this clears ALL squiggle colors)
-    ALL_SQUIGGLE_COLOR_KEYS.forEach((key) => {
-      if (typeof newCustomizations[key] === "string" && !(key in storedColors)) {
-        newCustomizations[key] = undefined;
-      }
-    });
+    clearStaleSquiggleColors(newCustomizations, storedColors);
 
     // Mark marker key for removal. Using `null` signals "remove this key" to VS Code.
     // Note: `restoreAndCleanup` will convert this to `undefined` on next activation.
@@ -279,11 +292,7 @@ export function restoreAndCleanup(
 
   // Clear any squiggle colors not in storedColors (whether transparent or not)
   // This ensures manually-edited colors are ignored when restoring
-  ALL_SQUIGGLE_COLOR_KEYS.forEach((key) => {
-    if (typeof newCustomizations[key] === "string" && !(key in storedColors)) {
-      newCustomizations[key] = undefined;
-    }
-  });
+  clearStaleSquiggleColors(newCustomizations, storedColors);
 
   // Remove the marker key
   newCustomizations[ORIGINAL_COLORS_KEY] = undefined;

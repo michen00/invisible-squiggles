@@ -3,8 +3,8 @@ extends: default
 
 yaml-files:
   - .yamllint
-  - "*.yaml"
-  - "*.yml"
+  - '*.yaml'
+  - '*.yml'
 
 rules:
   comments:

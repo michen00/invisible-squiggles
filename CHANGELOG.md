@@ -6,6 +6,29 @@ All notable changes will be documented in this file. See [conventional commits](
 
 The format is based on [Keep a Changelog](https://keepachangelog.com) and this project adheres to [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+### ✨ Features
+
+- **(icon.png)** optimize the icon - ([f67ac60](https://github.com/michen00/invisible-squiggles/commit/f67ac608b0f37ece5ff044cf785ce312ba321c7e)) - [@michen00](https://github.com/michen00)
+- improve fallback - ([9280750](https://github.com/michen00/invisible-squiggles/commit/92807504c06845971345dde525e714c7ccfe3e49)) - [@michen00](https://github.com/michen00)
+
+### 🐛 Fixes
+
+- **(scripts/update-unreleased.sh)** fix cleanup - ([42659d3](https://github.com/michen00/invisible-squiggles/commit/42659d30c46c62d87c708178111248b867cd9b16)) - [@michen00](https://github.com/michen00)
+- **(update-unreleased.sh)** fix commit flag - ([16723e6](https://github.com/michen00/invisible-squiggles/commit/16723e6979d7e202a59a410ffdb70e4b571958fa)) - [@michen00](https://github.com/michen00)
+- apply suggestions - ([c415f39](https://github.com/michen00/invisible-squiggles/commit/c415f3949c94ce7d8c9921e7ee00f11f08df2e78)) - [@michen00](https://github.com/michen00)
+- preserve partial staging - ([dfd5671](https://github.com/michen00/invisible-squiggles/commit/dfd5671faf219c0a0ed84d8bd54387a00338662d)) - [@michen00](https://github.com/michen00)
+- fix argument parsing - ([61b24af](https://github.com/michen00/invisible-squiggles/commit/61b24af27c43698e65f89a9c5d46131d9c281514)) - [@michen00](https://github.com/michen00)
+
+### ⏪️ Revert
+
+- **(cliff.toml)** restore several changes - ([752f267](https://github.com/michen00/invisible-squiggles/commit/752f26701aa15c571430a959b5472b8387a7e7b3)) - [@michen00](https://github.com/michen00)
+
+### 👥 Contributors
+
+- [@michen00](https://github.com/michen00) | [Michael I Chen](mailto:michael.chen.0@gmail.com)
+
 ## [0.3.1](https://github.com/michen00/invisible-squiggles/compare/v0.3.0..v0.3.1) - 2026-01-11
 
 ### 🐛 Fixes

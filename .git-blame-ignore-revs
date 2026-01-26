@@ -20,3 +20,4 @@ a54d01f8ad9acbce301fd957707b73b00d9bd6ef  # style(Makefile): adjust indentation
 a150fa92d545c291b80e94d50d1a6466c69bc908  # style(src/extension.ts): add a line break
 f63ccb4ed0dc8ef02a19892c9d7907babeaed4ca  # ci: edit line breaks
 dd491d212aa5d82b907e4ac362f57d04c79c2f66  # style: add whitespace
+1332851a6846d9f3189feb757a5c585255fa8867  # style(.yamllint): use single quotes

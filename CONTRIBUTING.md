@@ -15,6 +15,7 @@ The project has defined a [code of conduct](https://github.com/michen00/.github/
 
 ## TODO
 
+- add an option to always start with squiggles hidden
 - update the demo on README.md for the eyeball status bar feature
 - refactor code: optimizations and improvements are welcome
 - expose the status message duration as a configuration option (`vscode.window.setStatusBarMessage(message, 2500);`)

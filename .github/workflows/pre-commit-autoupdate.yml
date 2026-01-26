@@ -2,7 +2,7 @@
 name: pre-commit autoupdate
 on:
   schedule:
-    - cron: "0 0 * * 1" # Run every Monday at 00:00
+    - cron: '0 0 * * 1' # Run every Monday at 00:00
   workflow_dispatch:
 
 permissions:
@@ -56,11 +56,11 @@ jobs:
       - name: Push changes and create PR
         uses: peter-evans/create-pull-request@v8
         with:
-          branch: "${{ env.BRANCH_NAME }}"
+          branch: '${{ env.BRANCH_NAME }}'
           sign-commits: true
-          title: "chore: autoupdate pre-commit hooks"
+          title: 'chore: autoupdate pre-commit hooks'
           body: |
             This PR updates pre-commit hooks to their latest versions.
-          commit-message: "chore(pre-commit): bump hook versions"
+          commit-message: 'chore(pre-commit): bump hook versions'
           delete-branch: true
           base: main

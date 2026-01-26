@@ -1,8 +1,7 @@
 ---
 name: pre-commit autoupdate
+
 on:
-  schedule:
-    - cron: "0 0 * * 1" # Run every Monday at 00:00
   workflow_dispatch:
 
 permissions:
@@ -10,15 +9,20 @@ permissions:
   pull-requests: write
   id-token: write
 
-env:
-  BRANCH_NAME: chore/pre-commit-autoupdate-workflow
+concurrency:
+  group: pre-commit-autoupdate
+  cancel-in-progress: true
 
 jobs:
   pre-commit-autoupdate:
     runs-on: ubuntu-latest
+    env:
+      BRANCH_NAME: chore/pre-commit-autoupdate
+      PRECOMMIT_CONFIG_FILE: .pre-commit-config.yaml
     steps:
       - uses: actions/checkout@v6
       - name: Set up Python
+        id: setup-python
         uses: actions/setup-python@v6
         with:
           check-latest: true
@@ -34,33 +38,77 @@ jobs:
           CACHE_NUMBER: 0
         with:
           path: ~/.cache/pre-commit
-          key: ${{ runner.os }}-precommit-${{ hashFiles('.pre-commit-config.yaml') }}-${{ env.CACHE_NUMBER }} # yamllint disable-line rule:line-length
-      - name: Install pre-commit hooks
-        if: steps.cache-pre-commit.outputs.cache-hit != 'true'
-        run: |
-          pre-commit install
+          key: >
+            ${{ runner.os }}-precommit-
+            py${{ steps.setup-python.outputs.python-version }}-
+            ${{ hashFiles(env.PRECOMMIT_CONFIG_FILE) }}-
+            ${{ env.CACHE_NUMBER }}
       - name: Update pre-commit hooks
         id: autoupdate-pre-commit
         run: |
-          OUTPUT=$(pre-commit autoupdate || echo "autoupdate failed")
-          echo "$OUTPUT"
-          if [[ "$OUTPUT" == *"No updates available"* ]]; then
+          set -euo pipefail
+          echo "::info::Updating pre-commit hooks..."
+          pre-commit autoupdate
+          if git diff --quiet ${{ env.PRECOMMIT_CONFIG_FILE }}; then
+            echo "::info::No changes to commit"
             exit 0
           fi
+          echo "has_updates=true" >> "$GITHUB_OUTPUT"
+          echo "::info::Pre-commit hooks updated"
       - name: Test updated pre-commit hooks
+        if: steps.autoupdate-pre-commit.outputs.has_updates == 'true'
         run: |
+          set -euo pipefail
+          echo "::info::Testing updated pre-commit hooks..."
           if ! pre-commit run --all-files; then
-            echo "Pre-commit hooks failed. Please review the log for details." >&2
+            echo "::error::Pre-commit hooks failed. Please review the log for details." >&2
             exit 1
           fi
-      - name: Push changes and create PR
-        uses: peter-evans/create-pull-request@v8
+          echo "::info::All pre-commit hooks passed"
+      - name: Set up Git
+        id: setup-git
+        if: steps.autoupdate-pre-commit.outputs.has_updates == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DEFAULT="${{ github.event.repository.default_branch }}"
+          if [ -z "$DEFAULT" ]; then
+            echo "::error::No default branch defined by GitHub. Repository is in an invalid state."
+            exit 1
+          fi
+          echo "::info::Default branch: $DEFAULT"
+
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+
+          git fetch origin "$DEFAULT"
+          git switch -c ${{ env.BRANCH_NAME }} "origin/$DEFAULT"
+          git add ${{ env.PRECOMMIT_CONFIG_FILE }}
+          echo "default_branch=$DEFAULT" >> "$GITHUB_OUTPUT"
+      - name: Commit changes
+        if: steps.autoupdate-pre-commit.outputs.has_updates == 'true'
+        uses: iarekylew00t/verified-bot-commit@v2
         with:
-          branch: "${{ env.BRANCH_NAME }}"
-          sign-commits: true
-          title: "chore: autoupdate pre-commit hooks"
-          body: |
-            This PR updates pre-commit hooks to their latest versions.
-          commit-message: "chore(pre-commit): bump hook versions"
-          delete-branch: true
-          base: main
+          message: 'chore(pre-commit): bump hook versions'
+          files: |
+            ${{ env.PRECOMMIT_CONFIG_FILE }}
+      - name: Push changes and create PR
+        if: steps.autoupdate-pre-commit.outputs.has_updates == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH_NAME="${{ env.BRANCH_NAME }}"
+          git push -u origin "$BRANCH_NAME" --force-with-lease
+
+          pr_state=$(gh pr view "$BRANCH_NAME" --state all --json state --jq '.state' 2>/dev/null || echo "MISSING")
+          if [ "$pr_state" = "OPEN" ]; then
+            echo "::info::PR already exists for branch $BRANCH_NAME"
+            exit 0
+          fi
+          echo "::info::Creating PR for branch $BRANCH_NAME"
+
+          gh pr create \
+            --base ${{ steps.setup-git.outputs.default_branch }} \
+            --head "$BRANCH_NAME" \
+            --title 'chore(pre-commit): autoupdate hook versions' \
+            --body 'This PR updates pre-commit hooks to their latest released versions.'

@@ -1,0 +1,35 @@
+---
+name: Detect bot author
+description: Check if the issue or PR author is a bot
+
+outputs:
+  is-bot:
+    description: "'true' if the author is a bot, 'false' otherwise"
+    value: ${{ steps.bot-author-check.outputs.result }}
+
+runs:
+  using: composite
+  steps:
+    - name: detect bot author
+      id: bot-author-check
+      uses: actions/github-script@v8
+      with:
+        result-encoding: string
+        script: |
+          let user;
+          if (context.eventName === 'issues') {
+            user = context.payload.issue?.user;
+          } else if (context.eventName === 'pull_request') {
+            user = context.payload.pull_request?.user;
+          }
+
+          if (
+            user &&
+            (user.type === 'Bot' ||
+              (typeof user.login === 'string' && user.login.endsWith('[bot]')))
+          ) {
+            console.log('Bot user detected:', user.login);
+            return 'true';
+          }
+
+          return 'false';

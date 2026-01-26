@@ -2,18 +2,18 @@
 extends: default
 
 yaml-files:
-  - ".yamllint"
-  - "*.yaml"
-  - "*.yml"
+  - .yamllint
+  - '*.yaml'
+  - '*.yml'
 
 rules:
   comments:
     min-spaces-from-content: 1
   line-length:
     ignore: |
-      .github/workflows/dependabot-automerge.yml
       .github/workflows/greet-new-contributors.yml
-    max: 88
+      .github/workflows/pre-commit-autoupdate.yml
+    max: 100
     allow-non-breakable-words: true
     allow-non-breakable-inline-mappings: true
   truthy:

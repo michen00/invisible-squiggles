@@ -14,40 +14,22 @@ jobs:
   greeting:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v6
       - name: detect bot author
         id: bot-author-check
-        uses: actions/github-script@v8
-        with:
-          result-encoding: string
-          script: |
-            const isBotUser = (user) => {
-              if (!user) return false;
-              if (user.type === 'Bot') return true;
-              if (typeof user.login === 'string' && user.login.endsWith('[bot]')) return true;
-              return false;
-            };
-
-            if (context.eventName === 'issues') {
-              return isBotUser(context.payload.issue?.user) ? 'true' : 'false';
-            }
-
-            if (context.eventName === 'pull_request') {
-              return isBotUser(context.payload.pull_request?.user) ? 'true' : 'false';
-            }
-
-            return 'false';
+        uses: ./.github/actions/detect-bot-author
       - name: greet first interactions
-        if: steps.bot-author-check.outputs.result != 'true'
+        if: steps.bot-author-check.outputs.is-bot == 'false'
         uses: actions/first-interaction@v3
         with:
           issue_message: |
-            🎉 Welcome to the `template` community! 🎉
+            🎉 Welcome to the `invisible-squiggles` community! 🎉
 
             Thank you for your contribution! We appreciate your time and effort in submitting this issue. A maintainer will review it soon. If you have any questions, feel free to ask!
 
             Thank you for your cooperation 🙏
           pr_message: |
-            🎉 Welcome to the `template` community! 🎉
+            🎉 Welcome to the `invisible-squiggles` community! 🎉
 
             Thank you for your contribution! We appreciate your time and effort in submitting this pull request. A maintainer will review it soon. If you have any questions, feel free to ask!
 

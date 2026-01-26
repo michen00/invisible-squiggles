@@ -2,21 +2,21 @@
 version: 2
 updates:
   - package-ecosystem: npm
-    directory: "/"
+    directory: '/'
     schedule:
       interval: daily
     groups:
       major:
-        update-types: ["major"]
+        update-types: ['major']
       minor-patch:
-        update-types: ["minor", "patch"]
+        update-types: ['minor', 'patch']
     cooldown:
       semver-major-days: 30
   - package-ecosystem: github-actions
-    directory: "/"
+    directory: '/'
     schedule:
       interval: cron
-      cronjob: "0 0 1,15 * *" # 1st and 15th monthly at midnight UTC
+      cronjob: '0 0 1,15 * *' # 1st and 15th monthly at midnight UTC
     groups:
       actions:
-        patterns: ["*"]
+        patterns: ['*']

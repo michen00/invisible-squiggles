@@ -4,6 +4,14 @@ import sinon from "sinon";
 import { deactivate, ORIGINAL_COLORS_KEY, TRANSPARENT_COLOR } from "../../extension";
 import { clearConfigUpdateCalls, getConfigUpdateCalls, setMockConfig } from "./setup";
 
+/** Helper to create the stored data format */
+function makeStoredData(
+  originalColors: Record<string, string>,
+  transparentKeys: string[]
+): string {
+  return JSON.stringify({ originalColors, transparentKeys });
+}
+
 describe("deactivate", () => {
   afterEach(() => {
     sinon.restore();
@@ -21,12 +29,17 @@ describe("deactivate", () => {
         "editorError.border": "#ff0000",
         "editorError.foreground": "#ff0000",
       };
+      const transparentKeys = [
+        "editorError.background",
+        "editorError.border",
+        "editorError.foreground",
+      ];
 
       setMockConfig("workbench", "colorCustomizations", {
         "editorError.background": TRANSPARENT_COLOR,
         "editorError.border": TRANSPARENT_COLOR,
         "editorError.foreground": TRANSPARENT_COLOR,
-        [ORIGINAL_COLORS_KEY]: JSON.stringify(originalColors),
+        [ORIGINAL_COLORS_KEY]: makeStoredData(originalColors, transparentKeys),
       });
 
       // Call deactivate
@@ -66,13 +79,19 @@ describe("deactivate", () => {
 
     it("should clear transparent colors that have no stored original", async () => {
       // Set up: transparent colors exist but only some have stored originals
+      const originalColors = {
+        "editorError.background": "#ff0000", // Only this has a stored original
+      };
+      const transparentKeys = [
+        "editorError.background",
+        "editorError.border",
+        "editorError.foreground",
+      ];
       setMockConfig("workbench", "colorCustomizations", {
         "editorError.background": TRANSPARENT_COLOR,
         "editorError.border": TRANSPARENT_COLOR, // No stored original for this
         "editorError.foreground": TRANSPARENT_COLOR, // No stored original for this
-        [ORIGINAL_COLORS_KEY]: JSON.stringify({
-          "editorError.background": "#ff0000", // Only this has a stored original
-        }),
+        [ORIGINAL_COLORS_KEY]: makeStoredData(originalColors, transparentKeys),
       });
 
       await deactivate();
@@ -159,13 +178,13 @@ describe("deactivate", () => {
     });
 
     it("should preserve non-squiggle customizations during restoration", async () => {
+      const originalColors = { "editorError.background": "#ff0000" };
+      const transparentKeys = ["editorError.background"];
       setMockConfig("workbench", "colorCustomizations", {
         "editorError.background": TRANSPARENT_COLOR,
         "custom.userSetting": "#123456", // Non-squiggle customization
         "anotherCustom.color": "#abcdef",
-        [ORIGINAL_COLORS_KEY]: JSON.stringify({
-          "editorError.background": "#ff0000",
-        }),
+        [ORIGINAL_COLORS_KEY]: makeStoredData(originalColors, transparentKeys),
       });
 
       await deactivate();
@@ -202,6 +221,7 @@ describe("deactivate", () => {
         "editorHint.border": "#00ff00",
         "editorHint.foreground": "#00ff00",
       };
+      const transparentKeys = Object.keys(originalColors);
 
       setMockConfig("workbench", "colorCustomizations", {
         "editorError.background": TRANSPARENT_COLOR,
@@ -215,7 +235,7 @@ describe("deactivate", () => {
         "editorInfo.foreground": TRANSPARENT_COLOR,
         "editorHint.border": TRANSPARENT_COLOR,
         "editorHint.foreground": TRANSPARENT_COLOR,
-        [ORIGINAL_COLORS_KEY]: JSON.stringify(originalColors),
+        [ORIGINAL_COLORS_KEY]: makeStoredData(originalColors, transparentKeys),
       });
 
       await deactivate();

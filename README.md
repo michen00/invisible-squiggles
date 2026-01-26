@@ -43,4 +43,10 @@ Click the **👁️ Toggle Squiggles** button at the **bottom right**.
 1. Type **`Toggle Squiggles`**.
 1. Select the command to hide/show squiggles.
 
+## ⚠️ Important Notes
+
+- **Manual edits will be overwritten**: When squiggles are hidden, the extension stores your original color customizations and applies transparent colors. Toggling squiggles will overwrite any manual changes you make to these colors while they're hidden.
+- **Customizations stored in settings**: Your original color customizations are saved in VS Code's `settings.json`. If this file becomes corrupted, your saved customizations may be lost.
+- Users who upgrade while squiggles are hidden may need to toggle twice to reset state.
+
 ## 🔹 Documentation [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/michen00/invisible-squiggles)

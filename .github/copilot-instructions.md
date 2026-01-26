@@ -30,7 +30,8 @@ Make targets mirror these (`make help`). Use `make build-vsix` / `make install-v
 ## Development Flow
 
 - Edit `src/extension.ts`; prefer single-file changes.
-- Run `npm run watch` while coding; reload VSCode window (`Cmd/Ctrl+R`) in the Extension Dev Host (F5) to test “Toggle Squiggles”.
+- Run `npm run watch` while coding; reload VSCode window (`Cmd/Ctrl+R`) in the Extension Dev Host (F5) to test "Toggle Squiggles".
+- After installing a `.vsix` (via `make install-vsix`), run **Developer: Reload Window** (`Cmd/Ctrl+Shift+P`) to load the new version.
 - Before commit: `npm run compile`; manual sanity check via F5 is recommended.
 
 ## Behavior / Architecture

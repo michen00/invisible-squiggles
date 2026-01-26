@@ -20,6 +20,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        id: setup-python
+        with:
+          check-latest: true
+          cache: pip
       - name: Install pre-commit
         run: |
           pip install --upgrade pip
@@ -31,7 +36,11 @@ jobs:
           CACHE_NUMBER: 0
         with:
           path: ~/.cache/pre-commit
-          key: ${{ runner.os }}-precommit-${{ hashFiles('.pre-commit-config.yaml') }}-${{ env.CACHE_NUMBER }} # yamllint disable-line rule:line-length
+          key: >
+            ${{ runner.os }}-precommit-
+            ${{ steps.setup-python.outputs.python-version }}-
+            ${{ hashFiles('.pre-commit-config.yaml') }}-
+            ${{ env.CACHE_NUMBER }}
       - name: Install pre-commit hooks
         if: steps.cache-pre-commit-hooks.outputs.cache-hit != 'true'
         run: |
@@ -96,7 +105,7 @@ jobs:
         os: [ubuntu-latest, macos-latest]
         vscode:
           - ${{ needs.get-vscode-version.outputs.min }}
-          - 'stable'
+          - stable
     steps:
       - name: Checkout
         uses: actions/checkout@v6

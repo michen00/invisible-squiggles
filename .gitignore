@@ -1,5 +1,5 @@
 ###################################################################################
-# This .gitignore is composed of the following templates (retrieved 2026-01-08):
+# This .gitignore is composed of the following templates (retrieved 2026-01-25):
 # - https://github.com/github/gitignore/blob/main/Node.gitignore
 # - https://github.com/github/gitignore/blob/main/Global/Cursor.gitignore
 # - https://github.com/github/gitignore/blob/main/Global/Eclipse.gitignore
@@ -1094,4 +1094,6 @@ Backup of *.doc*
 *.rej
 
 # End of https://github.com/github/gitignore/blob/main/Global/Patch.gitignore
+
+.claude/settings.local.json
 !.gitkeep

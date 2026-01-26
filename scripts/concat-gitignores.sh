@@ -176,5 +176,6 @@ else
   echo "Unknown OS: unable to ensure single trailing newline"
 fi
 
+echo -e "\n.claude/settings.local.json" >> "$OUTPUT_FILE"
 echo -e "!.gitkeep" >> "$OUTPUT_FILE"
 echo "Combined .gitignore created as $OUTPUT_FILE"

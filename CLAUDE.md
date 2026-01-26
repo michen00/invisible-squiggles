@@ -8,6 +8,8 @@ Guidance for Claude Code. For full details, see `AGENTS.md`.
 npm run compile      # Build (type-check + lint + bundle)
 npm run test:unit    # Fast tests (<5s, no VSCode needed)
 npm run package      # Production build
+make build-vsix      # Package vsix (strips SVG badges)
+make install-vsix    # Build + install locally
 ```
 
 ## What This Extension Does

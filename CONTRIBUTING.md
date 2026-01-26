@@ -15,9 +15,9 @@ The project has defined a [code of conduct](https://github.com/michen00/.github/
 
 ## TODO
 
+- add an option to always start with squiggles hidden
 - update the demo on README.md for the eyeball status bar feature
 - refactor code: optimizations and improvements are welcome
-- add a workflow to [update license copyright years](https://github.com/marketplace/actions/update-license-copyright-year-s#i-want-my-pull-requests-to-be-automatically-merged)
 - expose the status message duration as a configuration option (`vscode.window.setStatusBarMessage(message, 2500);`)
 
 <!-- omit in toc -->
@@ -137,6 +137,8 @@ npm run test:unit  # Run unit tests (fast, < 5 seconds)
 ```
 
 To test the extension manually, press `F5` in VSCode to launch an Extension Development Host.
+
+> **Important:** After installing a `.vsix` file, run **Developer: Reload Window** (Cmd/Ctrl+Shift+P) to ensure the new version loads. VSCode may cache the old extension otherwise.
 
 #### Committing your changes
 

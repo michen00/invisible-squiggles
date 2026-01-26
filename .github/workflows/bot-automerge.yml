@@ -1,0 +1,90 @@
+---
+name: Bot auto-merge
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+# A ruleset that requires status checks to pass should be configured for the repository.
+
+permissions:
+  contents: write
+  packages: read
+  pull-requests: write
+
+concurrency:
+  group: bot-automerge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  bot-automerge:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.actor == 'dependabot[bot]' || github.actor == 'pre-commit-ci[bot]')
+    timeout-minutes: 30
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Dependabot metadata
+        if: github.actor == 'dependabot[bot]'
+        id: dependabot
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ env.GITHUB_TOKEN }}
+      - name: Check merge eligibility
+        id: eligible
+        env:
+          ACTOR: ${{ github.actor }}
+          UPDATE_TYPE: ${{ steps.dependabot.outputs.update-type }}
+          HAS_DO_NOT_MERGE: ${{contains(github.event.pull_request.labels.*.name, 'do not auto-merge') }} # yamllint disable-line rule:line-length
+        run: |
+          if [ "$HAS_DO_NOT_MERGE" = "true" ]; then
+            echo "::warning::PR has 'do not auto-merge' label, skipping"
+            echo "should_merge=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$ACTOR" = "dependabot[bot]" ]; then
+            # Dependabot: only auto-merge patch/minor updates
+            if [ "$UPDATE_TYPE" = "version-update:semver-patch" ] || \
+               [ "$UPDATE_TYPE" = "version-update:semver-minor" ]; then
+              echo "::info::Dependabot patch/minor update, eligible for auto-merge"
+              echo "should_merge=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "::warning::Dependabot major update, skipping auto-merge"
+              echo "should_merge=false" >> "$GITHUB_OUTPUT"
+            fi
+          elif [ "$ACTOR" = "pre-commit-ci[bot]" ]; then
+            # pre-commit-ci: auto-merge all PRs (they're always hook updates)
+            echo "::info::pre-commit-ci PR, eligible for auto-merge"
+            echo "should_merge=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Wait for required checks
+        id: checks
+        if: steps.eligible.outputs.should_merge == 'true'
+        run: |
+          echo "::info::Waiting for required checks to pass..."
+          if gh pr checks "$PR_NUMBER" --required --watch --fail-fast; then
+            echo "::info::All required checks passed"
+            echo "checks_passed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Required checks failed"
+            exit 1
+          fi
+      - name: Approve PR
+        if: steps.checks.outputs.checks_passed == 'true'
+        run: |
+          REVIEW_STATE=$(gh pr view "$PR_NUMBER" --json reviewDecision -q .reviewDecision)
+          if [ "$REVIEW_STATE" != "APPROVED" ]; then
+            echo "::info::Approving PR..."
+            gh pr review --approve "$PR_NUMBER"
+          else
+            echo "::info::PR already approved."
+          fi
+      - name: Enable auto-merge
+        if: steps.eligible.outputs.should_merge == 'true'
+        run: |
+          echo "::info::Enabling auto-merge for PR #$PR_NUMBER"
+          gh pr merge --auto --squash "$PR_NUMBER"

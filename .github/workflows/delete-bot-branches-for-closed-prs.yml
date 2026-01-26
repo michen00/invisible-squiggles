@@ -1,0 +1,132 @@
+---
+name: Delete branch on PR close (bots only)
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: delete-branch-${{ github.repository }}-${{ github.event.pull_request.head.ref }}
+  cancel-in-progress: true
+
+jobs:
+  delete-branch:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.merged == false
+    steps:
+      - uses: actions/checkout@v6
+      - name: detect bot author
+        id: bot-author-check
+        uses: ./.github/actions/detect-bot-author
+      - name: Check branch eligibility
+        if: steps.bot-author-check.outputs.is-bot == 'true'
+        id: branch-check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Exit if branch is default branch
+          if [[ "$BRANCH" == "$(gh api "repos/${REPO}" --jq .default_branch)" ]]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Branch is default branch, skipping deletion"
+            exit 0
+          fi
+
+          # Exit if branch is protected
+          if gh api "repos/${REPO}/branches/${BRANCH}" \
+            --jq '.protected' 2>/dev/null | grep -qx true; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Branch is protected, skipping deletion"
+            exit 0
+          fi
+
+          echo "eligible=true" >> "$GITHUB_OUTPUT"
+          echo "::info::Branch is eligible for deletion"
+      - name: Check for 'do not auto-delete' label
+        if: >-
+          steps.bot-author-check.outputs.is-bot == 'true' &&
+          steps.branch-check.outputs.eligible == 'true'
+        id: label-check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          LABELS=$(gh api "repos/${REPO}/pulls/${PR_NUMBER}" \
+            --jq '.labels[].name' || echo "")
+          if echo "$LABELS" | grep -qx "do not auto-delete"; then
+            echo "has-do-not-delete-label=true" >> "$GITHUB_OUTPUT"
+            echo "::info::Label 'do not auto-delete' found, skipping deletion"
+          else
+            echo "has-do-not-delete-label=false" >> "$GITHUB_OUTPUT"
+            echo "::info::No 'do not auto-delete' label found"
+          fi
+      - name: Post deletion warning comment
+        if: >-
+          steps.bot-author-check.outputs.is-bot == 'true' &&
+          steps.branch-check.outputs.eligible == 'true' &&
+          steps.label-check.outputs.has-do-not-delete-label == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          gh pr comment "$PR_NUMBER" --body "⚠️ **Branch Deletion Warning**
+
+          This branch (\`$BRANCH\`) will be automatically deleted in 2 minutes.
+
+          To prevent deletion, add the \`do not auto-delete\` label to this PR \
+          before the deletion occurs."
+      - name: Wait 2 minutes
+        if: >-
+          steps.bot-author-check.outputs.is-bot == 'true' &&
+          steps.branch-check.outputs.eligible == 'true' &&
+          steps.label-check.outputs.has-do-not-delete-label == 'false'
+        run: |
+          echo "::info::Waiting 2 minutes before deletion..."
+          sleep 120
+      - name: Re-check label before deletion
+        if: >-
+          steps.bot-author-check.outputs.is-bot == 'true' &&
+          steps.branch-check.outputs.eligible == 'true' &&
+          steps.label-check.outputs.has-do-not-delete-label == 'false'
+        id: final-label-check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          LABELS=$(gh api "repos/${REPO}/pulls/${PR_NUMBER}" \
+            --jq '.labels[].name' || echo "")
+          if echo "$LABELS" | grep -qx "do not auto-delete"; then
+            echo "should-delete=false" >> "$GITHUB_OUTPUT"
+            echo "::info::Label 'do not auto-delete' was added during wait period, \
+              skipping deletion"
+          else
+            echo "should-delete=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::No 'do not auto-delete' label found, proceeding with deletion"
+          fi
+      - name: Delete PR head branch
+        if: >-
+          steps.bot-author-check.outputs.is-bot == 'true' &&
+          steps.branch-check.outputs.eligible == 'true' &&
+          steps.final-label-check.outputs.should-delete == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          REPO: ${{ github.repository }}
+        run: |
+          echo "::info::Deleting branch $BRANCH"
+          # Delete ref if it still exists
+          if gh api -X DELETE "repos/${REPO}/git/refs/heads/${BRANCH}" 2>&1; then
+            echo "::info::Branch $BRANCH deleted successfully"
+          else
+            echo "::warning::Branch $BRANCH may have already been deleted or does not exist"
+          fi

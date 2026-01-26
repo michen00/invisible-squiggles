@@ -96,7 +96,7 @@ jobs:
         os: [ubuntu-latest, macos-latest]
         vscode:
           - ${{ needs.get-vscode-version.outputs.min }}
-          - "stable"
+          - 'stable'
     steps:
       - name: Checkout
         uses: actions/checkout@v6

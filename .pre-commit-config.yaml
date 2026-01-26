@@ -50,7 +50,7 @@ repos:
     rev: v6.0.0
     hooks:
       - id: check-added-large-files
-        args: ["--maxkb=1024"]
+        args: ['--maxkb=1024']
       - id: check-case-conflict
       - id: check-executables-have-shebangs
       - id: check-merge-conflict
@@ -77,7 +77,7 @@ repos:
     rev: v0.47.0
     hooks:
       - id: markdownlint
-        args: ["--fix"]
+        args: ['--fix']
 
   # linting
   - repo: https://github.com/pre-commit/pre-commit-hooks

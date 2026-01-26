@@ -31,6 +31,55 @@ interface StoredSquiggleData {
 }
 
 /**
+ * Parses stored squiggle data from a JSON string.
+ * Handles validation and error cases, returning empty data on failure.
+ * @param storedJson - The JSON string to parse, or null/undefined if not present
+ * @param context - Optional context string for error messages (e.g., "during cleanup")
+ * @returns Parsed stored data, or empty data if parsing fails or format is invalid
+ */
+export function parseStoredData(
+  storedJson: string | null | undefined,
+  context?: string
+): StoredSquiggleData {
+  if (!storedJson || typeof storedJson !== "string") {
+    return { originalColors: {}, transparentKeys: [] };
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(storedJson);
+    // Validate it's a plain object (not null, array, or primitive)
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return { originalColors: {}, transparentKeys: [] };
+    }
+    const obj = parsed as Record<string, unknown>;
+    // Check if it's the new format with originalColors and transparentKeys
+    if ("originalColors" in obj && "transparentKeys" in obj) {
+      // Validate types: originalColors must be an object, transparentKeys must be an array
+      const originalColors = obj.originalColors;
+      const transparentKeys = obj.transparentKeys;
+      if (
+        originalColors !== null &&
+        typeof originalColors === "object" &&
+        !Array.isArray(originalColors) &&
+        transparentKeys !== null &&
+        Array.isArray(transparentKeys)
+      ) {
+        return {
+          originalColors: (originalColors as Record<string, string>) ?? {},
+          transparentKeys: (transparentKeys as string[]) ?? [],
+        };
+      }
+    }
+    // Invalid format
+    return { originalColors: {}, transparentKeys: [] };
+  } catch (error) {
+    const contextMsg = context ? ` ${context}` : "";
+    console.error(`Error parsing saved colors JSON${contextMsg}:`, error);
+    return { originalColors: {}, transparentKeys: [] };
+  }
+}
+
+/**
  * All squiggle color keys managed by this extension
  */
 const ALL_SQUIGGLE_COLOR_KEYS = SQUIGGLE_TYPES.flatMap((type) =>
@@ -160,32 +209,7 @@ export function toggleSquigglesCore(
   currentCustomizations: Record<string, string | null | undefined>,
   hideSquiggles: ToggleSquigglesConfig
 ): ToggleSquigglesResult {
-  const storedData = ((): StoredSquiggleData => {
-    const storedJson = currentCustomizations[ORIGINAL_COLORS_KEY];
-    if (!storedJson || typeof storedJson !== "string") {
-      return { originalColors: {}, transparentKeys: [] };
-    }
-    try {
-      const parsed: unknown = JSON.parse(storedJson);
-      // Validate it's a plain object (not null, array, or primitive)
-      if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-        return { originalColors: {}, transparentKeys: [] };
-      }
-      const obj = parsed as Record<string, unknown>;
-      // Check if it's the new format with originalColors and transparentKeys
-      if ("originalColors" in obj && "transparentKeys" in obj) {
-        return {
-          originalColors: (obj.originalColors as Record<string, string>) ?? {},
-          transparentKeys: (obj.transparentKeys as string[]) ?? [],
-        };
-      }
-      // Invalid format
-      return { originalColors: {}, transparentKeys: [] };
-    } catch (error) {
-      console.error("Error parsing saved colors JSON:", error);
-      return { originalColors: {}, transparentKeys: [] };
-    }
-  })();
+  const storedData = parseStoredData(currentCustomizations[ORIGINAL_COLORS_KEY]);
 
   const transparentColorsToApply = Object.fromEntries(
     SQUIGGLE_TYPES.flatMap((type) => {
@@ -287,24 +311,7 @@ export function restoreAndCleanup(
   }
 
   // Parse stored data
-  let storedData: StoredSquiggleData = { originalColors: {}, transparentKeys: [] };
-  try {
-    const parsed: unknown = JSON.parse(storedJson);
-    // Validate it's a plain object (not null, array, or primitive)
-    if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
-      const obj = parsed as Record<string, unknown>;
-      // Check if it's the new format with originalColors and transparentKeys
-      if ("originalColors" in obj && "transparentKeys" in obj) {
-        storedData = {
-          originalColors: (obj.originalColors as Record<string, string>) ?? {},
-          transparentKeys: (obj.transparentKeys as string[]) ?? [],
-        };
-      }
-      // Invalid format - storedData stays empty
-    }
-  } catch (error) {
-    console.error("Error parsing saved colors JSON during cleanup:", error);
-  }
+  const storedData = parseStoredData(storedJson, "during cleanup");
 
   const newCustomizations = { ...currentCustomizations };
 

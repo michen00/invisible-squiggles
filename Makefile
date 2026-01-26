@@ -154,10 +154,22 @@ release: ## Create a GitHub release (VERSION=vX.Y.Z)
 	@git rev-parse --verify refs/tags/$(VERSION) >/dev/null 2>&1 || { echo "Error: Tag $(VERSION) does not exist"; exit 1; }
 	gh release create $(VERSION) --generate-notes --discussion-category "Announcements"
 
-.PHONY: check
-check: install ## Run checks and tests
+.PHONY: test
+test: install ## Run tests
+	npm run pretest
 	npm run test
 	scripts/test-prepare-readme.sh
+
+.PHONY: lint
+lint: install ## Run linters
+	npm run lint
+
+.PHONY: format
+format: lint run-pre-commit ## Run code formatters
+
+.PHONY: check
+check: format test ## Run checks and tests
+	npm run check-types
 
 .PHONY: clean
 TO_REMOVE := \

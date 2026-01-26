@@ -83,15 +83,15 @@ describe("deactivate", () => {
       // Stored original should be restored
       assert.strictEqual(newCustomizations["editorError.background"], "#ff0000");
 
-      // Transparent colors without stored originals should be cleared (null signals VS Code to remove)
+      // Transparent colors without stored originals should be cleared (undefined)
       assert.strictEqual(
         newCustomizations["editorError.border"],
-        null,
+        undefined,
         "Transparent border with no original should be cleared"
       );
       assert.strictEqual(
         newCustomizations["editorError.foreground"],
-        null,
+        undefined,
         "Transparent foreground with no original should be cleared"
       );
     });

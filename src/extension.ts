@@ -116,8 +116,8 @@ export interface ToggleSquigglesConfig {
  * Result interface for toggleSquigglesCore
  */
 export interface ToggleSquigglesResult {
-  // VS Code ignores `undefined` values during config.update(), so we use `null` to signal removal.
-  // - Color keys (e.g., editorError.background): set to `null` to remove from settings
+  // VS Code can retain old workbench.colorCustomizations keys when updating objects.
+  // - Color keys (e.g., editorError.background): set to `undefined` to clear
   // - Marker key (ORIGINAL_COLORS_KEY): set to `null` to mark for removal,
   //   then `restoreAndCleanup` converts to `undefined` on next activation
   newCustomizations: Record<string, string | null | undefined>;
@@ -204,10 +204,9 @@ export function toggleSquigglesCore(
     // Clear any squiggle colors not in storedColors (whether transparent or not)
     // This ensures manually-edited colors during the invisible state are ignored when restoring
     // (If stuck without marker, storedColors is empty so this clears ALL squiggle colors)
-    // Using `null` signals VS Code to remove these keys from settings (undefined is ignored)
     ALL_SQUIGGLE_COLOR_KEYS.forEach((key) => {
       if (typeof newCustomizations[key] === "string" && !(key in storedColors)) {
-        newCustomizations[key] = null;
+        newCustomizations[key] = undefined;
       }
     });
 
@@ -280,10 +279,9 @@ export function restoreAndCleanup(
 
   // Clear any squiggle colors not in storedColors (whether transparent or not)
   // This ensures manually-edited colors are ignored when restoring
-  // Using `null` signals VS Code to remove these keys from settings (undefined is ignored)
   ALL_SQUIGGLE_COLOR_KEYS.forEach((key) => {
     if (typeof newCustomizations[key] === "string" && !(key in storedColors)) {
-      newCustomizations[key] = null;
+      newCustomizations[key] = undefined;
     }
   });
 

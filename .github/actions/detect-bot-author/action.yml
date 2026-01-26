@@ -16,12 +16,8 @@ runs:
       with:
         result-encoding: string
         script: |
-          let user;
-          if (context.eventName === 'issues') {
-            user = context.payload.issue?.user;
-          } else if (context.eventName === 'pull_request') {
-            user = context.payload.pull_request?.user;
-          }
+          const { issue, pull_request: pullRequest } = context.payload;
+          const user = issue?.user || pullRequest?.user;
 
           if (
             user &&

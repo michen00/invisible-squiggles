@@ -22,7 +22,7 @@ runs:
           if (
             user &&
             (user.type === 'Bot' ||
-              (typeof user.login === 'string' && user.login.endsWith('[bot]')))
+              (typeof user.login === 'string' && user.login.toLowerCase().endsWith('[bot]')))
           ) {
             console.log('Bot user detected:', user.login);
             return 'true';

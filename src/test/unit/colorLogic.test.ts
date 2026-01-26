@@ -55,14 +55,16 @@ describe("Color Logic", () => {
       const result = toggleSquigglesCore(currentCustomizations, hideSquiggles);
 
       // Check that original colors are saved in invisibleSquiggles.originalColors
-      const savedColorsJson = result.newCustomizations["invisibleSquiggles.originalColors"];
-      assert.ok(savedColorsJson);
-      assert.strictEqual(typeof savedColorsJson, "string");
+      const savedDataJson = result.newCustomizations["invisibleSquiggles.originalColors"];
+      assert.ok(savedDataJson);
+      assert.strictEqual(typeof savedDataJson, "string");
 
-      const savedColors = JSON.parse(savedColorsJson as string);
-      assert.strictEqual(savedColors["editorError.background"], "#ff0000");
-      assert.strictEqual(savedColors["editorError.border"], "#ff0000");
-      assert.strictEqual(savedColors["editorError.foreground"], "#ff0000");
+      const savedData = JSON.parse(savedDataJson as string);
+      assert.ok(savedData.originalColors, "Should have originalColors");
+      assert.ok(savedData.transparentKeys, "Should have transparentKeys");
+      assert.strictEqual(savedData.originalColors["editorError.background"], "#ff0000");
+      assert.strictEqual(savedData.originalColors["editorError.border"], "#ff0000");
+      assert.strictEqual(savedData.originalColors["editorError.foreground"], "#ff0000");
     });
 
     it("should restore original colors when squiggles are already transparent", () => {
@@ -70,12 +72,18 @@ describe("Color Logic", () => {
         "editorError.background": "#ff0000",
         "editorError.border": "#ff0000",
       };
+      const transparentKeys = [
+        "editorError.background",
+        "editorError.border",
+        "editorError.foreground",
+      ];
+      const storedData = JSON.stringify({ originalColors, transparentKeys });
 
       const currentCustomizations: Record<string, string | undefined> = {
         "editorError.background": TRANSPARENT_COLOR,
         "editorError.border": TRANSPARENT_COLOR,
         "editorError.foreground": TRANSPARENT_COLOR,
-        "invisibleSquiggles.originalColors": JSON.stringify(originalColors),
+        "invisibleSquiggles.originalColors": storedData,
       };
 
       const hideSquiggles: ToggleSquigglesConfig = {

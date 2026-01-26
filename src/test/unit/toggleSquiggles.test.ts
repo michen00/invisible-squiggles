@@ -9,6 +9,14 @@ import {
   TRANSPARENT_COLOR,
 } from "../../extension";
 
+/** Helper to create the stored data format */
+function makeStoredData(
+  originalColors: Record<string, string>,
+  transparentKeys: string[]
+): string {
+  return JSON.stringify({ originalColors, transparentKeys });
+}
+
 describe("toggleSquigglesCore", () => {
   // Ensure all sinon stubs/spies are restored after each test
   afterEach(() => {
@@ -42,11 +50,16 @@ describe("toggleSquigglesCore", () => {
         "editorError.border": "#ff0000",
         "editorError.foreground": "#ff0000",
       };
+      const transparentKeys = [
+        "editorError.background",
+        "editorError.border",
+        "editorError.foreground",
+      ];
       const currentCustomizations: Record<string, string | undefined> = {
         "editorError.background": TRANSPARENT_COLOR,
         "editorError.border": TRANSPARENT_COLOR,
         "editorError.foreground": TRANSPARENT_COLOR,
-        "invisibleSquiggles.originalColors": JSON.stringify(originalColors),
+        "invisibleSquiggles.originalColors": makeStoredData(originalColors, transparentKeys),
       };
 
       const hideSquiggles: ToggleSquigglesConfig = {
@@ -85,10 +98,10 @@ describe("toggleSquigglesCore", () => {
       // Should not throw, should fall back to empty object
       const result = toggleSquigglesCore(currentCustomizations, hideSquiggles);
       assert.ok(result);
-      // Should still restore (but with empty stored colors)
+      // Should still restore (but with empty stored colors, so nothing to clear)
       assert.strictEqual(result.isAlreadyTransparent, true);
-      // Transparent colors should be removed
-      assert.strictEqual(result.newCustomizations["editorError.background"], undefined);
+      // Transparent colors remain because transparentKeys is empty (invalid JSON)
+      assert.strictEqual(result.newCustomizations["editorError.background"], TRANSPARENT_COLOR);
 
       assert.ok(
         consoleErrorStub.called,
@@ -136,11 +149,11 @@ describe("toggleSquigglesCore", () => {
           true,
           `Should detect invisible state for ${description}`
         );
-        // Transparent colors should be cleared since storedColors is empty/invalid
+        // Transparent colors remain because transparentKeys is empty (invalid format)
         assert.strictEqual(
           result.newCustomizations["editorError.background"],
-          undefined,
-          `Should clear transparent colors for ${description}`
+          TRANSPARENT_COLOR,
+          `Should preserve transparent colors for ${description} (no transparentKeys to clear)`
         );
       }
     });
@@ -261,8 +274,21 @@ describe("toggleSquigglesCore", () => {
       );
     });
 
-    it("should clear stale transparent colors when no stored original exists", () => {
-      // Edge case: transparent color exists but wasn't in originalColors
+    it("should clear transparent colors in transparentKeys even if not in originalColors", () => {
+      // Edge case: a key is in transparentKeys but not in originalColors
+      // (user had no color before, we made it transparent, now we restore)
+      const originalColors = {
+        "editorWarning.background": "#ffaa00",
+        // No Error colors in originals (user had none before hiding)
+      };
+      const transparentKeys = [
+        "editorError.background",
+        "editorError.border",
+        "editorError.foreground",
+        "editorWarning.background",
+        "editorWarning.border",
+        "editorWarning.foreground",
+      ];
       const customizations: Record<string, string | undefined> = {
         "editorError.background": TRANSPARENT_COLOR,
         "editorError.border": TRANSPARENT_COLOR,
@@ -270,16 +296,11 @@ describe("toggleSquigglesCore", () => {
         "editorWarning.background": TRANSPARENT_COLOR,
         "editorWarning.border": TRANSPARENT_COLOR,
         "editorWarning.foreground": TRANSPARENT_COLOR,
-        // originalColors only has Warning (simulating a partial save)
-        "invisibleSquiggles.originalColors": JSON.stringify({
-          "editorWarning.background": "#ffaa00",
-          "editorWarning.border": "#ffaa00",
-          "editorWarning.foreground": "#ffaa00",
-        }),
+        "invisibleSquiggles.originalColors": makeStoredData(originalColors, transparentKeys),
       };
 
       const config: ToggleSquigglesConfig = {
-        hideErrors: false, // Not configured
+        hideErrors: true,
         hideWarnings: true,
         hideInfo: false,
         hideHint: false,
@@ -293,11 +314,11 @@ describe("toggleSquigglesCore", () => {
         "#ffaa00"
       );
 
-      // Error has no stored original, so should be cleared (undefined)
+      // Error was in transparentKeys but not in originalColors, so it's cleared (undefined)
       assert.strictEqual(
         result.newCustomizations["editorError.background"],
         undefined,
-        "Stale transparent colors with no stored original should be cleared"
+        "Transparent colors with no stored original should be cleared"
       );
     });
 
@@ -315,6 +336,14 @@ describe("toggleSquigglesCore", () => {
         "editorWarning.border": "#ffaa00",
         "editorWarning.foreground": "#ffaa00",
       };
+      const transparentKeys = [
+        "editorError.background",
+        "editorError.border",
+        "editorError.foreground",
+        "editorWarning.background",
+        "editorWarning.border",
+        "editorWarning.foreground",
+      ];
 
       const customizations: Record<string, string | undefined> = {
         "editorError.background": TRANSPARENT_COLOR,
@@ -323,7 +352,7 @@ describe("toggleSquigglesCore", () => {
         "editorWarning.background": TRANSPARENT_COLOR,
         "editorWarning.border": TRANSPARENT_COLOR,
         "editorWarning.foreground": TRANSPARENT_COLOR,
-        "invisibleSquiggles.originalColors": JSON.stringify(originalColors),
+        "invisibleSquiggles.originalColors": makeStoredData(originalColors, transparentKeys),
       };
 
       // ALL hide flags disabled while squiggles are invisible
@@ -370,6 +399,7 @@ describe("toggleSquigglesCore", () => {
         "editorInfo.border": "#00aaff",
         "editorInfo.foreground": "#00aaff",
       };
+      const transparentKeys = Object.keys(originalColors);
 
       const customizations: Record<string, string | undefined> = {
         "editorError.background": TRANSPARENT_COLOR,
@@ -381,7 +411,7 @@ describe("toggleSquigglesCore", () => {
         "editorInfo.background": TRANSPARENT_COLOR,
         "editorInfo.border": TRANSPARENT_COLOR,
         "editorInfo.foreground": TRANSPARENT_COLOR,
-        "invisibleSquiggles.originalColors": JSON.stringify(originalColors),
+        "invisibleSquiggles.originalColors": makeStoredData(originalColors, transparentKeys),
       };
 
       // Only one hide flag enabled - but we should still restore ALL stored colors
@@ -427,6 +457,11 @@ describe("toggleSquigglesCore", () => {
         "editorError.border": "#ff0000",
         "editorError.foreground": "#ff0000",
       };
+      const transparentKeys = [
+        "editorError.background",
+        "editorError.border",
+        "editorError.foreground",
+      ];
 
       const customizations: Record<string, string | undefined> = {
         // Error IS transparent (was hidden in step 1)
@@ -437,7 +472,7 @@ describe("toggleSquigglesCore", () => {
         "editorWarning.background": "#ffaa00",
         "editorWarning.border": "#ffaa00",
         "editorWarning.foreground": "#ffaa00",
-        "invisibleSquiggles.originalColors": JSON.stringify(originalColors),
+        "invisibleSquiggles.originalColors": makeStoredData(originalColors, transparentKeys),
       };
 
       // Both hide flags enabled - but Warning wasn't hidden when toggle happened
@@ -624,7 +659,9 @@ describe("toggleSquigglesCore", () => {
       const afterHide = toggleSquigglesCore(initialCustomizations, hideSquiggles);
       assert.strictEqual(afterHide.newCustomizations["editorError.background"], TRANSPARENT_COLOR);
       // originalColors should be empty since there were no colors to save
-      assert.strictEqual(afterHide.newCustomizations[ORIGINAL_COLORS_KEY], "{}");
+      const afterHideSavedData = JSON.parse(afterHide.newCustomizations[ORIGINAL_COLORS_KEY] as string);
+      assert.deepStrictEqual(afterHideSavedData.originalColors, {}, "originalColors should be empty");
+      assert.ok(afterHideSavedData.transparentKeys.length > 0, "transparentKeys should have entries");
 
       // Step 3: User manually edits settings.json while squiggles are OFF
       const manuallyEdited = {
@@ -664,32 +701,39 @@ describe("toggleSquigglesCore", () => {
         afterRestore.newCustomizations,
         hideSquiggles
       );
-      const savedColors = JSON.parse(
+      const savedData = JSON.parse(
         afterSecondHide.newCustomizations[ORIGINAL_COLORS_KEY] as string
       );
       assert.deepStrictEqual(
-        savedColors,
+        savedData.originalColors,
         {},
         "Should not have saved manual edits as original colors"
       );
     });
 
-    it("should clear non-transparent manually-edited colors that weren't in originalColors", () => {
-      // Similar scenario but starting with some custom colors
+    it("should preserve manually-added colors that weren't made transparent by the extension", () => {
+      // Scenario: User hides warnings, then manually adds error colors while hidden
+      // On restore, manually-added error colors should be PRESERVED (not cleared)
+      // because Error was never made transparent by the extension
       const originalColors = {
         "editorWarning.background": "#ffaa00",
       };
+      const transparentKeys = [
+        "editorWarning.background",
+        "editorWarning.border",
+        "editorWarning.foreground",
+      ];
 
       const customizations: Record<string, string | undefined> = {
-        // Warning was in originalColors (should be restored)
+        // Warning was made transparent by extension (should be restored)
         "editorWarning.background": TRANSPARENT_COLOR,
         "editorWarning.border": TRANSPARENT_COLOR,
         "editorWarning.foreground": TRANSPARENT_COLOR,
-        // Error was manually added while hidden (should be cleared)
+        // Error was manually added while hidden (should be PRESERVED)
         "editorError.background": "#00ff00",
         "editorError.border": "#00ff00",
         "editorError.foreground": "#00ff00",
-        [ORIGINAL_COLORS_KEY]: JSON.stringify(originalColors),
+        [ORIGINAL_COLORS_KEY]: makeStoredData(originalColors, transparentKeys),
       };
 
       const config: ToggleSquigglesConfig = {
@@ -708,21 +752,58 @@ describe("toggleSquigglesCore", () => {
         "Original colors should be restored"
       );
 
-      // Error colors (manually added) should be cleared
+      // Error colors (manually added) should be PRESERVED (the fix!)
       assert.strictEqual(
         result.newCustomizations["editorError.background"],
-        undefined,
-        "Manually-added colors should be cleared"
+        "#00ff00",
+        "Manually-added colors should be preserved"
       );
       assert.strictEqual(
         result.newCustomizations["editorError.border"],
-        undefined,
-        "Manually-added colors should be cleared"
+        "#00ff00",
+        "Manually-added colors should be preserved"
       );
       assert.strictEqual(
         result.newCustomizations["editorError.foreground"],
-        undefined,
-        "Manually-added colors should be cleared"
+        "#00ff00",
+        "Manually-added colors should be preserved"
+      );
+    });
+  });
+
+  describe("preserving unrelated custom colors", () => {
+    it("should preserve custom colors for squiggle types not being hidden", () => {
+      // User has custom error colors but only wants to hide warnings
+      const customizations: Record<string, string | undefined> = {
+        "editorError.foreground": "#ff0000", // Custom error color - should NOT be touched
+        "editorWarning.background": "#ffaa00",
+      };
+
+      const config: ToggleSquigglesConfig = {
+        hideErrors: false, // NOT hiding errors
+        hideWarnings: true,
+        hideInfo: false,
+        hideHint: false,
+      };
+
+      // Toggle to hide warnings
+      const afterHide = toggleSquigglesCore(customizations, config);
+
+      // Custom error color should be preserved
+      assert.strictEqual(
+        afterHide.newCustomizations["editorError.foreground"],
+        "#ff0000",
+        "Custom error color should be preserved when hiding warnings"
+      );
+
+      // Toggle to restore
+      const afterRestore = toggleSquigglesCore(afterHide.newCustomizations, config);
+
+      // Custom error color should STILL be preserved (this is the bug)
+      assert.strictEqual(
+        afterRestore.newCustomizations["editorError.foreground"],
+        "#ff0000",
+        "Custom error color should be preserved after restoring warnings"
       );
     });
   });
@@ -767,11 +848,16 @@ describe("restoreAndCleanup", () => {
         "editorError.background": "#ff0000",
         "editorError.border": "#ff0000",
       };
+      const transparentKeys = [
+        "editorError.background",
+        "editorError.border",
+        "editorError.foreground",
+      ];
       const customizations: Record<string, string | undefined> = {
         "editorError.background": TRANSPARENT_COLOR,
         "editorError.border": TRANSPARENT_COLOR,
         "editorError.foreground": TRANSPARENT_COLOR,
-        [ORIGINAL_COLORS_KEY]: JSON.stringify(originalColors),
+        [ORIGINAL_COLORS_KEY]: makeStoredData(originalColors, transparentKeys),
       };
 
       const result = restoreAndCleanup(customizations);
@@ -782,15 +868,20 @@ describe("restoreAndCleanup", () => {
       assert.strictEqual(result![ORIGINAL_COLORS_KEY], undefined);
     });
 
-    it("should clear transparent colors not in storedColors", () => {
+    it("should clear transparent colors not in originalColors", () => {
       const originalColors = {
         "editorError.background": "#ff0000",
       };
+      const transparentKeys = [
+        "editorError.background",
+        "editorError.border",
+        "editorError.foreground",
+      ];
       const customizations: Record<string, string | undefined> = {
         "editorError.background": TRANSPARENT_COLOR,
-        "editorError.border": TRANSPARENT_COLOR, // Not in originalColors
-        "editorError.foreground": TRANSPARENT_COLOR, // Not in originalColors
-        [ORIGINAL_COLORS_KEY]: JSON.stringify(originalColors),
+        "editorError.border": TRANSPARENT_COLOR, // Not in originalColors but in transparentKeys
+        "editorError.foreground": TRANSPARENT_COLOR, // Not in originalColors but in transparentKeys
+        [ORIGINAL_COLORS_KEY]: makeStoredData(originalColors, transparentKeys),
       };
 
       const result = restoreAndCleanup(customizations);
@@ -803,10 +894,11 @@ describe("restoreAndCleanup", () => {
 
     it("should preserve non-squiggle customizations", () => {
       const originalColors = { "editorError.background": "#ff0000" };
+      const transparentKeys = ["editorError.background"];
       const customizations: Record<string, string | undefined> = {
         "editorError.background": TRANSPARENT_COLOR,
         "custom.setting": "custom-value",
-        [ORIGINAL_COLORS_KEY]: JSON.stringify(originalColors),
+        [ORIGINAL_COLORS_KEY]: makeStoredData(originalColors, transparentKeys),
       };
 
       const result = restoreAndCleanup(customizations);
@@ -850,8 +942,8 @@ describe("restoreAndCleanup", () => {
       const result = restoreAndCleanup(customizations);
 
       assert.ok(result);
-      // Should clear transparent colors (no valid stored colors to restore)
-      assert.strictEqual(result!["editorError.background"], undefined);
+      // Transparent colors remain (transparentKeys is empty due to invalid JSON)
+      assert.strictEqual(result!["editorError.background"], TRANSPARENT_COLOR);
       assert.strictEqual(result![ORIGINAL_COLORS_KEY], undefined);
       assert.ok(consoleErrorStub.called);
       sinon.restore();
@@ -900,26 +992,26 @@ describe("restoreAndCleanup", () => {
           undefined,
           `Should clear marker key for ${description}`
         );
-        // Transparent colors should be cleared since storedColors is empty/invalid
+        // Transparent colors remain (transparentKeys is empty due to invalid format)
         assert.strictEqual(
           result!["editorError.background"],
-          undefined,
-          `Should clear transparent colors for ${description}`
+          TRANSPARENT_COLOR,
+          `Should preserve transparent colors for ${description} (no transparentKeys to clear)`
         );
       }
     });
 
-    it("should handle empty originalColors object", () => {
+    it("should handle empty stored data", () => {
       const customizations: Record<string, string | undefined> = {
         "editorError.background": TRANSPARENT_COLOR,
-        [ORIGINAL_COLORS_KEY]: JSON.stringify({}),
+        [ORIGINAL_COLORS_KEY]: makeStoredData({}, []),
       };
 
       const result = restoreAndCleanup(customizations);
 
       assert.ok(result);
-      // No colors to restore, but transparent should be cleared
-      assert.strictEqual(result!["editorError.background"], undefined);
+      // Transparent color remains (no transparentKeys to clear)
+      assert.strictEqual(result!["editorError.background"], TRANSPARENT_COLOR);
       assert.strictEqual(result![ORIGINAL_COLORS_KEY], undefined);
     });
 
@@ -930,12 +1022,13 @@ describe("restoreAndCleanup", () => {
         "editorInfo.background": "#00aaff",
         "editorHint.foreground": "#00ff00",
       };
+      const transparentKeys = Object.keys(originalColors);
       const customizations: Record<string, string | undefined> = {
         "editorError.background": TRANSPARENT_COLOR,
         "editorWarning.background": TRANSPARENT_COLOR,
         "editorInfo.background": TRANSPARENT_COLOR,
         "editorHint.foreground": TRANSPARENT_COLOR,
-        [ORIGINAL_COLORS_KEY]: JSON.stringify(originalColors),
+        [ORIGINAL_COLORS_KEY]: makeStoredData(originalColors, transparentKeys),
       };
 
       const result = restoreAndCleanup(customizations);

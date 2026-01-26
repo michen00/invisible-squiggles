@@ -21,6 +21,16 @@ export const COLOR_PARTS_BY_SQUIGGLE_TYPE: Record<
 export const ORIGINAL_COLORS_KEY = "invisibleSquiggles.originalColors";
 
 /**
+ * Stored data format for tracking hidden squiggle state.
+ * - originalColors: colors that existed before we made them transparent
+ * - transparentKeys: keys we set to transparent (for clearing on restore)
+ */
+interface StoredSquiggleData {
+  originalColors: Record<string, string>;
+  transparentKeys: string[];
+}
+
+/**
  * All squiggle color keys managed by this extension
  */
 const ALL_SQUIGGLE_COLOR_KEYS = SQUIGGLE_TYPES.flatMap((type) =>
@@ -42,19 +52,17 @@ const HIDE_KEY_BY_TYPE: Record<
 };
 
 /**
- * Clears any squiggle color keys that are not in storedColors.
- * This ensures manually-edited colors are ignored when restoring.
+ * Clears squiggle color keys that we made transparent.
+ * Only clears keys in transparentKeys, leaving other customizations untouched.
  * @param customizations - The customizations object to modify
- * @param storedColors - The stored colors object to check against
+ * @param transparentKeys - The keys we set to transparent (to be cleared)
  */
-function clearStaleSquiggleColors(
+function clearTransparentKeys(
   customizations: Record<string, string | null | undefined>,
-  storedColors: Record<string, unknown>
+  transparentKeys: string[]
 ): void {
-  ALL_SQUIGGLE_COLOR_KEYS.forEach((key) => {
-    if (typeof customizations[key] === "string" && !(key in storedColors)) {
-      customizations[key] = undefined;
-    }
+  transparentKeys.forEach((key) => {
+    customizations[key] = undefined;
   });
 }
 
@@ -152,21 +160,30 @@ export function toggleSquigglesCore(
   currentCustomizations: Record<string, string | null | undefined>,
   hideSquiggles: ToggleSquigglesConfig
 ): ToggleSquigglesResult {
-  const storedColors = (() => {
+  const storedData = ((): StoredSquiggleData => {
     const storedJson = currentCustomizations[ORIGINAL_COLORS_KEY];
     if (!storedJson || typeof storedJson !== "string") {
-      return {};
+      return { originalColors: {}, transparentKeys: [] };
     }
     try {
       const parsed: unknown = JSON.parse(storedJson);
       // Validate it's a plain object (not null, array, or primitive)
       if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-        return {};
+        return { originalColors: {}, transparentKeys: [] };
       }
-      return parsed as Record<string, unknown>;
+      const obj = parsed as Record<string, unknown>;
+      // Check if it's the new format with originalColors and transparentKeys
+      if ("originalColors" in obj && "transparentKeys" in obj) {
+        return {
+          originalColors: (obj.originalColors as Record<string, string>) ?? {},
+          transparentKeys: (obj.transparentKeys as string[]) ?? [],
+        };
+      }
+      // Invalid format
+      return { originalColors: {}, transparentKeys: [] };
     } catch (error) {
       console.error("Error parsing saved colors JSON:", error);
-      return {};
+      return { originalColors: {}, transparentKeys: [] };
     }
   })();
 
@@ -207,36 +224,34 @@ export function toggleSquigglesCore(
   const newCustomizations = { ...currentCustomizations };
 
   if (isInvisibleState) {
-    // Restore colors from storedColors if we have them (marker key existed)
-    // If stuck transparent without marker, storedColors will be empty and we just clear transparent colors
     if (hasMarkerKey) {
-      Object.keys(storedColors).forEach((key) => {
-        const storedValue = (storedColors as Record<string, unknown>)[key];
-        if (typeof storedValue === "string") {
-          newCustomizations[key] = storedValue;
-        }
+      // Normal restore: clear transparentKeys then apply originalColors
+      clearTransparentKeys(newCustomizations, storedData.transparentKeys);
+      Object.entries(storedData.originalColors).forEach(([key, value]) => {
+        newCustomizations[key] = value;
       });
-    }
-
-    // Clear any squiggle colors not in storedColors (whether transparent or not)
-    // This ensures manually-edited colors during the invisible state are ignored when restoring
-    // (If stuck without marker, storedColors is empty so this clears ALL squiggle colors)
-    clearStaleSquiggleColors(newCustomizations, storedColors);
-
-    // Mark marker key for removal. Using `null` signals "remove this key" to VS Code.
-    // Note: `restoreAndCleanup` will convert this to `undefined` on next activation.
-    if (hasMarkerKey) {
+      // Mark marker key for removal. Using `null` signals "remove this key" to VS Code.
       newCustomizations[ORIGINAL_COLORS_KEY] = null;
+    } else {
+      // Stuck transparent without marker: clear all configured transparent colors
+      // We don't know exactly what was made transparent, so clear configured squiggle types
+      const keysToRecover = Object.keys(transparentColorsToApply);
+      clearTransparentKeys(newCustomizations, keysToRecover);
     }
   } else {
     // Save current state and apply transparency
+    const keysToMakeTransparent = Object.keys(transparentColorsToApply);
     const savedColors = Object.fromEntries(
-      Object.keys(transparentColorsToApply)
+      keysToMakeTransparent
         .filter((key) => typeof currentCustomizations[key] === "string")
         .map((key) => [key, currentCustomizations[key] as string])
     );
 
-    newCustomizations[ORIGINAL_COLORS_KEY] = JSON.stringify(savedColors);
+    const dataToStore: StoredSquiggleData = {
+      originalColors: savedColors,
+      transparentKeys: keysToMakeTransparent,
+    };
+    newCustomizations[ORIGINAL_COLORS_KEY] = JSON.stringify(dataToStore);
     Object.assign(newCustomizations, transparentColorsToApply);
   }
 
@@ -271,13 +286,21 @@ export function restoreAndCleanup(
     return null;
   }
 
-  // Parse stored colors
-  let storedColors: Record<string, string> = {};
+  // Parse stored data
+  let storedData: StoredSquiggleData = { originalColors: {}, transparentKeys: [] };
   try {
     const parsed: unknown = JSON.parse(storedJson);
     // Validate it's a plain object (not null, array, or primitive)
     if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
-      storedColors = parsed as Record<string, string>;
+      const obj = parsed as Record<string, unknown>;
+      // Check if it's the new format with originalColors and transparentKeys
+      if ("originalColors" in obj && "transparentKeys" in obj) {
+        storedData = {
+          originalColors: (obj.originalColors as Record<string, string>) ?? {},
+          transparentKeys: (obj.transparentKeys as string[]) ?? [],
+        };
+      }
+      // Invalid format - storedData stays empty
     }
   } catch (error) {
     console.error("Error parsing saved colors JSON during cleanup:", error);
@@ -285,14 +308,13 @@ export function restoreAndCleanup(
 
   const newCustomizations = { ...currentCustomizations };
 
-  // Restore original colors
-  Object.entries(storedColors).forEach(([key, value]) => {
+  // Clear first: remove all keys we made transparent
+  clearTransparentKeys(newCustomizations, storedData.transparentKeys);
+
+  // Restore second: apply original colors (overwrites any that were just cleared)
+  Object.entries(storedData.originalColors).forEach(([key, value]) => {
     newCustomizations[key] = value;
   });
-
-  // Clear any squiggle colors not in storedColors (whether transparent or not)
-  // This ensures manually-edited colors are ignored when restoring
-  clearStaleSquiggleColors(newCustomizations, storedColors);
 
   // Remove the marker key
   newCustomizations[ORIGINAL_COLORS_KEY] = undefined;

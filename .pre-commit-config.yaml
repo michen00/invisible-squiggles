@@ -5,7 +5,7 @@ ci:
 
     for more information, see https://pre-commit.ci
   autoupdate_commit_msg: |
-    chore: autoupdate pre-commit hooks
+    chore(pre-commit): autoupdate hook versions
 
     for more information, see https://pre-commit.ci
 

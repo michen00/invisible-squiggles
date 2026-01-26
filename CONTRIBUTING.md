@@ -8,7 +8,7 @@ The project has defined a [code of conduct](https://github.com/michen00/.github/
 
 > And if you like the project, but just don't have time to contribute, that's fine. There are other easy ways to support the project and show your appreciation, which we would also be very happy about:
 >
-> - Star the project
+> - [Star](https://github.com/michen00/invisible-squiggles/stargazers) the project
 > - Post about it on LinkedIn or other social media
 > - Refer this project in your project's README
 > - Mention the project at local meetups and tell your friends/colleagues

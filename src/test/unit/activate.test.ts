@@ -118,8 +118,8 @@ describe("activate", () => {
 
       activate(mockContext);
 
-      // Wait for async operations (restoreAndCleanup and toggleSquiggles)
-      await new Promise((resolve) => setImmediate(resolve));
+      // Wait for async operations (the promise chain in activate) to complete.
+      // One tick is sufficient to flush the microtask queue.
       await new Promise((resolve) => setImmediate(resolve));
 
       // Verify toggle was called (config update that hides colors)

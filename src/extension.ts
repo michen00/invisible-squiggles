@@ -408,6 +408,14 @@ export function activate(context: vscode.ExtensionContext) {
 
   statusBarItem.show();
   context.subscriptions.push(statusBarItem);
+
+  // Check if startHidden setting is enabled and call toggle if so
+  const invisibleSquigglesConfig = vscode.workspace.getConfiguration("invisibleSquiggles");
+  const startHidden = invisibleSquigglesConfig.get<boolean>("startHidden", false);
+  if (startHidden) {
+    // Call toggleSquiggles directly (not via command) after restoreAndCleanup completes
+    void toggleSquiggles();
+  }
 }
 
 export async function deactivate(): Promise<void> {

@@ -85,6 +85,11 @@
           "type": "boolean",
           "default": false,
           "description": "Display a message in the status bar when squiggle visibility is toggled."
+        },
+        "invisibleSquiggles.startHidden": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically hide squiggles when VS Code starts."
         }
       }
     }

@@ -59,8 +59,7 @@ describe("activate", () => {
 
       activate(mockContext);
 
-      // Wait for any async operations
-      await new Promise((resolve) => setImmediate(resolve));
+      // Wait for any async operations (restoreAndCleanup if needed)
       await new Promise((resolve) => setImmediate(resolve));
 
       // Verify no toggle happened (no config update that hides colors)
@@ -88,8 +87,7 @@ describe("activate", () => {
 
       activate(mockContext);
 
-      // Wait for any async operations
-      await new Promise((resolve) => setImmediate(resolve));
+      // Wait for any async operations (restoreAndCleanup if needed)
       await new Promise((resolve) => setImmediate(resolve));
 
       // Verify no toggle happened
@@ -168,9 +166,8 @@ describe("activate", () => {
 
       activate(mockContext);
 
-      // Wait for async operations (restoreAndCleanup and toggleSquiggles)
-      await new Promise((resolve) => setImmediate(resolve));
-      await new Promise((resolve) => setImmediate(resolve));
+      // Wait for async operations (restoreAndCleanup promise chain and toggleSquiggles)
+      // The code now properly chains promises, so we only need one tick
       await new Promise((resolve) => setImmediate(resolve));
 
       // Verify restore happened first (check config update calls)
@@ -204,6 +201,114 @@ describe("activate", () => {
         hideIndex > restoreIndex,
         "toggleSquiggles should be called after restoreAndCleanup"
       );
+
+      // REGRESSION TEST: Verify toggle saw cleaned config
+      // If toggleSquiggles() ran before restore completed, it would see ORIGINAL_COLORS_KEY
+      // and restore colors instead of hiding them. This assertion proves it saw cleaned config.
+      const hideCustomizations = hideCall!.value as Record<string, unknown>;
+
+      // Assertion 1: Colors are hidden (TRANSPARENT_COLOR), not restored (original color)
+      assert.strictEqual(
+        hideCustomizations["editorError.background"],
+        TRANSPARENT_COLOR,
+        "Colors should be hidden (not restored) - proves toggleSquiggles saw cleaned config without ORIGINAL_COLORS_KEY"
+      );
+
+      // Assertion 2: New marker key exists (proves this is hiding, not restoring)
+      assert.ok(
+        hideCustomizations[ORIGINAL_COLORS_KEY],
+        "New marker key should exist - proves toggleSquiggles is hiding (not restoring)"
+      );
+
+      // Assertion 3: Verify the marker key contains the NEW stored data (not the old one)
+      const newStoredData = JSON.parse(
+        hideCustomizations[ORIGINAL_COLORS_KEY] as string
+      );
+      assert.ok(
+        newStoredData.originalColors["editorError.background"],
+        "Should store original color"
+      );
+      assert.strictEqual(
+        newStoredData.originalColors["editorError.background"],
+        "#ff0000",
+        "Should store the original color that was restored, not the transparent one"
+      );
+    });
+
+    it("regression: should wait for restoreAndCleanup before reading config (race condition fix)", async () => {
+      // This test explicitly verifies the race condition fix:
+      // If toggleSquiggles() reads config before restoreAndCleanup completes,
+      // it would see ORIGINAL_COLORS_KEY and restore instead of hide.
+
+      const originalColors = {
+        "editorError.background": "#ff0000",
+        "editorError.border": "#ff0000",
+      };
+      const transparentKeys = ["editorError.background", "editorError.border"];
+
+      setMockConfig("invisibleSquiggles", "startHidden", true);
+      setMockConfig("invisibleSquiggles", "hideErrors", true);
+      setMockConfig("workbench", "colorCustomizations", {
+        "editorError.background": TRANSPARENT_COLOR,
+        "editorError.border": TRANSPARENT_COLOR,
+        [ORIGINAL_COLORS_KEY]: makeStoredData(originalColors, transparentKeys),
+      });
+
+      activate(mockContext);
+      await new Promise((resolve) => setImmediate(resolve));
+
+      const updateCalls = getConfigUpdateCalls();
+
+      // Find restore call (removes ORIGINAL_COLORS_KEY)
+      const restoreCall = updateCalls.find(
+        (call) =>
+          call.section === "workbench" &&
+          call.key === "colorCustomizations" &&
+          !(call.value as Record<string, unknown>)[ORIGINAL_COLORS_KEY]
+      );
+      assert.ok(restoreCall, "restoreAndCleanup must complete first");
+
+      // Find toggle call (adds NEW ORIGINAL_COLORS_KEY)
+      const toggleCall = updateCalls.find(
+        (call) =>
+          call.section === "workbench" &&
+          call.key === "colorCustomizations" &&
+          (call.value as Record<string, unknown>)[ORIGINAL_COLORS_KEY]
+      );
+      assert.ok(toggleCall, "toggleSquiggles must be called");
+
+      // CRITICAL REGRESSION CHECK: Verify order
+      const restoreIndex = updateCalls.indexOf(restoreCall!);
+      const toggleIndex = updateCalls.indexOf(toggleCall!);
+      assert.ok(
+        toggleIndex > restoreIndex,
+        "toggleSquiggles must execute AFTER restoreAndCleanup completes"
+      );
+
+      // CRITICAL REGRESSION CHECK: Verify toggle saw cleaned config
+      // If toggle ran before restore, it would see ORIGINAL_COLORS_KEY and restore colors
+      const toggleValue = toggleCall!.value as Record<string, unknown>;
+
+      // Proof 1: Colors are hidden (TRANSPARENT_COLOR), not restored (#ff0000)
+      assert.strictEqual(
+        toggleValue["editorError.background"],
+        TRANSPARENT_COLOR,
+        "REGRESSION: Colors must be hidden, not restored. If toggle saw old ORIGINAL_COLORS_KEY, it would restore instead."
+      );
+
+      // Proof 2: New marker key exists (proves hiding, not restoring)
+      assert.ok(
+        toggleValue[ORIGINAL_COLORS_KEY],
+        "New marker key must exist - proves toggleSquiggles is hiding (not restoring)"
+      );
+
+      // Proof 3: Verify stored data is correct (stores original color, not transparent)
+      const storedData = JSON.parse(toggleValue[ORIGINAL_COLORS_KEY] as string);
+      assert.strictEqual(
+        storedData.originalColors["editorError.background"],
+        "#ff0000",
+        "Should store original color that was restored, proving toggle saw cleaned state"
+      );
     });
 
     it("should respect existing hideErrors, hideWarnings, hideInfo, hideHint settings when calling toggle", async () => {
@@ -222,8 +327,7 @@ describe("activate", () => {
 
       activate(mockContext);
 
-      // Wait for async operations
-      await new Promise((resolve) => setImmediate(resolve));
+      // Wait for async operations (restoreAndCleanup promise chain and toggleSquiggles)
       await new Promise((resolve) => setImmediate(resolve));
 
       // Verify toggle was called
@@ -269,8 +373,7 @@ describe("activate", () => {
 
       activate(mockContext);
 
-      // Wait for any async operations
-      await new Promise((resolve) => setImmediate(resolve));
+      // Wait for any async operations (restoreAndCleanup if needed)
       await new Promise((resolve) => setImmediate(resolve));
 
       // Verify toggle was not called
@@ -299,8 +402,7 @@ describe("activate", () => {
 
       activate(mockContext);
 
-      // Wait for any async operations
-      await new Promise((resolve) => setImmediate(resolve));
+      // Wait for any async operations (restoreAndCleanup if needed)
       await new Promise((resolve) => setImmediate(resolve));
 
       // Verify toggle was not called (should default to false)
@@ -331,7 +433,7 @@ describe("activate", () => {
 
       // Activate (will auto-hide)
       activate(mockContext);
-      await new Promise((resolve) => setImmediate(resolve));
+      // Wait for async operations (restoreAndCleanup promise chain and toggleSquiggles)
       await new Promise((resolve) => setImmediate(resolve));
 
       // Verify auto-hide happened
@@ -354,8 +456,7 @@ describe("activate", () => {
       if (toggleCommand) {
         await toggleCommand();
 
-        // Wait for async operations
-        await new Promise((resolve) => setImmediate(resolve));
+        // Wait for async operations (toggleSquiggles config update)
         await new Promise((resolve) => setImmediate(resolve));
 
         // Verify manual toggle worked (should restore colors)

@@ -394,14 +394,13 @@ export function activate(context: vscode.ExtensionContext) {
   // Always start visible: if originalColors key exists (from crash or unclean shutdown),
   // restore colors and remove the key
   const restoredCustomizations = restoreAndCleanup(currentCustomizations);
-  if (restoredCustomizations) {
-    // Fire and forget - don't block activation
-    void config.update(
-      "colorCustomizations",
-      restoredCustomizations,
-      vscode.ConfigurationTarget.Global
-    );
-  }
+  const cleanupPromise = restoredCustomizations
+    ? config.update(
+        "colorCustomizations",
+        restoredCustomizations,
+        vscode.ConfigurationTarget.Global
+      )
+    : Promise.resolve();
 
   // Status bar always shows visible on startup
   setStatusInternal("visible");
@@ -410,11 +409,14 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(statusBarItem);
 
   // Check if startHidden setting is enabled and call toggle if so
+  // IMPORTANT: Wait for cleanup to complete before toggling to avoid race condition.
+  // If toggleSquiggles() runs before cleanup completes, it may see the old state with
+  // ORIGINAL_COLORS_KEY still present and restore instead of hiding.
   const invisibleSquigglesConfig = vscode.workspace.getConfiguration("invisibleSquiggles");
   const startHidden = invisibleSquigglesConfig.get<boolean>("startHidden", false);
   if (startHidden) {
     // Call toggleSquiggles directly (not via command) after restoreAndCleanup completes
-    void toggleSquiggles();
+    void cleanupPromise.then(() => toggleSquiggles());
   }
 }
 

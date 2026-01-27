@@ -6,6 +6,7 @@ import type * as vscode from "vscode";
 import {
   clearConfigUpdateCalls,
   getConfigUpdateCalls,
+  getRegisteredCommand,
   setMockConfig,
 } from "./setup";
 
@@ -431,7 +432,7 @@ describe("activate", () => {
         "editorError.background": "#ff0000",
       });
 
-      // Activate (will auto-hide)
+      // Activate (will auto-hide and register the command)
       activate(mockContext);
       // Wait for async operations (restoreAndCleanup promise chain and toggleSquiggles)
       await new Promise((resolve) => setImmediate(resolve));
@@ -446,39 +447,33 @@ describe("activate", () => {
       );
       assert.ok(autoHideCall, "Auto-hide should have been called");
 
-      // Simulate manual toggle by calling the command
-      const vscodeModule = require("vscode");
-      const commands = vscodeModule.commands;
-      // Get the registered command and execute it
-      const registeredCommands = (commands as any).__registeredCommands || {};
-      const toggleCommand = registeredCommands["invisible-squiggles.toggle"];
+      // Get the registered command handler
+      const toggleCommand = getRegisteredCommand("invisible-squiggles.toggle");
+      assert.ok(toggleCommand, "toggle command should have been registered");
 
-      if (toggleCommand) {
-        await toggleCommand();
+      // Simulate manual toggle by calling the registered command
+      await toggleCommand();
 
-        // Wait for async operations (toggleSquiggles config update)
-        await new Promise((resolve) => setImmediate(resolve));
+      // Wait for async operations (toggleSquiggles config update)
+      await new Promise((resolve) => setImmediate(resolve));
 
-        // Verify manual toggle worked (should restore colors)
-        const updateCalls = getConfigUpdateCalls();
-        const restoreCall = updateCalls.find(
-          (call) =>
-            call.section === "workbench" &&
-            call.key === "colorCustomizations" &&
-            call !== autoHideCall &&
-            !(call.value as Record<string, unknown>)[ORIGINAL_COLORS_KEY]
-        );
+      // Verify manual toggle worked (should restore colors)
+      const updateCalls = getConfigUpdateCalls();
+      const restoreCall = updateCalls.find(
+        (call) =>
+          call.section === "workbench" &&
+          call.key === "colorCustomizations" &&
+          call !== autoHideCall &&
+          !(call.value as Record<string, unknown>)[ORIGINAL_COLORS_KEY]
+      );
 
-        // If restore call exists, verify colors were restored
-        if (restoreCall) {
-          const newCustomizations = restoreCall.value as Record<string, unknown>;
-          assert.strictEqual(
-            newCustomizations["editorError.background"],
-            "#ff0000",
-            "Manual toggle should restore colors"
-          );
-        }
-      }
+      assert.ok(restoreCall, "Manual toggle should have triggered a restore call");
+      const newCustomizations = restoreCall!.value as Record<string, unknown>;
+      assert.strictEqual(
+        newCustomizations["editorError.background"],
+        "#ff0000",
+        "Manual toggle should restore colors"
+      );
     });
   });
 });

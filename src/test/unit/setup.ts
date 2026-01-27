@@ -28,6 +28,9 @@ interface ConfigUpdateCall {
 }
 const configUpdateCalls: ConfigUpdateCall[] = [];
 
+// Track registered commands for testing
+const registeredCommands: Map<string, () => Promise<void>> = new Map();
+
 /**
  * Resets the mock configuration store to empty state.
  * Note: Current unit tests don't rely on config state (they test pure functions),
@@ -37,6 +40,7 @@ function resetMockConfigStore(): void {
   configStore.workbench = {};
   configStore.invisibleSquiggles = {};
   configUpdateCalls.length = 0;
+  registeredCommands.clear();
 }
 
 /**
@@ -71,6 +75,23 @@ export function getConfigUpdateCalls(): ReadonlyArray<ConfigUpdateCall> {
  */
 export function clearConfigUpdateCalls(): void {
   configUpdateCalls.length = 0;
+}
+
+/**
+ * Gets a registered command handler by command ID.
+ * Use this to test command execution in unit tests.
+ */
+export function getRegisteredCommand(
+  commandId: string
+): (() => Promise<void>) | undefined {
+  return registeredCommands.get(commandId);
+}
+
+/**
+ * Clears registered commands.
+ */
+export function clearRegisteredCommands(): void {
+  registeredCommands.clear();
 }
 
 // Mocha root hooks - automatically run before each test
@@ -121,9 +142,14 @@ Module.prototype.require = function (id: string) {
         }),
       },
       commands: {
-        registerCommand: () => ({
-          dispose: () => {},
-        }),
+        registerCommand: (commandId: string, handler: () => Promise<void>) => {
+          registeredCommands.set(commandId, handler);
+          return {
+            dispose: () => {
+              registeredCommands.delete(commandId);
+            },
+          };
+        },
       },
       StatusBarAlignment: {
         Right: 1,

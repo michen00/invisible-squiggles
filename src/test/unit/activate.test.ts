@@ -3,7 +3,12 @@ import { afterEach, beforeEach, describe, it } from 'mocha';
 import sinon from 'sinon';
 import type * as vscode from 'vscode';
 import { activate, ORIGINAL_COLORS_KEY, TRANSPARENT_COLOR } from '../../extension';
-import { clearConfigUpdateCalls, getConfigUpdateCalls, setMockConfig } from './setup';
+import {
+  clearConfigUpdateCalls,
+  getConfigUpdateCalls,
+  getRegisteredCommand,
+  setMockConfig,
+} from './setup';
 
 /** Helper to create the stored data format */
 function makeStoredData(
@@ -427,18 +432,6 @@ describe('activate', () => {
         'editorError.background': '#ff0000',
       });
 
-      // Capture the command handler during registration
-      const vscodeModule = require('vscode');
-      let toggleCommand: (() => Promise<void>) | undefined;
-      sinon
-        .stub(vscodeModule.commands, 'registerCommand')
-        .callsFake((commandId, handler) => {
-          if (commandId === 'invisible-squiggles.toggle') {
-            toggleCommand = handler as () => Promise<void>;
-          }
-          return { dispose: () => {} };
-        });
-
       // Activate (will auto-hide and register the command)
       activate(mockContext);
       // Wait for async operations (restoreAndCleanup promise chain and toggleSquiggles)
@@ -454,9 +447,12 @@ describe('activate', () => {
       );
       assert.ok(autoHideCall, 'Auto-hide should have been called');
 
-      // Simulate manual toggle by calling the captured command
+      // Get the registered command handler using the test helper
+      const toggleCommand = getRegisteredCommand('invisible-squiggles.toggle');
       assert.ok(toggleCommand, 'toggle command should have been registered');
-      await toggleCommand!();
+
+      // Simulate manual toggle by calling the registered command
+      await toggleCommand();
 
       // Wait for async operations (toggleSquiggles config update)
       await new Promise((resolve) => setImmediate(resolve));

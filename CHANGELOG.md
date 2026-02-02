@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com) and this p
 
 ### ✨ Features
 
+- **(extension)** add 'startHidden' setting - ([ee190c2](https://github.com/michen00/invisible-squiggles/commit/ee190c2c9ac0b749085012e31b70b329af025bd1)) - [@michen00](https://github.com/michen00)
 - **(icon.png)** optimize the icon - ([f67ac60](https://github.com/michen00/invisible-squiggles/commit/f67ac608b0f37ece5ff044cf785ce312ba321c7e)) - [@michen00](https://github.com/michen00)
 - improve fallback - ([9280750](https://github.com/michen00/invisible-squiggles/commit/92807504c06845971345dde525e714c7ccfe3e49)) - [@michen00](https://github.com/michen00)
 
@@ -17,6 +18,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com) and this p
 
 - **(scripts/update-unreleased.sh)** fix cleanup - ([42659d3](https://github.com/michen00/invisible-squiggles/commit/42659d30c46c62d87c708178111248b867cd9b16)) - [@michen00](https://github.com/michen00)
 - **(update-unreleased.sh)** fix commit flag - ([16723e6](https://github.com/michen00/invisible-squiggles/commit/16723e6979d7e202a59a410ffdb70e4b571958fa)) - [@michen00](https://github.com/michen00)
+- prevent a race condition - ([c5b7701](https://github.com/michen00/invisible-squiggles/commit/c5b770155e1636f92717e4d6c28f9255da98c6e8)) - [@michen00](https://github.com/michen00)
+- fix state management bug - ([a974d90](https://github.com/michen00/invisible-squiggles/commit/a974d900b975c67644c09d41190aebaec5c2de51)) - [@michen00](https://github.com/michen00)
+- fix state management - ([98a5894](https://github.com/michen00/invisible-squiggles/commit/98a58948a8a55efad35ae791c29a0ac5bd546cb9)) - [@michen00](https://github.com/michen00)
 - apply suggestions - ([c415f39](https://github.com/michen00/invisible-squiggles/commit/c415f3949c94ce7d8c9921e7ee00f11f08df2e78)) - [@michen00](https://github.com/michen00)
 - preserve partial staging - ([dfd5671](https://github.com/michen00/invisible-squiggles/commit/dfd5671faf219c0a0ed84d8bd54387a00338662d)) - [@michen00](https://github.com/michen00)
 - fix argument parsing - ([61b24af](https://github.com/michen00/invisible-squiggles/commit/61b24af27c43698e65f89a9c5d46131d9c281514)) - [@michen00](https://github.com/michen00)
@@ -24,6 +28,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com) and this p
 ### ⏪️ Revert
 
 - **(cliff.toml)** restore several changes - ([752f267](https://github.com/michen00/invisible-squiggles/commit/752f26701aa15c571430a959b5472b8387a7e7b3)) - [@michen00](https://github.com/michen00)
+- use undefined for config key removal - ([d0a773e](https://github.com/michen00/invisible-squiggles/commit/d0a773e4967e20fb5a2894ef5f3bc0661a86eba5)) - [@michen00](https://github.com/michen00)
 
 ### 👥 Contributors
 

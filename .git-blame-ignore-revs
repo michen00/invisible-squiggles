@@ -23,3 +23,4 @@ dd491d212aa5d82b907e4ac362f57d04c79c2f66  # style: add whitespace
 1332851a6846d9f3189feb757a5c585255fa8867  # style(.yamllint): use single quotes
 8b17f10ffe35d715843992c1baaed48404f8bf64  # style(_typos.toml): prefer single quotes
 47e66a774a26fddf7edbe9c42aa445cf31aaf57a  # style(.github/dependabot.yml): use fewer quotes
+45d5b74c644893ff3bcf7dcb49dd49c9d2474f6b  # style: reorder imports

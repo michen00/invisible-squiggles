@@ -1,5 +1,5 @@
-import { createRequire } from 'module';
 import { defineConfig } from '@vscode/test-cli';
+import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
 const pkg = require('./package.json');

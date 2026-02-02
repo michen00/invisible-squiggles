@@ -1,5 +1,5 @@
-import * as sinon from "sinon";
-import * as vscode from "vscode";
+import * as sinon from 'sinon';
+import * as vscode from 'vscode';
 
 /**
  * Mock VSCode API helpers for unit testing
@@ -19,7 +19,7 @@ export interface MockStatusBarItem {
  */
 export function createMockStatusBarItem(): MockStatusBarItem {
   return {
-    text: "",
+    text: '',
     tooltip: undefined,
     command: undefined,
     show: sinon.stub(),

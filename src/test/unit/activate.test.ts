@@ -13,7 +13,7 @@ import {
 /** Helper to create the stored data format */
 function makeStoredData(
   originalColors: Record<string, string>,
-  transparentKeys: string[],
+  transparentKeys: string[]
 ): string {
   return JSON.stringify({ originalColors, transparentKeys });
 }
@@ -69,13 +69,13 @@ describe('activate', () => {
         (call) =>
           call.section === 'workbench' &&
           call.key === 'colorCustomizations' &&
-          (call.value as Record<string, unknown>)[ORIGINAL_COLORS_KEY],
+          (call.value as Record<string, unknown>)[ORIGINAL_COLORS_KEY]
       );
 
       assert.strictEqual(
         hideCall,
         undefined,
-        'toggleSquiggles should not be called when startHidden is false',
+        'toggleSquiggles should not be called when startHidden is false'
       );
     });
 
@@ -97,13 +97,13 @@ describe('activate', () => {
         (call) =>
           call.section === 'workbench' &&
           call.key === 'colorCustomizations' &&
-          (call.value as Record<string, unknown>)[ORIGINAL_COLORS_KEY],
+          (call.value as Record<string, unknown>)[ORIGINAL_COLORS_KEY]
       );
 
       assert.strictEqual(
         hideCall,
         undefined,
-        'toggleSquiggles should not be called when startHidden is undefined',
+        'toggleSquiggles should not be called when startHidden is undefined'
       );
     });
   });
@@ -129,7 +129,7 @@ describe('activate', () => {
         (call) =>
           call.section === 'workbench' &&
           call.key === 'colorCustomizations' &&
-          (call.value as Record<string, unknown>)[ORIGINAL_COLORS_KEY],
+          (call.value as Record<string, unknown>)[ORIGINAL_COLORS_KEY]
       );
 
       assert.ok(hideCall, 'toggleSquiggles should be called when startHidden is true');
@@ -139,7 +139,7 @@ describe('activate', () => {
       assert.strictEqual(
         newCustomizations['editorError.background'],
         TRANSPARENT_COLOR,
-        'Error colors should be made transparent',
+        'Error colors should be made transparent'
       );
     });
 
@@ -177,7 +177,7 @@ describe('activate', () => {
         (call) =>
           call.section === 'workbench' &&
           call.key === 'colorCustomizations' &&
-          !(call.value as Record<string, unknown>)[ORIGINAL_COLORS_KEY],
+          !(call.value as Record<string, unknown>)[ORIGINAL_COLORS_KEY]
       );
 
       assert.ok(restoreCall, 'restoreAndCleanup should have been called first');
@@ -187,12 +187,12 @@ describe('activate', () => {
         (call) =>
           call.section === 'workbench' &&
           call.key === 'colorCustomizations' &&
-          (call.value as Record<string, unknown>)[ORIGINAL_COLORS_KEY],
+          (call.value as Record<string, unknown>)[ORIGINAL_COLORS_KEY]
       );
 
       assert.ok(
         hideCall,
-        'toggleSquiggles should be called after restoreAndCleanup completes',
+        'toggleSquiggles should be called after restoreAndCleanup completes'
       );
 
       // Verify the hide call happened after restore (check order)
@@ -200,7 +200,7 @@ describe('activate', () => {
       const hideIndex = updateCalls.indexOf(hideCall!);
       assert.ok(
         hideIndex > restoreIndex,
-        'toggleSquiggles should be called after restoreAndCleanup',
+        'toggleSquiggles should be called after restoreAndCleanup'
       );
 
       // REGRESSION TEST: Verify toggle saw cleaned config
@@ -212,27 +212,27 @@ describe('activate', () => {
       assert.strictEqual(
         hideCustomizations['editorError.background'],
         TRANSPARENT_COLOR,
-        'Colors should be hidden (not restored) - proves toggleSquiggles saw cleaned config without ORIGINAL_COLORS_KEY',
+        'Colors should be hidden (not restored) - proves toggleSquiggles saw cleaned config without ORIGINAL_COLORS_KEY'
       );
 
       // Assertion 2: New marker key exists (proves this is hiding, not restoring)
       assert.ok(
         hideCustomizations[ORIGINAL_COLORS_KEY],
-        'New marker key should exist - proves toggleSquiggles is hiding (not restoring)',
+        'New marker key should exist - proves toggleSquiggles is hiding (not restoring)'
       );
 
       // Assertion 3: Verify the marker key contains the NEW stored data (not the old one)
       const newStoredData = JSON.parse(
-        hideCustomizations[ORIGINAL_COLORS_KEY] as string,
+        hideCustomizations[ORIGINAL_COLORS_KEY] as string
       );
       assert.ok(
         newStoredData.originalColors['editorError.background'],
-        'Should store original color',
+        'Should store original color'
       );
       assert.strictEqual(
         newStoredData.originalColors['editorError.background'],
         '#ff0000',
-        'Should store the original color that was restored, not the transparent one',
+        'Should store the original color that was restored, not the transparent one'
       );
     });
 
@@ -265,7 +265,7 @@ describe('activate', () => {
         (call) =>
           call.section === 'workbench' &&
           call.key === 'colorCustomizations' &&
-          !(call.value as Record<string, unknown>)[ORIGINAL_COLORS_KEY],
+          !(call.value as Record<string, unknown>)[ORIGINAL_COLORS_KEY]
       );
       assert.ok(restoreCall, 'restoreAndCleanup must complete first');
 
@@ -274,7 +274,7 @@ describe('activate', () => {
         (call) =>
           call.section === 'workbench' &&
           call.key === 'colorCustomizations' &&
-          (call.value as Record<string, unknown>)[ORIGINAL_COLORS_KEY],
+          (call.value as Record<string, unknown>)[ORIGINAL_COLORS_KEY]
       );
       assert.ok(toggleCall, 'toggleSquiggles must be called');
 
@@ -283,7 +283,7 @@ describe('activate', () => {
       const toggleIndex = updateCalls.indexOf(toggleCall!);
       assert.ok(
         toggleIndex > restoreIndex,
-        'toggleSquiggles must execute AFTER restoreAndCleanup completes',
+        'toggleSquiggles must execute AFTER restoreAndCleanup completes'
       );
 
       // CRITICAL REGRESSION CHECK: Verify toggle saw cleaned config
@@ -294,13 +294,13 @@ describe('activate', () => {
       assert.strictEqual(
         toggleValue['editorError.background'],
         TRANSPARENT_COLOR,
-        'REGRESSION: Colors must be hidden, not restored. If toggle saw old ORIGINAL_COLORS_KEY, it would restore instead.',
+        'REGRESSION: Colors must be hidden, not restored. If toggle saw old ORIGINAL_COLORS_KEY, it would restore instead.'
       );
 
       // Proof 2: New marker key exists (proves hiding, not restoring)
       assert.ok(
         toggleValue[ORIGINAL_COLORS_KEY],
-        'New marker key must exist - proves toggleSquiggles is hiding (not restoring)',
+        'New marker key must exist - proves toggleSquiggles is hiding (not restoring)'
       );
 
       // Proof 3: Verify stored data is correct (stores original color, not transparent)
@@ -308,7 +308,7 @@ describe('activate', () => {
       assert.strictEqual(
         storedData.originalColors['editorError.background'],
         '#ff0000',
-        'Should store original color that was restored, proving toggle saw cleaned state',
+        'Should store original color that was restored, proving toggle saw cleaned state'
       );
     });
 
@@ -337,7 +337,7 @@ describe('activate', () => {
         (call) =>
           call.section === 'workbench' &&
           call.key === 'colorCustomizations' &&
-          (call.value as Record<string, unknown>)[ORIGINAL_COLORS_KEY],
+          (call.value as Record<string, unknown>)[ORIGINAL_COLORS_KEY]
       );
 
       assert.ok(toggleCall, 'toggleSquiggles should have updated config');
@@ -347,19 +347,19 @@ describe('activate', () => {
       assert.strictEqual(
         newCustomizations['editorError.background'],
         TRANSPARENT_COLOR,
-        'Error should be hidden when hideErrors is true',
+        'Error should be hidden when hideErrors is true'
       );
       // Warning should NOT be transparent (hideWarnings is false)
       assert.notStrictEqual(
         newCustomizations['editorWarning.background'],
         TRANSPARENT_COLOR,
-        'Warning should not be hidden when hideWarnings is false',
+        'Warning should not be hidden when hideWarnings is false'
       );
       // Info should be transparent (hideInfo is true)
       assert.strictEqual(
         newCustomizations['editorInfo.background'],
         TRANSPARENT_COLOR,
-        'Info should be hidden when hideInfo is true',
+        'Info should be hidden when hideInfo is true'
       );
     });
   });
@@ -383,13 +383,13 @@ describe('activate', () => {
         (call) =>
           call.section === 'workbench' &&
           call.key === 'colorCustomizations' &&
-          (call.value as Record<string, unknown>)[ORIGINAL_COLORS_KEY],
+          (call.value as Record<string, unknown>)[ORIGINAL_COLORS_KEY]
       );
 
       assert.strictEqual(
         hideCall,
         undefined,
-        'toggleSquiggles should not be called when startHidden is not configured',
+        'toggleSquiggles should not be called when startHidden is not configured'
       );
     });
 
@@ -412,13 +412,13 @@ describe('activate', () => {
         (call) =>
           call.section === 'workbench' &&
           call.key === 'colorCustomizations' &&
-          (call.value as Record<string, unknown>)[ORIGINAL_COLORS_KEY],
+          (call.value as Record<string, unknown>)[ORIGINAL_COLORS_KEY]
       );
 
       assert.strictEqual(
         hideCall,
         undefined,
-        'toggleSquiggles should not be called when startHidden is undefined (defaults to false)',
+        'toggleSquiggles should not be called when startHidden is undefined (defaults to false)'
       );
     });
   });
@@ -443,7 +443,7 @@ describe('activate', () => {
         (call) =>
           call.section === 'workbench' &&
           call.key === 'colorCustomizations' &&
-          (call.value as Record<string, unknown>)[ORIGINAL_COLORS_KEY],
+          (call.value as Record<string, unknown>)[ORIGINAL_COLORS_KEY]
       );
       assert.ok(autoHideCall, 'Auto-hide should have been called');
 
@@ -464,7 +464,7 @@ describe('activate', () => {
           call.section === 'workbench' &&
           call.key === 'colorCustomizations' &&
           call !== autoHideCall &&
-          !(call.value as Record<string, unknown>)[ORIGINAL_COLORS_KEY],
+          !(call.value as Record<string, unknown>)[ORIGINAL_COLORS_KEY]
       );
 
       assert.ok(restoreCall, 'Manual toggle should have triggered a restore call');
@@ -472,7 +472,7 @@ describe('activate', () => {
       assert.strictEqual(
         newCustomizations['editorError.background'],
         '#ff0000',
-        'Manual toggle should restore colors',
+        'Manual toggle should restore colors'
       );
     });
   });

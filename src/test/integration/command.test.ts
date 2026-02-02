@@ -1,5 +1,5 @@
-import * as assert from "assert";
-import * as vscode from "vscode";
+import * as assert from 'assert';
+import * as vscode from 'vscode';
 import {
   delay,
   enableAllHideFlags,
@@ -11,9 +11,9 @@ import {
   saveOriginalConfig,
   SQUIGGLE_TYPES,
   toggleAndWaitForChange,
-} from "../helpers/testUtils";
+} from '../helpers/testUtils';
 
-suite("Extension Integration Tests - Command Execution", () => {
+suite('Extension Integration Tests - Command Execution', () => {
   let originalConfig: OriginalConfig;
 
   suiteSetup(async () => {
@@ -24,17 +24,17 @@ suite("Extension Integration Tests - Command Execution", () => {
     await restoreOriginalConfig(originalConfig);
   });
 
-  test("Toggle command should execute successfully", async () => {
-    await vscode.commands.executeCommand("invisible-squiggles.toggle");
+  test('Toggle command should execute successfully', async () => {
+    await vscode.commands.executeCommand('invisible-squiggles.toggle');
     // Command should execute without throwing
-    assert.ok(true, "Toggle command executed successfully");
+    assert.ok(true, 'Toggle command executed successfully');
   });
 
-  test("Toggle command should update color customizations", async () => {
-    const settings = vscode.workspace.getConfiguration("invisibleSquiggles");
+  test('Toggle command should update color customizations', async () => {
+    const settings = vscode.workspace.getConfiguration('invisibleSquiggles');
 
     // Ensure at least one hide flag is enabled so toggle has an effect
-    await settings.update("hideErrors", true, vscode.ConfigurationTarget.Global);
+    await settings.update('hideErrors', true, vscode.ConfigurationTarget.Global);
     await delay(100);
 
     const beforeJson = JSON.stringify(getColorCustomizations());
@@ -46,11 +46,11 @@ suite("Extension Integration Tests - Command Execution", () => {
     // Verify: either configuration change event fired, or JSON changed
     assert.ok(
       changed || beforeJson !== afterJson,
-      "Color customizations should change after toggle"
+      'Color customizations should change after toggle'
     );
   });
 
-  test("Double toggle should restore squiggles to visible state", async () => {
+  test('Double toggle should restore squiggles to visible state', async () => {
     // Reset to clean state and enable all hide flags for deterministic test
     await resetColorCustomizations();
     await enableAllHideFlags();
@@ -63,7 +63,7 @@ suite("Extension Integration Tests - Command Execution", () => {
     assert.strictEqual(
       initiallyTransparent,
       false,
-      "Should start with no transparent squiggles"
+      'Should start with no transparent squiggles'
     );
 
     // First toggle: hide squiggles
@@ -75,7 +75,7 @@ suite("Extension Integration Tests - Command Execution", () => {
     assert.strictEqual(
       transparentAfterFirst,
       true,
-      "After first toggle, all squiggles should be transparent"
+      'After first toggle, all squiggles should be transparent'
     );
 
     // Second toggle: restore squiggles
@@ -87,7 +87,7 @@ suite("Extension Integration Tests - Command Execution", () => {
     assert.strictEqual(
       transparentAfterSecond,
       false,
-      "After second toggle, squiggles should be visible (not transparent)"
+      'After second toggle, squiggles should be visible (not transparent)'
     );
   });
 });

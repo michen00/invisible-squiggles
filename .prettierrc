@@ -4,5 +4,6 @@
   "htmlWhitespaceSensitivity": "strict",
   "jsxSingleQuote": true,
   "printWidth": 88,
-  "singleQuote": true
+  "singleQuote": true,
+  "trailingComma": "es5"
 }

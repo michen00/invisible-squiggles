@@ -1,14 +1,14 @@
-import * as assert from "assert";
-import { describe, it } from "mocha";
+import * as assert from 'assert';
+import { describe, it } from 'mocha';
 import {
   areSquigglesCurrentlyTransparent,
   COLOR_PARTS_BY_SQUIGGLE_TYPE,
   SQUIGGLE_TYPES,
   ToggleSquigglesConfig,
   TRANSPARENT_COLOR,
-} from "../../extension";
+} from '../../extension';
 
-describe("areSquigglesCurrentlyTransparent", () => {
+describe('areSquigglesCurrentlyTransparent', () => {
   // Helper to build a full set of transparent colors for all squiggle types
   function buildAllTransparentColors(): Record<string, string> {
     const colors: Record<string, string> = {};
@@ -61,8 +61,8 @@ describe("areSquigglesCurrentlyTransparent", () => {
     hideHint: false,
   };
 
-  describe("when all types are configured", () => {
-    it("should return true when all configured colors are transparent", () => {
+  describe('when all types are configured', () => {
+    it('should return true when all configured colors are transparent', () => {
       const customizations = buildAllTransparentColors();
       assert.strictEqual(
         areSquigglesCurrentlyTransparent(customizations, ALL_ENABLED),
@@ -70,16 +70,13 @@ describe("areSquigglesCurrentlyTransparent", () => {
       );
     });
 
-    it("should return false when customizations is empty", () => {
-      assert.strictEqual(
-        areSquigglesCurrentlyTransparent({}, ALL_ENABLED),
-        false
-      );
+    it('should return false when customizations is empty', () => {
+      assert.strictEqual(areSquigglesCurrentlyTransparent({}, ALL_ENABLED), false);
     });
 
-    it("should return false when any configured color is not transparent", () => {
+    it('should return false when any configured color is not transparent', () => {
       const customizations = buildAllTransparentColors();
-      customizations["editorError.background"] = "#ff0000";
+      customizations['editorError.background'] = '#ff0000';
 
       assert.strictEqual(
         areSquigglesCurrentlyTransparent(customizations, ALL_ENABLED),
@@ -88,9 +85,9 @@ describe("areSquigglesCurrentlyTransparent", () => {
     });
   });
 
-  describe("when only some types are configured", () => {
-    it("should return true when only Error is configured and Error is transparent", () => {
-      const customizations = buildTransparentColorsForTypes(["Error"]);
+  describe('when only some types are configured', () => {
+    it('should return true when only Error is configured and Error is transparent', () => {
+      const customizations = buildTransparentColorsForTypes(['Error']);
 
       assert.strictEqual(
         areSquigglesCurrentlyTransparent(customizations, ERRORS_ONLY),
@@ -98,8 +95,8 @@ describe("areSquigglesCurrentlyTransparent", () => {
       );
     });
 
-    it("should return true when Error+Warning configured and both are transparent", () => {
-      const customizations = buildTransparentColorsForTypes(["Error", "Warning"]);
+    it('should return true when Error+Warning configured and both are transparent', () => {
+      const customizations = buildTransparentColorsForTypes(['Error', 'Warning']);
 
       assert.strictEqual(
         areSquigglesCurrentlyTransparent(customizations, ERRORS_AND_WARNINGS),
@@ -107,11 +104,11 @@ describe("areSquigglesCurrentlyTransparent", () => {
       );
     });
 
-    it("should return false when Error is configured but not transparent", () => {
+    it('should return false when Error is configured but not transparent', () => {
       const customizations: Record<string, string> = {
-        "editorError.background": "#ff0000",
-        "editorError.border": "#ff0000",
-        "editorError.foreground": "#ff0000",
+        'editorError.background': '#ff0000',
+        'editorError.border': '#ff0000',
+        'editorError.foreground': '#ff0000',
       };
 
       assert.strictEqual(
@@ -120,10 +117,10 @@ describe("areSquigglesCurrentlyTransparent", () => {
       );
     });
 
-    it("should ignore unconfigured types when checking transparency", () => {
+    it('should ignore unconfigured types when checking transparency', () => {
       // Only Error is transparent, Warning is not, but Warning is not configured
-      const customizations = buildTransparentColorsForTypes(["Error"]);
-      customizations["editorWarning.background"] = "#ffaa00"; // Not transparent
+      const customizations = buildTransparentColorsForTypes(['Error']);
+      customizations['editorWarning.background'] = '#ffaa00'; // Not transparent
 
       // Should still return true because Warning is not in the config
       assert.strictEqual(
@@ -132,9 +129,9 @@ describe("areSquigglesCurrentlyTransparent", () => {
       );
     });
 
-    it("should return false when one of multiple configured types is not transparent", () => {
-      const customizations = buildTransparentColorsForTypes(["Error"]); // Error transparent
-      customizations["editorWarning.background"] = "#ffaa00"; // Warning not transparent
+    it('should return false when one of multiple configured types is not transparent', () => {
+      const customizations = buildTransparentColorsForTypes(['Error']); // Error transparent
+      customizations['editorWarning.background'] = '#ffaa00'; // Warning not transparent
 
       // Error is transparent, Warning is not
       assert.strictEqual(
@@ -144,8 +141,8 @@ describe("areSquigglesCurrentlyTransparent", () => {
     });
   });
 
-  describe("when no types are configured", () => {
-    it("should return null when all hide flags are false", () => {
+  describe('when no types are configured', () => {
+    it('should return null when all hide flags are false', () => {
       const customizations = buildAllTransparentColors();
 
       assert.strictEqual(
@@ -154,19 +151,16 @@ describe("areSquigglesCurrentlyTransparent", () => {
       );
     });
 
-    it("should return null even when customizations is empty", () => {
-      assert.strictEqual(
-        areSquigglesCurrentlyTransparent({}, NONE_ENABLED),
-        null
-      );
+    it('should return null even when customizations is empty', () => {
+      assert.strictEqual(areSquigglesCurrentlyTransparent({}, NONE_ENABLED), null);
     });
   });
 
-  describe("case sensitivity", () => {
-    it("should handle case-insensitive color comparison", () => {
+  describe('case sensitivity', () => {
+    it('should handle case-insensitive color comparison', () => {
       const customizations = buildAllTransparentColors();
       // Mix cases - should still match
-      customizations["editorError.background"] = "#00000000"; // lowercase
+      customizations['editorError.background'] = '#00000000'; // lowercase
 
       assert.strictEqual(
         areSquigglesCurrentlyTransparent(customizations, ALL_ENABLED),
@@ -175,8 +169,8 @@ describe("areSquigglesCurrentlyTransparent", () => {
     });
   });
 
-  describe("edge cases", () => {
-    it("should return false when colors are null", () => {
+  describe('edge cases', () => {
+    it('should return false when colors are null', () => {
       const customizations: Record<string, string | null> = {};
       for (const type of SQUIGGLE_TYPES) {
         for (const part of COLOR_PARTS_BY_SQUIGGLE_TYPE[type]) {
@@ -190,7 +184,7 @@ describe("areSquigglesCurrentlyTransparent", () => {
       );
     });
 
-    it("should return false when colors are undefined", () => {
+    it('should return false when colors are undefined', () => {
       const customizations: Record<string, string | undefined> = {};
       for (const type of SQUIGGLE_TYPES) {
         for (const part of COLOR_PARTS_BY_SQUIGGLE_TYPE[type]) {
@@ -204,11 +198,11 @@ describe("areSquigglesCurrentlyTransparent", () => {
       );
     });
 
-    it("should ignore extra keys in customizations", () => {
+    it('should ignore extra keys in customizations', () => {
       const customizations = buildAllTransparentColors();
-      customizations["custom.setting"] = "#ff0000";
-      customizations["editor.background"] = "#000000";
-      customizations["invisibleSquiggles.originalColors"] = "{}";
+      customizations['custom.setting'] = '#ff0000';
+      customizations['editor.background'] = '#000000';
+      customizations['invisibleSquiggles.originalColors'] = '{}';
 
       assert.strictEqual(
         areSquigglesCurrentlyTransparent(customizations, ALL_ENABLED),
@@ -216,7 +210,7 @@ describe("areSquigglesCurrentlyTransparent", () => {
       );
     });
 
-    it("should handle Hint correctly (no background property)", () => {
+    it('should handle Hint correctly (no background property)', () => {
       const HINT_ONLY: ToggleSquigglesConfig = {
         hideErrors: false,
         hideWarnings: false,
@@ -226,8 +220,8 @@ describe("areSquigglesCurrentlyTransparent", () => {
 
       // Hint only has border and foreground (no background)
       const customizations: Record<string, string> = {
-        "editorHint.border": TRANSPARENT_COLOR,
-        "editorHint.foreground": TRANSPARENT_COLOR,
+        'editorHint.border': TRANSPARENT_COLOR,
+        'editorHint.foreground': TRANSPARENT_COLOR,
       };
 
       assert.strictEqual(

@@ -1,24 +1,24 @@
-import * as vscode from "vscode";
+import * as vscode from 'vscode';
 
-export const TRANSPARENT_COLOR = "#00000000";
-export const SQUIGGLE_TYPES = ["Error", "Hint", "Info", "Warning"] as const;
+export const TRANSPARENT_COLOR = '#00000000';
+export const SQUIGGLE_TYPES = ['Error', 'Hint', 'Info', 'Warning'] as const;
 
 export const COLOR_PARTS_BY_SQUIGGLE_TYPE: Record<
   (typeof SQUIGGLE_TYPES)[number],
-  ReadonlyArray<"background" | "border" | "foreground">
+  ReadonlyArray<'background' | 'border' | 'foreground'>
 > = {
   // From VS Code's workbench color registry: Hint has no `editorHint.background`
-  Error: ["background", "border", "foreground"],
-  Hint: ["border", "foreground"],
-  Info: ["background", "border", "foreground"],
-  Warning: ["background", "border", "foreground"],
+  Error: ['background', 'border', 'foreground'],
+  Hint: ['border', 'foreground'],
+  Info: ['background', 'border', 'foreground'],
+  Warning: ['background', 'border', 'foreground'],
 };
 
 /**
  * Key used to store original colors in workbench.colorCustomizations.
  * Presence of this key indicates squiggles are currently hidden.
  */
-export const ORIGINAL_COLORS_KEY = "invisibleSquiggles.originalColors";
+export const ORIGINAL_COLORS_KEY = 'invisibleSquiggles.originalColors';
 
 /**
  * Stored data format for tracking hidden squiggle state.
@@ -41,25 +41,25 @@ export function parseStoredData(
   storedJson: string | null | undefined,
   context?: string
 ): StoredSquiggleData {
-  if (!storedJson || typeof storedJson !== "string") {
+  if (!storedJson || typeof storedJson !== 'string') {
     return { originalColors: {}, transparentKeys: [] };
   }
 
   try {
     const parsed: unknown = JSON.parse(storedJson);
     // Validate it's a plain object (not null, array, or primitive)
-    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
       return { originalColors: {}, transparentKeys: [] };
     }
     const obj = parsed as Record<string, unknown>;
     // Check if it's the new format with originalColors and transparentKeys
-    if ("originalColors" in obj && "transparentKeys" in obj) {
+    if ('originalColors' in obj && 'transparentKeys' in obj) {
       // Validate types: originalColors must be an object, transparentKeys must be an array
       const originalColors = obj.originalColors;
       const transparentKeys = obj.transparentKeys;
       if (
         originalColors !== null &&
-        typeof originalColors === "object" &&
+        typeof originalColors === 'object' &&
         !Array.isArray(originalColors) &&
         transparentKeys !== null &&
         Array.isArray(transparentKeys)
@@ -73,7 +73,7 @@ export function parseStoredData(
     // Invalid format
     return { originalColors: {}, transparentKeys: [] };
   } catch (error) {
-    const contextMsg = context ? ` ${context}` : "";
+    const contextMsg = context ? ` ${context}` : '';
     console.error(`Error parsing saved colors JSON${contextMsg}:`, error);
     return { originalColors: {}, transparentKeys: [] };
   }
@@ -94,10 +94,10 @@ const HIDE_KEY_BY_TYPE: Record<
   (typeof SQUIGGLE_TYPES)[number],
   keyof ToggleSquigglesConfig
 > = {
-  Hint: "hideHint",
-  Info: "hideInfo",
-  Error: "hideErrors",
-  Warning: "hideWarnings",
+  Hint: 'hideHint',
+  Info: 'hideInfo',
+  Error: 'hideErrors',
+  Warning: 'hideWarnings',
 };
 
 /**
@@ -143,7 +143,7 @@ export function areSquigglesCurrentlyTransparent(
 
   // Check if all relevant keys are transparent
   return relevantKeys.every(
-    (key) => (currentCustomizations[key]?.toLowerCase() || "") === TRANSPARENT_COLOR
+    (key) => (currentCustomizations[key]?.toLowerCase() || '') === TRANSPARENT_COLOR
   );
 }
 
@@ -156,14 +156,14 @@ let statusBarItem: vscode.StatusBarItem;
  */
 export function setStatus(
   statusBarItem: vscode.StatusBarItem | null | undefined,
-  state: "visible" | "hidden"
+  state: 'visible' | 'hidden'
 ): void {
   if (!statusBarItem) {
     return;
   }
 
-  const icon = state === "visible" ? "$(eye)" : "$(eye-closed)";
-  const action = state === "visible" ? "Hide" : "Show";
+  const icon = state === 'visible' ? '$(eye)' : '$(eye-closed)';
+  const action = state === 'visible' ? 'Hide' : 'Show';
 
   statusBarItem.text = `Squiggles: ${icon}`;
   statusBarItem.tooltip = `${action} squiggles`;
@@ -172,7 +172,7 @@ export function setStatus(
 /**
  * Internal wrapper that uses module-level statusBarItem
  */
-function setStatusInternal(state: "visible" | "hidden"): void {
+function setStatusInternal(state: 'visible' | 'hidden'): void {
   setStatus(statusBarItem, state);
 }
 
@@ -267,7 +267,7 @@ export function toggleSquigglesCore(
     const keysToMakeTransparent = Object.keys(transparentColorsToApply);
     const savedColors = Object.fromEntries(
       keysToMakeTransparent
-        .filter((key) => typeof currentCustomizations[key] === "string")
+        .filter((key) => typeof currentCustomizations[key] === 'string')
         .map((key) => [key, currentCustomizations[key] as string])
     );
 
@@ -300,7 +300,7 @@ export function restoreAndCleanup(
   const storedJson = currentCustomizations[ORIGINAL_COLORS_KEY];
 
   // If no stored colors key, nothing to restore
-  if (!storedJson || typeof storedJson !== "string") {
+  if (!storedJson || typeof storedJson !== 'string') {
     // Check if key exists but is null (needs cleanup)
     if (ORIGINAL_COLORS_KEY in currentCustomizations) {
       const cleaned = { ...currentCustomizations };
@@ -311,7 +311,7 @@ export function restoreAndCleanup(
   }
 
   // Parse stored data
-  const storedData = parseStoredData(storedJson, "during cleanup");
+  const storedData = parseStoredData(storedJson, 'during cleanup');
 
   const newCustomizations = { ...currentCustomizations };
 
@@ -333,48 +333,48 @@ export function restoreAndCleanup(
  * VSCode API wrapper for toggleSquiggles
  */
 async function toggleSquiggles(): Promise<void> {
-  const config = vscode.workspace.getConfiguration("workbench");
-  const settings = vscode.workspace.getConfiguration("invisibleSquiggles");
+  const config = vscode.workspace.getConfiguration('workbench');
+  const settings = vscode.workspace.getConfiguration('invisibleSquiggles');
 
   const hideSquiggles: ToggleSquigglesConfig = {
-    hideErrors: settings.get<boolean>("hideErrors", true),
-    hideWarnings: settings.get<boolean>("hideWarnings", true),
-    hideInfo: settings.get<boolean>("hideInfo", true),
-    hideHint: settings.get<boolean>("hideHint", true),
+    hideErrors: settings.get<boolean>('hideErrors', true),
+    hideWarnings: settings.get<boolean>('hideWarnings', true),
+    hideInfo: settings.get<boolean>('hideInfo', true),
+    hideHint: settings.get<boolean>('hideHint', true),
   };
 
   const currentCustomizations =
-    config.get<Record<string, string | null | undefined>>("colorCustomizations") || {};
+    config.get<Record<string, string | null | undefined>>('colorCustomizations') || {};
 
   const result = toggleSquigglesCore(currentCustomizations, hideSquiggles);
 
   // Only update status bar if an actual toggle happened (not when all hide flags are disabled)
   if (result.shouldShowMessage) {
-    setStatusInternal(result.isAlreadyTransparent ? "visible" : "hidden");
+    setStatusInternal(result.isAlreadyTransparent ? 'visible' : 'hidden');
   }
 
   try {
     await config.update(
-      "colorCustomizations",
+      'colorCustomizations',
       result.newCustomizations,
       vscode.ConfigurationTarget.Global
     );
-    const showStatusBarMessage = settings.get<boolean>("showStatusBarMessage", false);
+    const showStatusBarMessage = settings.get<boolean>('showStatusBarMessage', false);
     if (showStatusBarMessage && result.shouldShowMessage) {
       const message = result.isAlreadyTransparent
-        ? "Squiggles restored to previous visibility."
-        : "Selected squiggles are now transparent.";
+        ? 'Squiggles restored to previous visibility.'
+        : 'Selected squiggles are now transparent.';
       vscode.window.setStatusBarMessage(message, 2500);
     }
   } catch (error) {
-    console.error("Error toggling squiggle visibility:", error);
+    console.error('Error toggling squiggle visibility:', error);
     vscode.window.showErrorMessage(
-      "An error occurred while toggling squiggle settings. Check logs for details."
+      'An error occurred while toggling squiggle settings. Check logs for details.'
     );
   }
 }
 
-const COMMAND_TOGGLE_SQUIGGLES = "invisible-squiggles.toggle";
+const COMMAND_TOGGLE_SQUIGGLES = 'invisible-squiggles.toggle';
 
 export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
@@ -387,23 +387,23 @@ export function activate(context: vscode.ExtensionContext) {
   );
   statusBarItem.command = COMMAND_TOGGLE_SQUIGGLES;
 
-  const config = vscode.workspace.getConfiguration("workbench");
+  const config = vscode.workspace.getConfiguration('workbench');
   const currentCustomizations =
-    config.get<Record<string, string | null | undefined>>("colorCustomizations") || {};
+    config.get<Record<string, string | null | undefined>>('colorCustomizations') || {};
 
   // Always start visible: if originalColors key exists (from crash or unclean shutdown),
   // restore colors and remove the key
   const restoredCustomizations = restoreAndCleanup(currentCustomizations);
   const cleanupPromise = restoredCustomizations
     ? config.update(
-        "colorCustomizations",
+        'colorCustomizations',
         restoredCustomizations,
         vscode.ConfigurationTarget.Global
       )
     : Promise.resolve();
 
   // Status bar always shows visible on startup
-  setStatusInternal("visible");
+  setStatusInternal('visible');
 
   statusBarItem.show();
   context.subscriptions.push(statusBarItem);
@@ -412,8 +412,9 @@ export function activate(context: vscode.ExtensionContext) {
   // IMPORTANT: Wait for cleanup to complete before toggling to avoid race condition.
   // If toggleSquiggles() runs before cleanup completes, it may see the old state with
   // ORIGINAL_COLORS_KEY still present and restore instead of hiding.
-  const invisibleSquigglesConfig = vscode.workspace.getConfiguration("invisibleSquiggles");
-  const startHidden = invisibleSquigglesConfig.get<boolean>("startHidden", false);
+  const invisibleSquigglesConfig =
+    vscode.workspace.getConfiguration('invisibleSquiggles');
+  const startHidden = invisibleSquigglesConfig.get<boolean>('startHidden', false);
   if (startHidden) {
     // Call toggleSquiggles directly (not via command) after restoreAndCleanup completes
     void cleanupPromise.then(() => toggleSquiggles());
@@ -423,20 +424,20 @@ export function activate(context: vscode.ExtensionContext) {
 export async function deactivate(): Promise<void> {
   // Restore colors and clean up on shutdown/disable/uninstall
   try {
-    const config = vscode.workspace.getConfiguration("workbench");
+    const config = vscode.workspace.getConfiguration('workbench');
     const currentCustomizations =
-      config.get<Record<string, string | null | undefined>>("colorCustomizations") ||
+      config.get<Record<string, string | null | undefined>>('colorCustomizations') ||
       {};
 
     const restoredCustomizations = restoreAndCleanup(currentCustomizations);
     if (restoredCustomizations) {
       await config.update(
-        "colorCustomizations",
+        'colorCustomizations',
         restoredCustomizations,
         vscode.ConfigurationTarget.Global
       );
     }
   } catch (error) {
-    console.error("Error restoring squiggle colors on deactivate:", error);
+    console.error('Error restoring squiggle colors on deactivate:', error);
   }
 }

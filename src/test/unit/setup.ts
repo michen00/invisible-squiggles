@@ -82,7 +82,7 @@ export function clearConfigUpdateCalls(): void {
  * Use this to test command execution in unit tests.
  */
 export function getRegisteredCommand(
-  commandId: string,
+  commandId: string
 ): (() => Promise<void>) | undefined {
   return registeredCommands.get(commandId);
 }

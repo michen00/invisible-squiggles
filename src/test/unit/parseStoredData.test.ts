@@ -1,42 +1,42 @@
-import * as assert from "assert";
-import { afterEach, describe, it } from "mocha";
-import sinon from "sinon";
-import { parseStoredData } from "../../extension";
+import * as assert from 'assert';
+import { afterEach, describe, it } from 'mocha';
+import sinon from 'sinon';
+import { parseStoredData } from '../../extension';
 
-describe("parseStoredData", () => {
+describe('parseStoredData', () => {
   // Ensure all sinon stubs/spies are restored after each test
   afterEach(() => {
     sinon.restore();
   });
 
-  describe("valid JSON with correct format", () => {
-    it("should parse valid stored data", () => {
+  describe('valid JSON with correct format', () => {
+    it('should parse valid stored data', () => {
       const storedJson = JSON.stringify({
         originalColors: {
-          "editorError.background": "#ff0000",
-          "editorWarning.border": "#ffaa00",
+          'editorError.background': '#ff0000',
+          'editorWarning.border': '#ffaa00',
         },
         transparentKeys: [
-          "editorError.background",
-          "editorWarning.border",
-          "editorInfo.foreground",
+          'editorError.background',
+          'editorWarning.border',
+          'editorInfo.foreground',
         ],
       });
 
       const result = parseStoredData(storedJson);
 
       assert.deepStrictEqual(result.originalColors, {
-        "editorError.background": "#ff0000",
-        "editorWarning.border": "#ffaa00",
+        'editorError.background': '#ff0000',
+        'editorWarning.border': '#ffaa00',
       });
       assert.deepStrictEqual(result.transparentKeys, [
-        "editorError.background",
-        "editorWarning.border",
-        "editorInfo.foreground",
+        'editorError.background',
+        'editorWarning.border',
+        'editorInfo.foreground',
       ]);
     });
 
-    it("should handle empty originalColors and transparentKeys", () => {
+    it('should handle empty originalColors and transparentKeys', () => {
       const storedJson = JSON.stringify({
         originalColors: {},
         transparentKeys: [],
@@ -49,64 +49,64 @@ describe("parseStoredData", () => {
     });
   });
 
-  describe("null/undefined input", () => {
-    it("should return empty data for null", () => {
+  describe('null/undefined input', () => {
+    it('should return empty data for null', () => {
       const result = parseStoredData(null);
 
       assert.deepStrictEqual(result.originalColors, {});
       assert.deepStrictEqual(result.transparentKeys, []);
     });
 
-    it("should return empty data for undefined", () => {
+    it('should return empty data for undefined', () => {
       const result = parseStoredData(undefined);
 
       assert.deepStrictEqual(result.originalColors, {});
       assert.deepStrictEqual(result.transparentKeys, []);
     });
 
-    it("should return empty data for empty string", () => {
-      const result = parseStoredData("");
+    it('should return empty data for empty string', () => {
+      const result = parseStoredData('');
 
       assert.deepStrictEqual(result.originalColors, {});
       assert.deepStrictEqual(result.transparentKeys, []);
     });
   });
 
-  describe("invalid JSON", () => {
-    it("should handle malformed JSON and log error", () => {
-      const consoleErrorStub = sinon.stub(console, "error");
+  describe('invalid JSON', () => {
+    it('should handle malformed JSON and log error', () => {
+      const consoleErrorStub = sinon.stub(console, 'error');
 
-      const result = parseStoredData("invalid json{");
+      const result = parseStoredData('invalid json{');
 
       assert.deepStrictEqual(result.originalColors, {});
       assert.deepStrictEqual(result.transparentKeys, []);
       assert.ok(consoleErrorStub.called);
       assert.strictEqual(
         consoleErrorStub.firstCall.args[0],
-        "Error parsing saved colors JSON:"
+        'Error parsing saved colors JSON:'
       );
     });
 
-    it("should include context in error message when provided", () => {
-      const consoleErrorStub = sinon.stub(console, "error");
+    it('should include context in error message when provided', () => {
+      const consoleErrorStub = sinon.stub(console, 'error');
 
-      parseStoredData("invalid json{", "during cleanup");
+      parseStoredData('invalid json{', 'during cleanup');
 
       assert.ok(consoleErrorStub.called);
       assert.strictEqual(
         consoleErrorStub.firstCall.args[0],
-        "Error parsing saved colors JSON during cleanup:"
+        'Error parsing saved colors JSON during cleanup:'
       );
     });
   });
 
-  describe("JSON primitives (manual edit edge cases)", () => {
+  describe('JSON primitives (manual edit edge cases)', () => {
     const testCases = [
-      { value: '"hello"', description: "string" },
-      { value: "123", description: "number" },
-      { value: "true", description: "boolean" },
-      { value: "null", description: "null" },
-      { value: "[1, 2, 3]", description: "array" },
+      { value: '"hello"', description: 'string' },
+      { value: '123', description: 'number' },
+      { value: 'true', description: 'boolean' },
+      { value: 'null', description: 'null' },
+      { value: '[1, 2, 3]', description: 'array' },
     ];
 
     testCases.forEach(({ value, description }) => {
@@ -119,8 +119,8 @@ describe("parseStoredData", () => {
     });
   });
 
-  describe("objects without required properties", () => {
-    it("should return empty data for empty object", () => {
+  describe('objects without required properties', () => {
+    it('should return empty data for empty object', () => {
       const storedJson = JSON.stringify({});
 
       const result = parseStoredData(storedJson);
@@ -129,9 +129,9 @@ describe("parseStoredData", () => {
       assert.deepStrictEqual(result.transparentKeys, []);
     });
 
-    it("should return empty data for object with only originalColors", () => {
+    it('should return empty data for object with only originalColors', () => {
       const storedJson = JSON.stringify({
-        originalColors: { "editorError.background": "#ff0000" },
+        originalColors: { 'editorError.background': '#ff0000' },
       });
 
       const result = parseStoredData(storedJson);
@@ -140,9 +140,9 @@ describe("parseStoredData", () => {
       assert.deepStrictEqual(result.transparentKeys, []);
     });
 
-    it("should return empty data for object with only transparentKeys", () => {
+    it('should return empty data for object with only transparentKeys', () => {
       const storedJson = JSON.stringify({
-        transparentKeys: ["editorError.background"],
+        transparentKeys: ['editorError.background'],
       });
 
       const result = parseStoredData(storedJson);
@@ -151,10 +151,10 @@ describe("parseStoredData", () => {
       assert.deepStrictEqual(result.transparentKeys, []);
     });
 
-    it("should return empty data for object with wrong property names", () => {
+    it('should return empty data for object with wrong property names', () => {
       const storedJson = JSON.stringify({
-        colors: { "editorError.background": "#ff0000" },
-        keys: ["editorError.background"],
+        colors: { 'editorError.background': '#ff0000' },
+        keys: ['editorError.background'],
       });
 
       const result = parseStoredData(storedJson);
@@ -164,11 +164,11 @@ describe("parseStoredData", () => {
     });
   });
 
-  describe("objects with wrong types", () => {
-    it("should handle null originalColors", () => {
+  describe('objects with wrong types', () => {
+    it('should handle null originalColors', () => {
       const storedJson = JSON.stringify({
         originalColors: null,
-        transparentKeys: ["editorError.background"],
+        transparentKeys: ['editorError.background'],
       });
 
       const result = parseStoredData(storedJson);
@@ -177,9 +177,9 @@ describe("parseStoredData", () => {
       assert.deepStrictEqual(result.transparentKeys, []);
     });
 
-    it("should handle null transparentKeys", () => {
+    it('should handle null transparentKeys', () => {
       const storedJson = JSON.stringify({
-        originalColors: { "editorError.background": "#ff0000" },
+        originalColors: { 'editorError.background': '#ff0000' },
         transparentKeys: null,
       });
 
@@ -189,9 +189,9 @@ describe("parseStoredData", () => {
       assert.deepStrictEqual(result.transparentKeys, []);
     });
 
-    it("should handle string originalColors", () => {
+    it('should handle string originalColors', () => {
       const storedJson = JSON.stringify({
-        originalColors: "not an object",
+        originalColors: 'not an object',
         transparentKeys: [],
       });
 
@@ -201,7 +201,7 @@ describe("parseStoredData", () => {
       assert.deepStrictEqual(result.transparentKeys, []);
     });
 
-    it("should handle number transparentKeys", () => {
+    it('should handle number transparentKeys', () => {
       const storedJson = JSON.stringify({
         originalColors: {},
         transparentKeys: 123,
@@ -213,9 +213,9 @@ describe("parseStoredData", () => {
       assert.deepStrictEqual(result.transparentKeys, []);
     });
 
-    it("should handle array originalColors", () => {
+    it('should handle array originalColors', () => {
       const storedJson = JSON.stringify({
-        originalColors: ["not", "an", "object"],
+        originalColors: ['not', 'an', 'object'],
         transparentKeys: [],
       });
 
@@ -226,45 +226,43 @@ describe("parseStoredData", () => {
     });
   });
 
-  describe("context parameter", () => {
-    it("should include context in error messages", () => {
-      const consoleErrorStub = sinon.stub(console, "error");
+  describe('context parameter', () => {
+    it('should include context in error messages', () => {
+      const consoleErrorStub = sinon.stub(console, 'error');
 
-      parseStoredData("invalid json{", "during cleanup");
-
-      assert.ok(consoleErrorStub.called);
-      assert.strictEqual(
-        consoleErrorStub.firstCall.args[0],
-        "Error parsing saved colors JSON during cleanup:"
-      );
-    });
-
-    it("should not include context prefix when context is not provided", () => {
-      const consoleErrorStub = sinon.stub(console, "error");
-
-      parseStoredData("invalid json{");
+      parseStoredData('invalid json{', 'during cleanup');
 
       assert.ok(consoleErrorStub.called);
       assert.strictEqual(
         consoleErrorStub.firstCall.args[0],
-        "Error parsing saved colors JSON:"
+        'Error parsing saved colors JSON during cleanup:'
       );
     });
 
-    it("should work correctly with context even for valid JSON", () => {
+    it('should not include context prefix when context is not provided', () => {
+      const consoleErrorStub = sinon.stub(console, 'error');
+
+      parseStoredData('invalid json{');
+
+      assert.ok(consoleErrorStub.called);
+      assert.strictEqual(
+        consoleErrorStub.firstCall.args[0],
+        'Error parsing saved colors JSON:'
+      );
+    });
+
+    it('should work correctly with context even for valid JSON', () => {
       const storedJson = JSON.stringify({
-        originalColors: { "editorError.background": "#ff0000" },
-        transparentKeys: ["editorError.background"],
+        originalColors: { 'editorError.background': '#ff0000' },
+        transparentKeys: ['editorError.background'],
       });
 
-      const result = parseStoredData(storedJson, "during cleanup");
+      const result = parseStoredData(storedJson, 'during cleanup');
 
       assert.deepStrictEqual(result.originalColors, {
-        "editorError.background": "#ff0000",
+        'editorError.background': '#ff0000',
       });
-      assert.deepStrictEqual(result.transparentKeys, [
-        "editorError.background",
-      ]);
+      assert.deepStrictEqual(result.transparentKeys, ['editorError.background']);
     });
   });
 });

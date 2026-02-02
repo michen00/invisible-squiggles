@@ -1,5 +1,5 @@
-import * as assert from "assert";
-import * as vscode from "vscode";
+import * as assert from 'assert';
+import * as vscode from 'vscode';
 import {
   delay,
   getColorCustomizations,
@@ -7,7 +7,7 @@ import {
   restoreOriginalConfig,
   saveOriginalConfig,
   toggleAndWaitForChange,
-} from "../helpers/testUtils";
+} from '../helpers/testUtils';
 
 /**
  * E2E tests verify the extension works correctly in the Extension Development Host.
@@ -15,7 +15,7 @@ import {
  *
  * Detailed toggle logic and edge cases are tested in integration tests.
  */
-suite("Extension E2E Tests - Command Palette", () => {
+suite('Extension E2E Tests - Command Palette', () => {
   let originalConfig: OriginalConfig;
 
   suiteSetup(async () => {
@@ -26,22 +26,22 @@ suite("Extension E2E Tests - Command Palette", () => {
     await restoreOriginalConfig(originalConfig);
   });
 
-  test("Extension Development Host should launch with extension loaded", async () => {
-    const extension = vscode.extensions.getExtension("michen00.invisible-squiggles");
-    assert.ok(extension, "Extension should be loaded");
+  test('Extension Development Host should launch with extension loaded', async () => {
+    const extension = vscode.extensions.getExtension('michen00.invisible-squiggles');
+    assert.ok(extension, 'Extension should be loaded');
 
     // Extension uses onStartupFinished activation, so ensure it's activated
     if (!extension.isActive) {
       await extension.activate();
     }
-    assert.ok(extension.isActive, "Extension should be active");
+    assert.ok(extension.isActive, 'Extension should be active');
   });
 
-  test("Toggle Squiggles command should execute via command palette", async () => {
-    const settings = vscode.workspace.getConfiguration("invisibleSquiggles");
+  test('Toggle Squiggles command should execute via command palette', async () => {
+    const settings = vscode.workspace.getConfiguration('invisibleSquiggles');
 
     // Ensure at least one hide flag is enabled so toggle has an effect
-    await settings.update("hideErrors", true, vscode.ConfigurationTarget.Global);
+    await settings.update('hideErrors', true, vscode.ConfigurationTarget.Global);
     await delay(100);
 
     const beforeJson = JSON.stringify(getColorCustomizations());
@@ -54,7 +54,7 @@ suite("Extension E2E Tests - Command Palette", () => {
     // Verify: either configuration change event fired, or JSON changed
     assert.ok(
       changed || beforeJson !== afterJson,
-      "Command should update color customizations"
+      'Command should update color customizations'
     );
   });
 });

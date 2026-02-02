@@ -1,4 +1,8 @@
 {
-  "singleQuote": true,
-  "jsxSingleQuote": true
+  "endOfLine": "auto",
+  "experimentalTernaries": true,
+  "htmlWhitespaceSensitivity": "strict",
+  "jsxSingleQuote": true,
+  "printWidth": 88,
+  "singleQuote": true
 }

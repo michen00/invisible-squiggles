@@ -26,6 +26,13 @@ The **Invisible Squiggles** VSCode extension allows you to **selectively toggle 
 
 <!-- TODO: Add a new demo with the 👁️ status icon. -->
 
+### Why not use the built-in "Problems: Visibility" setting?
+
+VS Code's [built-in setting](https://code.visualstudio.com/updates/v1_85#_hide-problem-decorations) (`problems.visibility`) hides all problem decorations when turned off—but it always shows a **warning in the status bar** while they’re hidden. Invisible Squiggles gives you:
+
+- **No forced status bar clutter** — The status bar indicator is optional and can be disabled.
+- **Choose subsets** — Hide only errors, only warnings, only info, only hints, or any combination. The built-in option is all-or-nothing.
+
 ---
 
 ## 🔹 Quickstart

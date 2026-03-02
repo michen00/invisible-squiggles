@@ -92,7 +92,7 @@ repos:
       - id: yamllint
         args: [--strict]
   - repo: https://github.com/adhtruong/mirrors-typos
-    rev: v1.43.5
+    rev: v1.44.0
     hooks:
       - id: typos
   - repo: https://github.com/codespell-project/codespell
@@ -110,7 +110,7 @@ repos:
 
   # configuration validation
   - repo: https://github.com/python-jsonschema/check-jsonschema
-    rev: 0.36.2
+    rev: 0.37.0
     hooks:
       - id: check-dependabot
       - id: check-github-workflows

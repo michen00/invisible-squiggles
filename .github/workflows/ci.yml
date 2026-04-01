@@ -75,7 +75,7 @@ jobs:
         run: npm run test:coverage
       - name: Upload coverage to Codecov
         if: matrix.node == '22.x'
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage/lcov.info
@@ -124,7 +124,7 @@ jobs:
       - name: Build
         run: npm run pretest
       - name: Run integration tests
-        uses: nick-fields/retry@v3
+        uses: nick-fields/retry@v4
         with:
           timeout_minutes: 5
           max_attempts: 2

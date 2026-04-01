@@ -27,7 +27,7 @@ jobs:
       - name: Update Unreleased section
         run: scripts/update-unreleased.sh
       - name: Format CHANGELOG.md
-        uses: DavidAnson/markdownlint-cli2-action@v22
+        uses: DavidAnson/markdownlint-cli2-action@v23
         with:
           config: .markdownlint.yml
           globs: |

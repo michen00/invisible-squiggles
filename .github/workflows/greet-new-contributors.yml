@@ -18,8 +18,15 @@ jobs:
       - name: detect bot author
         id: bot-author-check
         uses: ./.github/actions/detect-bot-author
+      # Greet genuine newcomers only: the bot guard handles automation;
+      # author_association skips maintainers and returning contributors,
+      # whose first-interaction count is unreliable during PR bursts.
       - name: greet first interactions
-        if: steps.bot-author-check.outputs.is-bot == 'false'
+        if: >-
+          steps.bot-author-check.outputs.is-bot == 'false' &&
+          !contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR", "CONTRIBUTOR"]'),
+          github.event.pull_request.author_association ||
+          github.event.issue.author_association)
         uses: actions/first-interaction@v3
         with:
           issue_message: |

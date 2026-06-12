@@ -1,0 +1,85 @@
+---
+name: Release provenance
+
+# Build the .vsix from the release tag, generate a keyless SLSA build-
+# provenance attestation for it (GitHub OIDC + sigstore -- no signing
+# secret), and attach it to the GitHub release. Consumers verify with:
+#   gh attestation verify <file>.vsix --repo michen00/invisible-squiggles
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to attest (e.g. v0.3.2)
+        required: true
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  attest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve and validate the release ref
+        id: ref
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            TAG="$INPUT_TAG"
+            # Manual dispatch can request any string; allow only a vX.Y.Z
+            # release tag so this privileged (id-token / attestations: write)
+            # job can't mint provenance for an arbitrary branch or commit.
+            if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+              echo "::error::Refusing to attest '$TAG': not a vX.Y.Z release tag."
+              exit 1
+            fi
+          else
+            TAG="$RELEASE_TAG"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout the release tag
+        uses: actions/checkout@v6
+        with:
+          # refs/tags/ forces a tag ref -- checkout fails fast if the tag does
+          # not exist, so a non-tag ref can never reach the attestation step.
+          ref: refs/tags/${{ steps.ref.outputs.tag }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Build the VSIX
+        # make build-vsix runs the same doc-prep + `vsce package` the local
+        # release flow uses, so the attested artifact matches a hand build.
+        run: make build-vsix
+
+      - name: Locate the VSIX
+        id: vsix
+        run: |
+          vsix=$(find . -maxdepth 1 -name '*.vsix' -print -quit)
+          if [ -z "$vsix" ]; then
+            echo "::error::no .vsix produced by 'make build-vsix'"
+            exit 1
+          fi
+          echo "path=$vsix" >> "$GITHUB_OUTPUT"
+
+      - name: Attest build provenance for the VSIX
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: ${{ steps.vsix.outputs.path }}
+
+      - name: Upload the VSIX to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.ref.outputs.tag }}
+          VSIX: ${{ steps.vsix.outputs.path }}
+        run: gh release upload "$TAG" "$VSIX" --clobber

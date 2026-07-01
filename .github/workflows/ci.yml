@@ -19,7 +19,7 @@ jobs:
     name: Pre-commit hooks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
         id: setup-python
         with:
@@ -31,7 +31,7 @@ jobs:
           pip install --upgrade pre-commit
       - name: Cache pre-commit hooks
         id: cache-pre-commit-hooks
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         env:
           CACHE_NUMBER: 0
         with:
@@ -61,7 +61,7 @@ jobs:
           - 22.x
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
@@ -75,7 +75,7 @@ jobs:
         run: npm run test:coverage
       - name: Upload coverage to Codecov
         if: matrix.node == '22.x'
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage/lcov.info
@@ -87,7 +87,7 @@ jobs:
     outputs:
       min: ${{ steps.version.outputs.min }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Get minimum VSCode version
         id: version
         run: |
@@ -108,14 +108,14 @@ jobs:
           - stable
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 22.x
           cache: npm
       - name: Cache VSCode downloads
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.vscode-test
           key: ${{ runner.os }}-vscode-${{ matrix.vscode }}-${{ hashFiles('package.json') }} # yamllint disable-line rule:line-length

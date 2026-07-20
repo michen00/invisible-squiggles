@@ -20,7 +20,7 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.merged == false
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: detect bot author
         id: bot-author-check
         uses: ./.github/actions/detect-bot-author

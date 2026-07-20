@@ -14,7 +14,7 @@ jobs:
   greeting:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: detect bot author
         id: bot-author-check
         uses: ./.github/actions/detect-bot-author

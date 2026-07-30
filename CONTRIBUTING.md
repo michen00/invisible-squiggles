@@ -183,10 +183,17 @@ Setup requires an Entra app registration, a GitHub federated credential scoped t
 repository, and that identity added as a member of the `michen00` Marketplace publisher.
 Once a publish succeeds that way, delete the `VSCE_PAT` secret. Open VSX is unaffected.
 
-To publish a tag manually — backfilling an older release, or retrying after one registry
-fails — run the workflow via `workflow_dispatch` with a `tag` and a `targets` choice of
-`both`, `vscode`, or `openvsx`. Target a single registry when retrying, since republishing
-an already-published version fails.
+To publish a tag manually — backfilling a release, or retrying after one registry fails —
+run the workflow via `workflow_dispatch` with a `tag` and a `targets` choice of `both`,
+`vscode`, or `openvsx`. Target a single registry when retrying, since republishing an
+already-published version fails.
+
+Manual dispatch only works for **v0.4.0 and later**. `workflow_dispatch` takes the workflow
+definition from the ref you dispatch on but checks out the tag you name, and the build step
+calls `make verify-reproducible`. Tags from v0.3.1 back have neither that target nor
+`scripts/normalize-vsix.mjs`, so the job fails at the build step. To get an older version
+onto a registry it never reached, publish it from a working tree that has this tooling
+(`make publish-ovsx`) rather than dispatching its tag.
 
 Retrying one registry is safe because the package is byte-reproducible. `make
 package-vsix` pins entry timestamps and Unix modes via `scripts/normalize-vsix.mjs`, and

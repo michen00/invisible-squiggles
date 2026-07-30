@@ -9,8 +9,9 @@
 [![Coverage](https://img.shields.io/codecov/c/github/michen00/invisible-squiggles?style=plastic)](https://codecov.io/gh/michen00/invisible-squiggles)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=plastic)](CONTRIBUTING.md)
 [![License](https://img.shields.io/github/license/michen00/invisible-squiggles?style=plastic)](LICENSE)
+[![Open VSX Version](https://img.shields.io/open-vsx/v/michen00/invisible-squiggles?style=plastic)](https://open-vsx.org/extension/michen00/invisible-squiggles)
+[![Open VSX Downloads](https://img.shields.io/open-vsx/dt/michen00/invisible-squiggles?style=plastic)](https://open-vsx.org/extension/michen00/invisible-squiggles)
 
-<!-- [![Open VSX Version](https://img.shields.io/open-vsx/v/michen00/invisible-squiggles?style=plastic)](https://open-vsx.org/extension/michen00/invisible-squiggles) -->
 <!-- [![Maturity](https://img.shields.io/badge/maturity-stable-green?style=plastic)](CHANGELOG.md) -->
 <!-- [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.YOUR_ZENODO_ID.svg?style=plastic)](https://doi.org/10.5281/zenodo.YOUR_ZENODO_ID) -->
 
@@ -37,7 +38,7 @@ VS Code's [built-in setting](https://code.visualstudio.com/updates/v1_85#_hide-p
 
 ## 🔹 Quickstart
 
-1. [Install the extension](https://marketplace.visualstudio.com/items?itemName=michen00.invisible-squiggles) from the VSCode marketplace.
+1. Install the extension from the [VSCode marketplace](https://marketplace.visualstudio.com/items?itemName=michen00.invisible-squiggles), or from [Open VSX](https://open-vsx.org/extension/michen00/invisible-squiggles) if you use Cursor, Windsurf, VSCodium, or Gitpod.
 1. **Toggle squiggles** using one of these methods:
 
 ### **Option 1: Using the Status Bar Button**
@@ -57,5 +58,16 @@ Click the **👁️ Toggle Squiggles** button at the **bottom right**.
 - **Manual edits will be overwritten**: When squiggles are hidden, the extension stores your original color customizations and applies transparent colors. Toggling squiggles will overwrite any manual changes you make to these colors while they're hidden.
 - **Customizations stored in settings**: Your original color customizations are saved in VS Code's `settings.json`. If this file becomes corrupted, your saved customizations may be lost.
 - Users who upgrade while squiggles are hidden may need to toggle twice to reset state.
+
+## 🔹 Verifying a release
+
+Releases carry keyless build provenance, and release tags are signed:
+
+```bash
+gh attestation verify invisible-squiggles-<version>.vsix --repo michen00/invisible-squiggles
+git -c gpg.ssh.allowedSignersFile=.github/allowed_signers verify-tag v<version>
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for what each one proves.
 
 ## 🔹 Documentation [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/michen00/invisible-squiggles)

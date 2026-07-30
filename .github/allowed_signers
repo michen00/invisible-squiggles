@@ -1,0 +1,10 @@
+# Public keys trusted to sign this project's release tags.
+#
+# Verify a release tag from a clone:
+#   git config gpg.ssh.allowedSignersFile .github/allowed_signers
+#   git verify-tag v0.3.1
+#
+# A signed tag commits to the exact source tree through git's hash chain, so
+# this is the source-authenticity anchor. Built artifacts carry separate keyless
+# provenance -- see "Verifying a release" in CONTRIBUTING.md.
+michael.chen@aicadium.ai ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGV20UZPksHhNGb2fkwSnmLwEzq6JXeJVMJ8qGwRwZ67

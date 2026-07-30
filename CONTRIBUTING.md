@@ -145,8 +145,85 @@ Then open a PR.
 10. Create a signed tag: `git tag -a vX.Y.Z -m vX.Y.Z -s`
 11. Push with tags: `git push --follow-tags`
 12. Create a GitHub release from the tag: `make release VERSION=vX.Y.Z`
-13. Review the release notes and edit them if needed (via GitHub web UI).
-14. Publish to the VSCode Marketplace: `make publish`
+13. Two workflows fire on `release: published` and do the rest:
+    - `sign release artifacts` builds the `.tar.gz`/`.zip` archives, signs them, verifies
+      them against the committed public key, and uploads archives + `.sig` files.
+    - `publish extension` publishes to both registries (see below).
+14. Review the release notes/assets and edit notes if needed (via GitHub web UI).
+15. Publishing to the VSCode Marketplace and Open VSX happens automatically: the
+    `publish extension` workflow runs on `release: published`, builds one VSIX, and pushes
+    that same package to both registries.
+
+### Publishing
+
+Releases publish themselves. `.github/workflows/publish.yml` verifies the tag matches
+`package.json`, builds the VSIX once via `make build-vsix` (so marketplace README
+preparation happens exactly one way), then publishes to both registries.
+
+Repository secrets required:
+
+- `VSCE_PAT`: Azure DevOps personal access token for the VSCode Marketplace.
+  Create it with **Organization: All accessible organizations** and scope
+  **Marketplace → Manage**. Any narrower organization or scope fails with a 401.
+- `OVSX_PAT`: Open VSX access token for the `michen00` namespace
+
+#### Marketplace auth migration (before 2026-12-01)
+
+Azure DevOps retires global PATs on **2026-12-01**, and a global PAT — one scoped to all
+accessible organizations — is currently the only kind that can reach the Marketplace. After
+that date `VSCE_PAT` stops working.
+
+The workflow already supports the replacement. Set two repository **variables** and it
+switches to Entra ID federated auth via `vsce publish --azure-credential`, storing no
+long-lived secret:
+
+- `AZURE_CLIENT_ID`: the Entra app registration's client ID
+- `AZURE_TENANT_ID`: the Entra tenant ID
+
+Setup requires an Entra app registration, a GitHub federated credential scoped to this
+repository, and that identity added as a member of the `michen00` Marketplace publisher.
+Once a publish succeeds that way, delete the `VSCE_PAT` secret. Open VSX is unaffected.
+
+To publish a tag manually — backfilling an older release, or retrying after one registry
+fails — run the workflow via `workflow_dispatch` with a `tag` and a `targets` choice of
+`both`, `vscode`, or `openvsx`. Target a single registry when retrying, since republishing
+an already-published version fails.
+
+Local fallback (requires `VSCE_PAT` / `OVSX_PAT` in your environment):
+
+```bash
+make publish        # VSCode Marketplace only
+make publish-ovsx   # Open VSX only
+make publish-all    # one build, both registries
+```
+
+### Verifying a release
+
+Two independent things are verifiable, and they cover different artifacts.
+
+**The source** — the signed tag. A signed annotated tag commits to the exact source tree
+through git's hash chain, so it needs no separate signed archive. The trusted public key
+is committed to `.github/allowed_signers`, so this works offline from a clone:
+
+```bash
+git config gpg.ssh.allowedSignersFile .github/allowed_signers
+make verify-tag VERSION=vX.Y.Z          # or: git verify-tag vX.Y.Z
+```
+
+**The artifact** — keyless build provenance. The publish workflow builds the VSIX once,
+attests that exact file with `actions/attest-build-provenance` (GitHub OIDC + sigstore, no
+signing secret), then publishes and attaches that same file:
+
+```bash
+gh release download vX.Y.Z --pattern '*.vsix'
+gh attestation verify invisible-squiggles-<version>.vsix \
+  --repo michen00/invisible-squiggles
+```
+
+Note the two are not substitutes. The VSIX ships only a minified `dist/` bundle and no
+source files, so provenance proves "this bundle was built by this repo's CI at this
+commit" while the signed tag proves "this is the source the maintainer released." One
+build is attested, published, and attached, so the attested bytes are the shipped bytes.
 
 [issues]: https://github.com/michen00/invisible-squiggles/issues
 [issues_new]: https://github.com/michen00/invisible-squiggles/issues/new

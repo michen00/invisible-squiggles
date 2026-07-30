@@ -1,0 +1,170 @@
+---
+name: publish extension
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to publish (e.g. v0.3.1)
+        required: true
+        type: string
+      targets:
+        description: Registries to publish to
+        required: true
+        default: both
+        type: choice
+        options:
+          - both
+          - vscode
+          - openvsx
+
+concurrency:
+  group: publish-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+permissions:
+  # Attaching the VSIX to the release.
+  contents: write
+  # Mints the OIDC token, used both for the provenance attestation and for
+  # Entra ID federated auth.
+  id-token: write
+  # Recording the build-provenance attestation.
+  attestations: write
+
+jobs:
+  publish:
+    name: Publish extension
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
+          # icon.png is LFS-tracked. Without this the runner gets a 130-byte
+          # pointer file, which vsce packages silently into a broken extension.
+          lfs: true
+
+      - name: Resolve release metadata
+        id: metadata
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_TARGETS: ${{ inputs.targets }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          if [ "${EVENT_NAME}" = "release" ]; then
+            tag="${RELEASE_TAG}"
+            targets="both"
+          else
+            tag="${INPUT_TAG}"
+            targets="${INPUT_TARGETS}"
+          fi
+          case "${tag}" in
+            v[0-9]*.[0-9]*.[0-9]*) ;;
+            *)
+              echo "Error: tag '${tag}' is not of the form vX.Y.Z."
+              exit 1
+              ;;
+          esac
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "targets=${targets}" >> "$GITHUB_OUTPUT"
+          echo "Publishing ${tag} to: ${targets}"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.x
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # A mismatch means the tag and the manifest disagree about what is
+      # being shipped; both registries key releases off the manifest version.
+      - name: Verify tag matches package.json version
+        env:
+          TAG: ${{ steps.metadata.outputs.tag }}
+        run: |
+          manifest="v$(node -p "require('./package.json').version")"
+          if [ "${manifest}" != "${TAG}" ]; then
+            echo "Error: tag ${TAG} does not match package.json (${manifest})."
+            exit 1
+          fi
+
+      # Built once so both registries receive a byte-identical package, and
+      # so the marketplace README preparation happens exactly one way.
+      - name: Build VSIX
+        id: build
+        run: |
+          make build-vsix
+          vsix="invisible-squiggles-$(node -p "require('./package.json').version").vsix"
+          if [ ! -f "${vsix}" ]; then
+            echo "Error: ${vsix} was not produced by make build-vsix."
+            exit 1
+          fi
+          echo "vsix=${vsix}" >> "$GITHUB_OUTPUT"
+
+      # Attests the exact file that the publish steps below ship. A .vsix is a
+      # zip carrying entry mtimes, so two builds of one tree differ -- attesting
+      # in a separate workflow would vouch for bytes nobody receives.
+      # Verify with:
+      #   gh attestation verify <file>.vsix --repo michen00/invisible-squiggles
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: ${{ steps.build.outputs.vsix }}
+
+      - name: Attach the VSIX to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.metadata.outputs.tag }}
+          VSIX: ${{ steps.build.outputs.vsix }}
+        run: gh release upload "${TAG}" "${VSIX}" --clobber
+
+      # Azure DevOps retires global PATs on 2026-12-01, and a global PAT is the
+      # only kind that can reach the Marketplace today. Setting the AZURE_*
+      # repository variables switches this job to Entra ID federated auth, which
+      # stores no long-lived secret. Until then it falls back to VSCE_PAT.
+      - name: Authenticate to Microsoft Entra ID
+        id: entra
+        if: >-
+          vars.AZURE_CLIENT_ID != '' &&
+          contains(fromJSON('["both", "vscode"]'), steps.metadata.outputs.targets)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: Publish to VS Code Marketplace
+        if: contains(fromJSON('["both", "vscode"]'), steps.metadata.outputs.targets)
+        env:
+          ENTRA: ${{ steps.entra.outcome }}
+          VSCE_PAT: ${{ secrets['VSCE_PAT'] }}
+          VSIX: ${{ steps.build.outputs.vsix }}
+        run: |
+          if [ "${ENTRA}" = "success" ]; then
+            echo "Publishing with Entra ID federated credentials."
+            npx vsce publish --azure-credential --packagePath "${VSIX}"
+          elif [ -n "${VSCE_PAT}" ]; then
+            echo "Publishing with VSCE_PAT. Migrate to Entra ID before 2026-12-01."
+            npx vsce publish --packagePath "${VSIX}"
+          else
+            echo "Error: no Marketplace credentials. Set the AZURE_CLIENT_ID and"
+            echo "AZURE_TENANT_ID repository variables, or the VSCE_PAT secret."
+            exit 1
+          fi
+
+      - name: Publish to Open VSX
+        if: contains(fromJSON('["both", "openvsx"]'), steps.metadata.outputs.targets)
+        env:
+          OVSX_PAT: ${{ secrets['OVSX_PAT'] }}
+          VSIX: ${{ steps.build.outputs.vsix }}
+        run: |
+          if [ -z "${OVSX_PAT}" ]; then
+            echo "Error: OVSX_PAT secret is not configured."
+            exit 1
+          fi
+          npx ovsx publish "${VSIX}"

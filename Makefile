@@ -17,6 +17,8 @@ endif
 
 RM_FLAGS := -rf$(if $(or $(DEBUG),$(VERBOSE)),v,)
 RM := rm $(RM_FLAGS)
+PROJECT_NAME ?= invisible-squiggles
+SIGNERS_FILE ?= .github/allowed_signers
 
 PRECOMMIT ?= pre-commit
 ifneq ($(shell command -v prek >/dev/null 2>&1 && echo y),)
@@ -155,15 +157,41 @@ publish: install ## Publish the extension to the VS Code Marketplace
 	@$(PREPARE_DOCS); \
     npx vsce publish
 
+.PHONY: publish-ovsx
+publish-ovsx: install ## Publish the extension to Open VSX
+	@$(PREPARE_DOCS); \
+    npx ovsx publish
+
+# Publishes one build to both registries so they receive identical bytes.
+.PHONY: publish-all
+publish-all: build-vsix ## Publish the built VSIX to both registries
+	@set -e; \
+    vsix="$(PROJECT_NAME)-$$(node -p "require('./package.json').version").vsix"; \
+    if [ ! -f "$$vsix" ]; then echo "Error: $$vsix not found"; exit 1; fi; \
+    npx vsce publish --packagePath "$$vsix"; \
+    npx ovsx publish "$$vsix"
+
 .PHONY: update-unreleased
 update-unreleased: ## Update the Unreleased section of CHANGELOG.md and commit
 	@scripts/update-unreleased.sh --commit
 
+# Verifies a release tag against the committed public key in
+# .github/allowed_signers. The signed tag is the source-authenticity anchor;
+# built artifacts carry keyless provenance instead (see CONTRIBUTING.md).
+.PHONY: verify-tag
+verify-tag: ## Verify a release tag's signature (VERSION=vX.Y.Z)
+	@if [ -z "$(VERSION)" ]; then echo "Usage: make verify-tag VERSION=vX.Y.Z"; exit 1; fi
+	@git -c gpg.ssh.allowedSignersFile=$(SIGNERS_FILE) verify-tag $(VERSION)
+
+# The publish workflow owns artifact upload: it builds the VSIX once, attests
+# that exact file, publishes it, and attaches it to the release. Building or
+# uploading here as well would mean the attested bytes are not the shipped bytes.
 .PHONY: release
 release: ## Create a GitHub release (VERSION=vX.Y.Z)
 	@if [ -z "$(VERSION)" ]; then echo "Usage: make release VERSION=vX.Y.Z"; exit 1; fi
 	@git rev-parse --verify refs/tags/$(VERSION) >/dev/null 2>&1 || { echo "Error: Tag $(VERSION) does not exist"; exit 1; }
 	gh release create $(VERSION) --generate-notes --discussion-category "Announcements"
+	@echo "The publish workflow attests, publishes, and attaches the VSIX."
 
 .PHONY: test
 test: install ## Run tests

@@ -63,16 +63,17 @@ const MODE_FILE = 0o100644;
 const MODE_FILE_EXEC = 0o100755;
 const MODE_DIR = 0o040755;
 
-// Extra-field header ids that carry their own copy of a timestamp. We verified
-// vsce emits no extra fields at all, but if that ever changes, patching only the
-// DOS words would leave a second timestamp behind and silently reintroduce the
-// non-determinism this script exists to remove. Fail loudly instead.
-const TIMESTAMP_EXTRA_IDS = new Map([
-  [0x5455, 'extended timestamp (UT)'],
-  [0x5855, 'Info-ZIP Unix (UX)'],
-  [0x7875, 'Info-ZIP Unix uid/gid (ux)'],
-  [0x000a, 'NTFS timestamps'],
-  [0x000d, 'PKWARE Unix (carries Mtime and the Unix mode)'],
+// Extra-field header ids this script must refuse. vsce emits no extra fields at
+// all today, but if that ever changes these would silently defeat the guarantees:
+// the timestamp/mode carriers hold a second copy of a field we normalise, and the
+// ZIP64 record relocates the very offsets the walk relies on. Fail loudly.
+const UNSAFE_EXTRA_IDS = new Map([
+  [0x0001, 'ZIP64 extended information (relocates sizes and local header offsets)'],
+  [0x000a, 'NTFS timestamps (holds its own mtime)'],
+  [0x000d, 'PKWARE Unix (holds its own mtime and Unix mode)'],
+  [0x5455, 'extended timestamp UT (holds its own mtime)'],
+  [0x5855, 'Info-ZIP Unix UX (holds its own mtime)'],
+  [0x7875, 'Info-ZIP Unix uid/gid ux (holds owner metadata)'],
 ]);
 
 function fail(message) {
@@ -92,19 +93,20 @@ function findEocd(buf) {
   return -1;
 }
 
-function assertNoTimestampExtras(buf, start, length, label) {
+function assertNoUnsafeExtras(buf, start, length, label) {
   let offset = start;
   const end = start + length;
   while (offset + 4 <= end) {
     const headerId = buf.readUInt16LE(offset);
     const size = buf.readUInt16LE(offset + 2);
-    const known = TIMESTAMP_EXTRA_IDS.get(headerId);
-    if (known) {
+    const reason = UNSAFE_EXTRA_IDS.get(headerId);
+    if (reason) {
       fail(
-        `${label} carries a ${known} extra field (0x${headerId.toString(16)}). ` +
-          'It holds a second copy of the mtime that this script does not ' +
-          'normalise, so the package would not be reproducible. Teach ' +
-          'scripts/normalize-vsix.mjs to rewrite it.'
+        `${label} carries an unsupported extra field 0x${headerId
+          .toString(16)
+          .padStart(4, '0')} -- ${reason}. Normalising it would leave the ` +
+          'package irreproducible, or patch the wrong bytes. Teach ' +
+          'scripts/normalize-vsix.mjs to handle it.'
       );
     }
     offset += 4 + size;
@@ -131,17 +133,28 @@ if (eocd === -1) {
 }
 
 const entryCount = buf.readUInt16LE(eocd + 10);
+const centralDirSize = buf.readUInt32LE(eocd + 12);
 const centralDirOffset = buf.readUInt32LE(eocd + 16);
 
 // Detect ZIP64 from the EOCD's overflow sentinels rather than by scanning for a
 // ZIP64 signature: compressed data can contain any byte sequence, so a whole-file
-// scan would false-match. The 4-byte offsets walked below are not valid under
-// ZIP64, so refuse rather than risk writing into the middle of an entry.
+// scan would false-match. This catches the case that matters -- the classic fields
+// having overflowed, so the real values live in the ZIP64 record and the 32-bit
+// offsets walked below are wrong. An archive that merely carries a ZIP64 record
+// while its classic fields still hold true values is walked safely, and the
+// exact-consumption assertion after the loop is the backstop for anything else.
 if (entryCount === ZIP64_COUNT_SENTINEL || centralDirOffset === ZIP64_OFFSET_SENTINEL) {
   fail(
     'ZIP64 archive detected. The 32-bit central-directory offsets this script ' +
       'walks are not valid for ZIP64, so patching could corrupt the package.'
   );
+}
+
+// A .vsix always has entries. Zero means the archive is not what the caller
+// thinks it is, and an empty walk would otherwise "succeed" without doing
+// anything -- the same fail-open shape this script's guards exist to avoid.
+if (entryCount === 0) {
+  fail(`${target} declares zero entries; nothing to normalise.`);
 }
 
 // Walk the central directory. It is the authoritative index -- scanning the
@@ -159,12 +172,7 @@ for (let i = 0; i < entryCount; i++) {
   const localOffset = buf.readUInt32LE(cursor + 42);
   const name = buf.toString('utf8', cursor + 46, cursor + 46 + nameLength);
 
-  assertNoTimestampExtras(
-    buf,
-    cursor + 46 + nameLength,
-    extraLength,
-    `${name} (central)`
-  );
+  assertNoUnsafeExtras(buf, cursor + 46 + nameLength, extraLength, `${name} (central)`);
 
   // Central directory record: time at +12, date at +14.
   buf.writeUInt16LE(DOS_TIME, cursor + 12);
@@ -190,7 +198,7 @@ for (let i = 0; i < entryCount; i++) {
   }
   const localExtraLength = buf.readUInt16LE(localOffset + 28);
   const localNameLength = buf.readUInt16LE(localOffset + 26);
-  assertNoTimestampExtras(
+  assertNoUnsafeExtras(
     buf,
     localOffset + 30 + localNameLength,
     localExtraLength,
@@ -205,8 +213,19 @@ for (let i = 0; i < entryCount; i++) {
   patched++;
 }
 
-if (patched !== entryCount) {
-  fail(`patched ${patched} entries but the directory declares ${entryCount}.`);
+// The walk must land exactly on the end of the central directory. Comparing
+// `patched` against entryCount would be a tautology -- it increments once per
+// iteration of a loop bounded by entryCount. This instead proves the cursor
+// arithmetic tracked the real record layout: a desync from a miscounted field,
+// an unexpected structure, or a ZIP64 record that slipped past the sentinel check
+// lands somewhere else, and patching would have written into the wrong bytes.
+const consumed = cursor - centralDirOffset;
+if (consumed !== centralDirSize) {
+  fail(
+    `central directory walk consumed ${consumed} bytes but the ` +
+      `end-of-central-directory record declares ${centralDirSize}. The archive ` +
+      'layout is not what this script assumes; it has not been modified.'
+  );
 }
 
 writeFileSync(target, buf);

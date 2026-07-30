@@ -143,4 +143,122 @@ if ! unzip -Z "$WORK/exec.zip" 'nested/beta.txt' | grep -q '^-rw-r--r--'; then
   exit 1
 fi
 
+# 9. Entry data containing zip signature bytes must not fool the walk. Stored
+# (-0) so the bytes appear literally in the archive instead of being deflated
+# away. This is what the backward EOCD scan and the central-directory-driven walk
+# exist to withstand: a whole-file signature scan would false-match in here.
+mkdir -p "$WORK/sig"
+printf 'PK\005\006PK\003\004PK\001\002PK\006\006 decoy signatures follow\n' \
+  > "$WORK/sig/decoy.bin"
+printf 'plain\n' > "$WORK/sig/plain.txt"
+touch -t 202403040506.07 "$WORK/sig/decoy.bin" "$WORK/sig/plain.txt"
+(cd "$WORK/sig" && zip -q -0 -X -r "$WORK/sig_a.zip" .)
+touch -t 199801010101.01 "$WORK/sig/decoy.bin" "$WORK/sig/plain.txt"
+(cd "$WORK/sig" && zip -q -0 -X -r "$WORK/sig_b.zip" .)
+node scripts/normalize-vsix.mjs "$WORK/sig_a.zip" > /dev/null
+node scripts/normalize-vsix.mjs "$WORK/sig_b.zip" > /dev/null
+if ! cmp -s "$WORK/sig_a.zip" "$WORK/sig_b.zip"; then
+  echo "FAIL: archives holding zip signature bytes did not converge" >&2
+  exit 1
+fi
+mkdir -p "$WORK/sigout"
+unzip -qq "$WORK/sig_a.zip" -d "$WORK/sigout"
+if ! cmp -s "$WORK/sig/decoy.bin" "$WORK/sigout/decoy.bin"; then
+  echo "FAIL: signature-bearing entry data was corrupted" >&2
+  exit 1
+fi
+
+# 10. The local-header extra-field guard. Assertion 5 can only ever trip the
+# central-directory guard, because the walk inspects that copy first. Here the
+# central copies' header ids are rewritten to a benign value in place -- same
+# lengths, no offsets moved -- so the local copy is the only unsafe one left and
+# the local guard is the only thing that can catch it.
+(cd "$SRC" && zip -q -r "$WORK/localextra.zip" .)
+node -e '
+const fs = require("node:fs");
+const path = process.argv[1];
+const b = fs.readFileSync(path);
+let eocd = -1;
+for (let i = b.length - 22; i >= 0; i--) {
+  if (b.readUInt32LE(i) === 0x06054b50) { eocd = i; break; }
+}
+const count = b.readUInt16LE(eocd + 10);
+let c = b.readUInt32LE(eocd + 16);
+let rewritten = 0;
+for (let i = 0; i < count; i++) {
+  const nl = b.readUInt16LE(c + 28);
+  const xl = b.readUInt16LE(c + 30);
+  const cl = b.readUInt16LE(c + 32);
+  let o = c + 46 + nl;
+  const end = o + xl;
+  while (o + 4 <= end) {
+    const id = b.readUInt16LE(o);
+    const sz = b.readUInt16LE(o + 2);
+    if (id !== 0x9999) { b.writeUInt16LE(0x9999, o); rewritten++; }
+    o += 4 + sz;
+  }
+  c += 46 + nl + xl + cl;
+}
+if (rewritten === 0) { console.error("fixture built no central extras"); process.exit(1); }
+fs.writeFileSync(path, b);
+' "$WORK/localextra.zip"
+if node scripts/normalize-vsix.mjs "$WORK/localextra.zip" > "$WORK/le.log" 2>&1; then
+  echo "FAIL: expected refusal from the local-header extra-field guard" >&2
+  exit 1
+fi
+if ! grep -q '(local)' "$WORK/le.log"; then
+  echo "FAIL: refusal did not come from the local-header guard" >&2
+  cat "$WORK/le.log" >&2
+  exit 1
+fi
+
+# 11. A central directory whose declared size disagrees with the real layout must
+# be refused rather than patched. Exercises the exact-consumption assertion, which
+# replaced a tautological patched-vs-entryCount check.
+cp "$WORK/test.zip" "$WORK/badsize.zip"
+node -e '
+const fs = require("node:fs");
+const path = process.argv[1];
+const b = fs.readFileSync(path);
+let eocd = -1;
+for (let i = b.length - 22; i >= 0; i--) {
+  if (b.readUInt32LE(i) === 0x06054b50) { eocd = i; break; }
+}
+b.writeUInt32LE(b.readUInt32LE(eocd + 12) + 7, eocd + 12);
+fs.writeFileSync(path, b);
+' "$WORK/badsize.zip"
+before_bad=$(shasum -a 256 "$WORK/badsize.zip" | cut -d' ' -f1)
+if node scripts/normalize-vsix.mjs "$WORK/badsize.zip" > "$WORK/bad.log" 2>&1; then
+  echo "FAIL: expected refusal on a mismatched central-directory size" >&2
+  exit 1
+fi
+if ! grep -q 'consumed' "$WORK/bad.log"; then
+  echo "FAIL: refusal did not name the consumption mismatch" >&2
+  cat "$WORK/bad.log" >&2
+  exit 1
+fi
+if [ "$before_bad" != "$(shasum -a 256 "$WORK/badsize.zip" | cut -d' ' -f1)" ]; then
+  echo "FAIL: a refused archive was modified on disk" >&2
+  exit 1
+fi
+
+# 12. An archive declaring zero entries is refused: an empty walk would otherwise
+# report success without normalising anything.
+: > "$WORK/noentries.zip"
+node -e '
+const fs = require("node:fs");
+const eocd = Buffer.alloc(22);
+eocd.writeUInt32LE(0x06054b50, 0);
+fs.writeFileSync(process.argv[1], eocd);
+' "$WORK/noentries.zip"
+if node scripts/normalize-vsix.mjs "$WORK/noentries.zip" > "$WORK/none.log" 2>&1; then
+  echo "FAIL: expected refusal on an archive with zero entries" >&2
+  exit 1
+fi
+if ! grep -q 'zero entries' "$WORK/none.log"; then
+  echo "FAIL: refusal on a zero-entry archive did not name the reason" >&2
+  cat "$WORK/none.log" >&2
+  exit 1
+fi
+
 echo "normalize-vsix.mjs test passed"

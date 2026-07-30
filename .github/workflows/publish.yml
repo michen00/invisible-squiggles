@@ -90,15 +90,23 @@ jobs:
             exit 1
           fi
 
-      # Built once so both registries receive a byte-identical package, and
-      # so the marketplace README preparation happens exactly one way.
-      - name: Build VSIX
+      # One package ships to both registries, so the marketplace README
+      # preparation happens exactly one way.
+      #
+      # `verify-reproducible` rather than `package-vsix`: the retry path below is
+      # only safe if a rebuild of this tag yields identical bytes, and this is the
+      # one place that assumption is load-bearing. It packages twice under
+      # different umasks and fails the release if they disagree, so a regression in
+      # the pinning cannot reach a registry. The surviving artifact is byte-identical
+      # to the first build by definition, so either may ship. Costs one extra build
+      # per release.
+      - name: Build VSIX and verify reproducibility
         id: build
         run: |
-          make package-vsix
+          make verify-reproducible
           vsix="invisible-squiggles-$(node -p "require('./package.json').version").vsix"
           if [ ! -f "${vsix}" ]; then
-            echo "Error: ${vsix} was not produced by make package-vsix."
+            echo "Error: ${vsix} was not produced by make verify-reproducible."
             exit 1
           fi
           echo "vsix=${vsix}" >> "$GITHUB_OUTPUT"

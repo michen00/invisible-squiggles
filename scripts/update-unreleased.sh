@@ -161,8 +161,11 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Check we're in a git repository
-if [ ! -d .git ]; then
+# Check we're at the root of a git repository. Asking git rather than testing for a
+# .git directory: in a linked worktree .git is a file pointing at the real git dir,
+# so -d rejects a perfectly good checkout. --show-prefix is empty only at the root,
+# which is what the relative paths below require.
+if ! git rev-parse --git-dir > /dev/null 2>&1 || [ -n "$(git rev-parse --show-prefix)" ]; then
   echo "Error: Must be run from the root of a git repository." >&2
   exit 1
 fi

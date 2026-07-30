@@ -134,6 +134,11 @@ postprocessors = [
 # the 0.4.0 entries first generated: inconsistent with every earlier release and with
 # every profile link gone. A token is still required (GITHUB_TOKEN); the changelog
 # workflow supplies one.
+#
+# The repository is named explicitly because git-cliff does not infer one from the git
+# remote -- verified: a token alone still yields mailto fallbacks. That matches the
+# postprocessor URLs below, which hardcode the same repository. A fork does not need to
+# edit this: git-cliff reads the GITHUB_REPO environment variable, which takes precedence.
 [remote.github]
 owner = "michen00"
 repo = "invisible-squiggles"

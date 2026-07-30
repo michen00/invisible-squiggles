@@ -191,9 +191,13 @@ already-published version fails.
 Manual dispatch only works for **v0.4.0 and later**. `workflow_dispatch` takes the workflow
 definition from the ref you dispatch on but checks out the tag you name, and the build step
 calls `make verify-reproducible`. Tags from v0.3.1 back have neither that target nor
-`scripts/normalize-vsix.mjs`, so the job fails at the build step. To get an older version
-onto a registry it never reached, publish it from a working tree that has this tooling
-(`make publish-ovsx`) rather than dispatching its tag.
+`scripts/normalize-vsix.mjs`, so the job fails at the build step.
+
+**Do not try to backfill an older version by hand.** `vsce` and `ovsx` take the version from
+the checked-out `package.json`, so a tree that mixes this tooling with an old tag publishes
+whichever version that tree happens to declare — not necessarily the one you meant. Both
+registries refuse to republish a version that already exists, so a wrong number cannot be
+corrected, only abandoned. If a registry is missing a version, release forward.
 
 Retrying one registry is safe because the package is byte-reproducible. `make
 package-vsix` pins entry timestamps and Unix modes via `scripts/normalize-vsix.mjs`, and

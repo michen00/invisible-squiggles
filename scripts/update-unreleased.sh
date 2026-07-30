@@ -177,6 +177,29 @@ if ! command -v git-cliff > /dev/null 2>&1 && ! command -v git cliff > /dev/null
   exit 1
 fi
 
+# git-cliff resolves commit authors to GitHub handles only when it knows which
+# repository to query; it does not infer one from the git remote. Deriving the value
+# here rather than pinning it in cliff.toml keeps forks and renamed repositories
+# working, since they query themselves instead of whatever upstream was hardcoded.
+# An explicit GITHUB_REPO wins, which is also how a fork can point elsewhere.
+# Resolution additionally needs GITHUB_TOKEN; without it every author falls back to
+# a mailto link.
+if [[ -z "${GITHUB_REPO:-}" ]]; then
+  origin_url="$(git remote get-url origin 2> /dev/null || true)"
+  case "$origin_url" in
+    *github.com[:/]*)
+      derived="${origin_url##*github.com}"
+      derived="${derived#[:/]}"
+      derived="${derived%.git}"
+      # Only accept a clean owner/repo pair; anything else is left unset so git-cliff
+      # degrades to mailto links instead of failing on a bad slug.
+      if [[ "$derived" =~ ^[^/]+/[^/]+$ ]]; then
+        export GITHUB_REPO="$derived"
+      fi
+      ;;
+  esac
+fi
+
 # Check if changelog file exists
 if [[ ! -f "$CHANGELOG" ]]; then
   echo "Error: $CHANGELOG does not exist" >&2

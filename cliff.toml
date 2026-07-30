@@ -127,6 +127,17 @@ postprocessors = [
 # output file path
 # output = "test.md"
 
+# GitHub integration. The changelog template resolves a commit author to
+# [@handle](profile) from commit.remote.username, which git-cliff only populates by
+# querying the GitHub API -- and it only queries when it knows the repository. Without
+# this section the template silently falls back to [Name](mailto:email), which is how
+# the 0.4.0 entries first generated: inconsistent with every earlier release and with
+# every profile link gone. A token is still required (GITHUB_TOKEN); the changelog
+# workflow supplies one.
+[remote.github]
+owner = "michen00"
+repo = "invisible-squiggles"
+
 [git]
 
 # Parse commits according to the conventional commits specification.

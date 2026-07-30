@@ -130,8 +130,19 @@ build: install ## Build the extension
 .PHONY: rebuild
 rebuild: clean build ## Clean and build from scratch
 
+# icon.png is LFS-tracked (.gitattributes). A checkout without git-lfs leaves a
+# 130-byte pointer file, and vsce packages it silently -- shipping an extension
+# whose icon is ASCII text. Fail loudly instead of publishing that.
+.PHONY: check-assets
+check-assets: ## Verify LFS-tracked assets are real files, not pointers
+	@if head -c 45 icon.png | grep -q 'git-lfs.github.com'; then \
+	    echo "$(RED)Error: icon.png is a Git LFS pointer, not a PNG.$(_COLOR)"; \
+	    echo "Run 'git lfs install && git lfs pull', or checkout with lfs: true in CI."; \
+	    exit 1; \
+	fi
+
 .PHONY: build-vsix
-build-vsix: install ## Build the extension as a VSIX file
+build-vsix: install check-assets ## Build the extension as a VSIX file
 	@$(PREPARE_DOCS); \
     npx vsce package
 

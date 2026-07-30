@@ -186,18 +186,18 @@ fi
 # a mailto link.
 if [[ -z "${GITHUB_REPO:-}" ]]; then
   origin_url="$(git remote get-url origin 2> /dev/null || true)"
-  case "$origin_url" in
-    *github.com[:/]*)
-      derived="${origin_url##*github.com}"
-      derived="${derived#[:/]}"
-      derived="${derived%.git}"
-      # Only accept a clean owner/repo pair; anything else is left unset so git-cliff
-      # degrades to mailto links instead of failing on a bad slug.
-      if [[ "$derived" =~ ^[^/]+/[^/]+$ ]]; then
-        export GITHUB_REPO="$derived"
-      fi
-      ;;
-  esac
+  # Normalise so the repository is the final path element.
+  candidate="${origin_url%/}"
+  candidate="${candidate%.git}"
+  candidate="${candidate%/}"
+  # Anchored on purpose. A substring test for "github.com" accepts hosts such as
+  # evil-github.com and github.com.example.net, and would hand git-cliff an
+  # unrelated owner/repo slug -- which it queries against api.github.com and then
+  # exits on when that 404s, taking changelog generation down with it.
+  github_remote_re='^(git@github\.com:|ssh://git@github\.com/|https://([^@/]*@)?github\.com/)([^/]+)/([^/]+)$'
+  if [[ "$candidate" =~ $github_remote_re ]]; then
+    export GITHUB_REPO="${BASH_REMATCH[3]}/${BASH_REMATCH[4]}"
+  fi
 fi
 
 # Check if changelog file exists

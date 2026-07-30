@@ -61,7 +61,7 @@ Click the **👁️ Toggle Squiggles** button at the **bottom right**.
 
 ## 🔹 Verifying a release
 
-Releases carry keyless build provenance, and release tags are signed:
+Releases carry keyless build provenance, and release tags from v0.2.1 onward are signed:
 
 ```bash
 gh attestation verify invisible-squiggles-<version>.vsix --repo michen00/invisible-squiggles

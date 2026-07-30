@@ -143,16 +143,15 @@ Then open a PR.
 8. Merge the PR into `main` (via GitHub).
 9. Get the latest main: `git switch main && git pull`
 10. Create a signed tag: `git tag -a vX.Y.Z -m vX.Y.Z -s`
+    - The `-s` is required. `tag.gpgsign` is not set globally, so a tag made without it
+      is unsigned and `make verify-tag` will fail on it. Confirm with
+      `make verify-tag VERSION=vX.Y.Z` before pushing.
 11. Push with tags: `git push --follow-tags`
 12. Create a GitHub release from the tag: `make release VERSION=vX.Y.Z`
-13. Two workflows fire on `release: published` and do the rest:
-    - `sign release artifacts` builds the `.tar.gz`/`.zip` archives, signs them, verifies
-      them against the committed public key, and uploads archives + `.sig` files.
-    - `publish extension` publishes to both registries (see below).
-14. Review the release notes/assets and edit notes if needed (via GitHub web UI).
-15. Publishing to the VSCode Marketplace and Open VSX happens automatically: the
-    `publish extension` workflow runs on `release: published`, builds one VSIX, and pushes
-    that same package to both registries.
+13. Review the release notes and edit them if needed (via GitHub web UI).
+14. The `publish extension` workflow fires on `release: published` and does the rest:
+    it builds one VSIX, attests it, attaches it to the release, and publishes that same
+    file to the VSCode Marketplace and Open VSX.
 
 ### Publishing
 

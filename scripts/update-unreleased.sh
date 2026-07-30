@@ -161,8 +161,11 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Check we're in a git repository
-if [ ! -d .git ]; then
+# Check we're at the root of a git repository. Asking git rather than testing for a
+# .git directory: in a linked worktree .git is a file pointing at the real git dir,
+# so -d rejects a perfectly good checkout. --show-prefix is empty only at the root,
+# which is what the relative paths below require.
+if ! git rev-parse --git-dir > /dev/null 2>&1 || [ -n "$(git rev-parse --show-prefix)" ]; then
   echo "Error: Must be run from the root of a git repository." >&2
   exit 1
 fi
@@ -172,6 +175,29 @@ if ! command -v git-cliff > /dev/null 2>&1 && ! command -v git cliff > /dev/null
   echo "Error: git cliff is not installed or not available in PATH" >&2
   echo "Install it with: cargo install git-cliff" >&2
   exit 1
+fi
+
+# git-cliff resolves commit authors to GitHub handles only when it knows which
+# repository to query; it does not infer one from the git remote. Deriving the value
+# here rather than pinning it in cliff.toml keeps forks and renamed repositories
+# working, since they query themselves instead of whatever upstream was hardcoded.
+# An explicit GITHUB_REPO wins, which is also how a fork can point elsewhere.
+# Resolution additionally needs GITHUB_TOKEN; without it every author falls back to
+# a mailto link.
+if [[ -z "${GITHUB_REPO:-}" ]]; then
+  origin_url="$(git remote get-url origin 2> /dev/null || true)"
+  # Normalise so the repository is the final path element.
+  candidate="${origin_url%/}"
+  candidate="${candidate%.git}"
+  candidate="${candidate%/}"
+  # Anchored on purpose. A substring test for "github.com" accepts hosts such as
+  # evil-github.com and github.com.example.net, and would hand git-cliff an
+  # unrelated owner/repo slug -- which it queries against api.github.com and then
+  # exits on when that 404s, taking changelog generation down with it.
+  github_remote_re='^(git@github\.com:|ssh://git@github\.com/|https://([^@/]*@)?github\.com/)([^/]+)/([^/]+)$'
+  if [[ "$candidate" =~ $github_remote_re ]]; then
+    export GITHUB_REPO="${BASH_REMATCH[3]}/${BASH_REMATCH[4]}"
+  fi
 fi
 
 # Check if changelog file exists

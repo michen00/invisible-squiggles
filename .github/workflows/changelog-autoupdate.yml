@@ -24,8 +24,12 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: git-cliff
+      # git-cliff needs a token to resolve commit authors to GitHub usernames.
+      # Without it the changelog degrades to [Name](mailto:email) for every entry.
       - name: Update Unreleased section
         run: scripts/update-unreleased.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Format CHANGELOG.md
         uses: DavidAnson/markdownlint-cli2-action@v24
         with:

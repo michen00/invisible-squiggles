@@ -1,0 +1,49 @@
+---
+name: Test normalize-vsix.mjs
+
+# Matches the pattern of test-prepare-readme.yml: a dedicated path-filtered
+# workflow, because ci.yml runs the npm test scripts directly and never invokes
+# `make test`, where the shell tests live.
+#
+# Both operating systems matter here. The suite already had to accommodate real
+# divergence between them -- GNU unzip prints dates as 1980-01-01 where the macOS
+# build prints 01-01-1980 -- and it leans on touch -t, chmod, shasum and zip -X,
+# any of which can differ.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/test-normalize-vsix.yml
+      - Makefile
+      - scripts/normalize-vsix.mjs
+      - scripts/test-normalize-vsix.sh
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/test-normalize-vsix.yml
+      - Makefile
+      - scripts/normalize-vsix.mjs
+      - scripts/test-normalize-vsix.sh
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-normalize-vsix:
+    name: Test normalize-vsix.mjs (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22.x
+      - name: Test normalize-vsix.mjs
+        run: |
+          scripts/test-normalize-vsix.sh

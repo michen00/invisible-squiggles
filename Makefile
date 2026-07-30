@@ -17,6 +17,20 @@ endif
 
 RM_FLAGS := -rf$(if $(or $(DEBUG),$(VERBOSE)),v,)
 RM := rm $(RM_FLAGS)
+PROJECT_NAME ?= invisible-squiggles
+SIGNERS_FILE ?= .github/allowed_signers
+
+# Recursively expanded so `node` only runs for the recipes that package a VSIX,
+# not on every make invocation.
+VSIX_NAME = $(PROJECT_NAME)-$(shell node -p "require('./package.json').version").vsix
+
+# 1980-01-01T00:00:00Z, matching the DOS epoch scripts/normalize-vsix.mjs pins.
+# Passed to vsce because it gates entry SORTING, not just mtimes: unset, vsce
+# emits files in glob/readdir order, which differs across filesystems (APFS
+# returns sorted names, ext4 returns hash order) and would break reproducibility
+# across machines. Assigned with := so an inherited environment value cannot
+# change the digest.
+VSIX_EPOCH := 315532800
 
 PRECOMMIT ?= pre-commit
 ifneq ($(shell command -v prek >/dev/null 2>&1 && echo y),)
@@ -34,6 +48,7 @@ _COLOR  := $(shell tput sgr0 2>/dev/null || printf '\033[0m')
 BOLD    := $(shell tput bold 2>/dev/null || printf '\033[1m')
 CYAN    := $(shell tput setaf 6 2>/dev/null || printf '\033[0;36m')
 YELLOW  := $(shell tput setaf 3 2>/dev/null || printf '\033[0;33m')
+RED     := $(shell tput setaf 1 2>/dev/null || printf '\033[0;31m')
 
 .DEFAULT_GOAL := help
 .PHONY: help
@@ -130,35 +145,132 @@ build: install ## Build the extension
 .PHONY: rebuild
 rebuild: clean build ## Clean and build from scratch
 
-.PHONY: build-vsix
-build-vsix: install ## Build the extension as a VSIX file
+# vsce packages a Git LFS pointer silently, shipping an extension whose icon is
+# ASCII text, so fail loudly instead. Absence is checked separately: `head` on a
+# missing file fails inside the pipe, and grep then reports "no match", so a
+# pointer-only test would succeed on a missing icon and fail open.
+.PHONY: check-assets
+check-assets: ## Verify packaged assets exist and are not LFS pointers
+	@if [ ! -r icon.png ]; then \
+	    echo "$(RED)Error: icon.png is missing or unreadable.$(_COLOR)"; \
+	    exit 1; \
+	fi
+	@if head -c 45 icon.png | grep -q 'git-lfs.github.com'; then \
+	    echo "$(RED)Error: icon.png is a Git LFS pointer, not a PNG.$(_COLOR)"; \
+	    echo "Run 'git lfs install && git lfs pull' to materialise it."; \
+	    exit 1; \
+	fi
+
+# Split so CI can package without a second dependency install: it already runs
+# `npm ci`, and routing through build-vsix would re-run `npm install` on top.
+#
+# The normalise step pins entry timestamps so the output is byte-reproducible;
+# without it a rebuild of the same commit differs, and a partial publish retry
+# would ship bytes the provenance attestation does not cover. See
+# scripts/normalize-vsix.mjs and `make verify-reproducible`.
+.PHONY: package-vsix
+package-vsix: check-assets ## Package the VSIX (assumes dependencies installed)
 	@$(PREPARE_DOCS); \
-    npx vsce package
+    SOURCE_DATE_EPOCH=$(VSIX_EPOCH) npx vsce package; \
+    node scripts/normalize-vsix.mjs "$(VSIX_NAME)"
+
+.PHONY: build-vsix
+build-vsix: install ## Install dependencies and package the VSIX
+	@$(MAKE) package-vsix
 
 .PHONY: install-vsix
 install-vsix: build-vsix ## Build and install VSIX locally for testing
 	code --install-extension *.vsix
 
+# All three publish paths ship the normalised artifact. A bare `vsce publish` /
+# `ovsx publish` packages internally, which skips both the timestamp/mode pinning
+# and the pinned SOURCE_DATE_EPOCH -- so a local publish would push bytes that
+# differ from what CI builds and attests for the same commit.
 .PHONY: publish
-publish: install ## Publish the extension to the VS Code Marketplace
-	@$(PREPARE_DOCS); \
-    npx vsce publish
+publish: build-vsix ## Publish the extension to the VS Code Marketplace
+	@npx vsce publish --packagePath "$(VSIX_NAME)"
+
+.PHONY: publish-ovsx
+publish-ovsx: build-vsix ## Publish the extension to Open VSX
+	@npx ovsx publish "$(VSIX_NAME)"
+
+# Publishes one build to both registries so they receive identical bytes.
+.PHONY: publish-all
+publish-all: build-vsix ## Publish the built VSIX to both registries
+	@set -e; \
+    vsix="$(VSIX_NAME)"; \
+    if [ ! -f "$$vsix" ]; then echo "Error: $$vsix not found"; exit 1; fi; \
+    npx vsce publish --packagePath "$$vsix"; \
+    npx ovsx publish "$$vsix"
+
+# Guards the retry path in .github/workflows/publish.yml: publishing one registry
+# on a re-dispatch rebuilds the VSIX, so a rebuild that differs would leave the
+# two registries hosting bytes that disagree with each other and with the
+# attestation. Two builds of one tree must be byte-identical.
+#
+# The two builds run under *different umasks* on purpose. vsce copies each
+# on-disk file's mode into the zip, so a naive same-shell double build shares one
+# umask and is blind to mode variance -- the exact failure that makes a third
+# party's rebuild of a signed tag mismatch the published artifact. dist is
+# removed between builds because esbuild overwriting an existing file keeps that
+# file's old mode, which would mask the difference.
+#
+# Deliberately does not depend on `install`, matching package-vsix: CI already
+# runs `npm ci`, and adding the prerequisite would re-run `npm install` on top.
+# Run `make install verify-reproducible` from a fresh clone.
+.PHONY: verify-reproducible
+verify-reproducible: ## Verify two builds produce identical bytes (assumes dependencies installed)
+	@set -e; \
+    vsix="$(VSIX_NAME)"; \
+    first=$$(mktemp); \
+    trap 'rm -f "$$first"' EXIT; \
+    for mask in 022 077; do \
+        $(RM) dist; \
+        ( umask $$mask; $(MAKE) package-vsix ); \
+        if [ "$$mask" = "022" ]; then cp "$$vsix" "$$first"; fi; \
+    done; \
+    if cmp -s "$$first" "$$vsix"; then \
+        echo "$(CYAN)Reproducible: builds under umask 022 and 077 are byte-identical.$(_COLOR)"; \
+    else \
+        echo "$(RED)Error: builds under umask 022 and 077 differ ($$vsix).$(_COLOR)"; \
+        exit 1; \
+    fi
 
 .PHONY: update-unreleased
 update-unreleased: ## Update the Unreleased section of CHANGELOG.md and commit
 	@scripts/update-unreleased.sh --commit
 
+# Verifies a release tag against the committed public key in
+# .github/allowed_signers. The signed tag is the source-authenticity anchor;
+# built artifacts carry keyless provenance instead (see CONTRIBUTING.md).
+.PHONY: verify-tag
+verify-tag: ## Verify a release tag's signature (VERSION=vX.Y.Z)
+	@if [ -z "$(VERSION)" ]; then echo "Usage: make verify-tag VERSION=vX.Y.Z"; exit 1; fi
+	@git -c gpg.ssh.allowedSignersFile=$(SIGNERS_FILE) verify-tag $(VERSION)
+
+# The publish workflow owns artifact upload: it builds the VSIX once, attests
+# that exact file, publishes it, and attaches it to the release. Building or
+# uploading here as well would mean the attested bytes are not the shipped bytes.
 .PHONY: release
 release: ## Create a GitHub release (VERSION=vX.Y.Z)
 	@if [ -z "$(VERSION)" ]; then echo "Usage: make release VERSION=vX.Y.Z"; exit 1; fi
 	@git rev-parse --verify refs/tags/$(VERSION) >/dev/null 2>&1 || { echo "Error: Tag $(VERSION) does not exist"; exit 1; }
 	gh release create $(VERSION) --generate-notes --discussion-category "Announcements"
+	@echo "The publish workflow attests, publishes, and attaches the VSIX."
 
 .PHONY: test
+# Chained under one `set -e`. This file sets .ONESHELL, so the whole recipe goes
+# to a single shell and make checks only the LAST line's status -- as separate
+# lines, a failing test above the final one exits 0 on GNU Make 4.x (ubuntu-latest,
+# Homebrew gmake). macOS ships make 3.81, which predates .ONESHELL and runs each
+# line separately, so the masking is invisible locally. `make check` depends on
+# this target and is the documented pre-release gate.
 test: install ## Run tests
-	npm run pretest
-	npm run test
-	scripts/test-prepare-readme.sh
+	@set -e; \
+    npm run pretest; \
+    npm run test; \
+    scripts/test-prepare-readme.sh; \
+    scripts/test-normalize-vsix.sh
 
 .PHONY: lint
 lint: install ## Run linters

@@ -42,9 +42,6 @@ jobs:
         uses: actions/checkout@v7
         with:
           ref: ${{ github.event.release.tag_name || inputs.tag }}
-          # icon.png is LFS-tracked. Without this the runner gets a 130-byte
-          # pointer file, which vsce packages silently into a broken extension.
-          lfs: true
 
       - name: Resolve release metadata
         id: metadata

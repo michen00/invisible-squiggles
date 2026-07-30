@@ -156,7 +156,7 @@ jobs:
         if: >-
           vars.AZURE_CLIENT_ID != '' &&
           contains(fromJSON('["both", "vscode"]'), steps.metadata.outputs.targets)
-        uses: azure/login@v2
+        uses: azure/login@v3
         # A failed login must not abort the job: the publish step below falls
         # back to VSCE_PAT when this step's outcome is not success, and that
         # branch is unreachable if the job dies here.

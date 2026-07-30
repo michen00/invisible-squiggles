@@ -102,8 +102,13 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Package VSIX
-        run: make build-vsix
+      # `verify-reproducible`, not `build-vsix`: build-vsix depends on `install`,
+      # which would re-run `npm install` on top of the `npm ci` above, and it
+      # packages only once. This packages twice under different umasks and fails
+      # if the two disagree, so the invariant the publish retry path depends on is
+      # checked on every PR rather than first exercised on a tagged release.
+      - name: Package VSIX and verify reproducibility
+        run: make verify-reproducible
       # Lets a reviewer install the exact build from a PR before merging.
       - name: Upload VSIX
         uses: actions/upload-artifact@v7

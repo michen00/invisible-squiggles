@@ -81,6 +81,42 @@ jobs:
           files: coverage/lcov.info
           fail_ci_if_error: false
 
+  # Packaging is the only step that exercises vsce, and nothing else in CI ran
+  # it. That let two whole classes of breakage reach main unnoticed:
+  #   - manifest drift: vsce refuses to package when @types/vscode declares a
+  #     version above engines.vscode, which a dependabot bump silently caused
+  #   - Git LFS pointers reaching vsce: it packages a 130-byte pointer file
+  #     without warning, shipping an extension whose icon is ASCII text
+  # Neither is visible to type-checking, linting, or the test suites.
+  package:
+    name: Package VSIX
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22.x
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      # `verify-reproducible`, not `build-vsix`: build-vsix depends on `install`,
+      # which would re-run `npm install` on top of the `npm ci` above, and it
+      # packages only once. This packages twice under different umasks and fails
+      # if the two disagree, so the invariant the publish retry path depends on is
+      # checked on every PR rather than first exercised on a tagged release.
+      - name: Package VSIX and verify reproducibility
+        run: make verify-reproducible
+      # Lets a reviewer install the exact build from a PR before merging.
+      - name: Upload VSIX
+        uses: actions/upload-artifact@v7
+        with:
+          name: vsix
+          path: ./*.vsix
+          if-no-files-found: error
+
   get-vscode-version:
     name: Get VSCode version
     runs-on: ubuntu-latest

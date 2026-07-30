@@ -133,21 +133,32 @@ build: install ## Build the extension
 .PHONY: rebuild
 rebuild: clean build ## Clean and build from scratch
 
-# icon.png is LFS-tracked (.gitattributes). A checkout without git-lfs leaves a
-# 130-byte pointer file, and vsce packages it silently -- shipping an extension
-# whose icon is ASCII text. Fail loudly instead of publishing that.
+# vsce packages a Git LFS pointer silently, shipping an extension whose icon is
+# ASCII text, so fail loudly instead. Absence is checked separately: `head` on a
+# missing file fails inside the pipe, and grep then reports "no match", so a
+# pointer-only test would succeed on a missing icon and fail open.
 .PHONY: check-assets
-check-assets: ## Verify LFS-tracked assets are real files, not pointers
+check-assets: ## Verify packaged assets exist and are not LFS pointers
+	@if [ ! -r icon.png ]; then \
+	    echo "$(RED)Error: icon.png is missing or unreadable.$(_COLOR)"; \
+	    exit 1; \
+	fi
 	@if head -c 45 icon.png | grep -q 'git-lfs.github.com'; then \
 	    echo "$(RED)Error: icon.png is a Git LFS pointer, not a PNG.$(_COLOR)"; \
-	    echo "Run 'git lfs install && git lfs pull', or checkout with lfs: true in CI."; \
+	    echo "Run 'git lfs install && git lfs pull' to materialise it."; \
 	    exit 1; \
 	fi
 
-.PHONY: build-vsix
-build-vsix: install check-assets ## Build the extension as a VSIX file
+# Split so CI can package without a second dependency install: it already runs
+# `npm ci`, and routing through build-vsix would re-run `npm install` on top.
+.PHONY: package-vsix
+package-vsix: check-assets ## Package the VSIX (assumes dependencies installed)
 	@$(PREPARE_DOCS); \
     npx vsce package
+
+.PHONY: build-vsix
+build-vsix: install ## Install dependencies and package the VSIX
+	@$(MAKE) package-vsix
 
 .PHONY: install-vsix
 install-vsix: build-vsix ## Build and install VSIX locally for testing

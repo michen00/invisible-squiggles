@@ -95,10 +95,10 @@ jobs:
       - name: Build VSIX
         id: build
         run: |
-          make build-vsix
+          make package-vsix
           vsix="invisible-squiggles-$(node -p "require('./package.json').version").vsix"
           if [ ! -f "${vsix}" ]; then
-            echo "Error: ${vsix} was not produced by make build-vsix."
+            echo "Error: ${vsix} was not produced by make package-vsix."
             exit 1
           fi
           echo "vsix=${vsix}" >> "$GITHUB_OUTPUT"
@@ -130,6 +130,10 @@ jobs:
           vars.AZURE_CLIENT_ID != '' &&
           contains(fromJSON('["both", "vscode"]'), steps.metadata.outputs.targets)
         uses: azure/login@v2
+        # A failed login must not abort the job: the publish step below falls
+        # back to VSCE_PAT when this step's outcome is not success, and that
+        # branch is unreachable if the job dies here.
+        continue-on-error: true
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}

@@ -86,19 +86,52 @@ function findEocd(buf) {
   // The EOCD is 22 bytes plus a trailing comment of up to 65535 bytes.
   const earliest = Math.max(0, buf.length - (22 + 0xffff));
   for (let i = buf.length - 22; i >= earliest; i--) {
-    if (buf.readUInt32LE(i) === SIG_EOCD) {
+    if (buf.readUInt32LE(i) !== SIG_EOCD) {
+      continue;
+    }
+    // Accepting the first signature match is not enough. The four bytes can occur
+    // inside an archive comment or in trailing data, and anchoring the whole walk
+    // on a false match would read the entry count and central-directory offset out
+    // of arbitrary bytes. A real EOCD's declared comment length places the end of
+    // the record exactly at end of file; require that.
+    const commentLength = buf.readUInt16LE(i + 20);
+    if (i + 22 + commentLength === buf.length) {
       return i;
     }
   }
   return -1;
 }
 
+// Walks an extra-field region and refuses anything unsafe. Every departure from a
+// well-formed region is an error rather than a place to stop scanning: a field
+// whose declared size overruns the region would otherwise push the cursor past the
+// end, the loop would exit, and every later header id -- including an unsafe one --
+// would go uninspected. A guard that can be stepped over by malformed input is not
+// a guard, so the region must be consumed exactly.
 function assertNoUnsafeExtras(buf, start, length, label) {
-  let offset = start;
   const end = start + length;
-  while (offset + 4 <= end) {
+  if (end > buf.length) {
+    fail(
+      `${label} declares a ${length}-byte extra-field region that runs past end of file.`
+    );
+  }
+  let offset = start;
+  while (offset < end) {
+    if (offset + 4 > end) {
+      fail(
+        `${label} has a ${end - offset}-byte fragment where an extra-field header ` +
+          'should be; the region is malformed.'
+      );
+    }
     const headerId = buf.readUInt16LE(offset);
     const size = buf.readUInt16LE(offset + 2);
+    if (offset + 4 + size > end) {
+      fail(
+        `${label} extra field 0x${headerId.toString(16).padStart(4, '0')} declares ` +
+          `${size} bytes but only ${end - offset - 4} remain in the region; later ` +
+          'header ids could not be inspected.'
+      );
+    }
     const reason = UNSAFE_EXTRA_IDS.get(headerId);
     if (reason) {
       fail(

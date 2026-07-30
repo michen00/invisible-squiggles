@@ -261,4 +261,100 @@ if ! grep -q 'zero entries' "$WORK/none.log"; then
   exit 1
 fi
 
+# 13. An extra field whose declared size overruns its region must be refused, not
+# stepped over. With an unchecked cursor the overrun pushes past the region end,
+# the loop exits, and every later header id -- including an unsafe one -- goes
+# uninspected, so a malformed field silently disables the guard.
+(cd "$SRC" && zip -q -r "$WORK/overrun.zip" .)
+node -e '
+const fs = require("node:fs");
+const path = process.argv[1];
+const b = fs.readFileSync(path);
+let eocd = -1;
+for (let i = b.length - 22; i >= 0; i--) {
+  if (b.readUInt32LE(i) === 0x06054b50) { eocd = i; break; }
+}
+const count = b.readUInt16LE(eocd + 10);
+let c = b.readUInt32LE(eocd + 16);
+let done = false;
+for (let i = 0; i < count && !done; i++) {
+  const nl = b.readUInt16LE(c + 28);
+  const xl = b.readUInt16LE(c + 30);
+  const cl = b.readUInt16LE(c + 32);
+  if (xl >= 4) {
+    // Benign id so the unsafe-id branch cannot fire, with a size one byte past
+    // the end of the region: the only thing left to catch this is the bounds check.
+    b.writeUInt16LE(0x9999, c + 46 + nl);
+    b.writeUInt16LE(xl - 4 + 1, c + 46 + nl + 2);
+    done = true;
+  }
+  c += 46 + nl + xl + cl;
+}
+if (!done) { console.error("fixture found no extra-field region"); process.exit(1); }
+fs.writeFileSync(path, b);
+' "$WORK/overrun.zip"
+if node scripts/normalize-vsix.mjs "$WORK/overrun.zip" > "$WORK/ov.log" 2>&1; then
+  echo "FAIL: expected refusal on an extra field that overruns its region" >&2
+  exit 1
+fi
+if ! grep -q 'remain in the region' "$WORK/ov.log"; then
+  echo "FAIL: refusal did not name the extra-field overrun" >&2
+  cat "$WORK/ov.log" >&2
+  exit 1
+fi
+
+# 14. A false end-of-central-directory signature planted in the archive comment
+# must not anchor the walk. The comment sits after the real EOCD, so a backward
+# scan reaches the decoy first; only validating that the declared comment length
+# ends the record exactly at EOF rejects it and keeps looking.
+cp "$WORK/test.zip" "$WORK/decoy_eocd.zip"
+node -e '
+const fs = require("node:fs");
+const path = process.argv[1];
+const orig = fs.readFileSync(path);
+let eocd = -1;
+for (let i = orig.length - 22; i >= 0; i--) {
+  if (orig.readUInt32LE(i) === 0x06054b50) { eocd = i; break; }
+}
+// 24-byte comment opening with the EOCD signature. The two bytes that a decoy
+// match would read as its own comment length are set to 0xFFFF, which cannot
+// place the record end at EOF, so validation rejects it.
+const comment = Buffer.alloc(24, 0x41);
+comment.writeUInt32LE(0x06054b50, 0);
+comment.writeUInt16LE(0xffff, 20);
+const out = Buffer.concat([orig, comment]);
+out.writeUInt16LE(comment.length, eocd + 20);
+fs.writeFileSync(path, out);
+' "$WORK/decoy_eocd.zip"
+# The decoy must really be the first thing a naive backward scan would hit.
+decoy_first=$(node -e '
+const fs = require("node:fs");
+const b = fs.readFileSync(process.argv[1]);
+let first = -1;
+for (let i = b.length - 22; i >= 0; i--) {
+  if (b.readUInt32LE(i) === 0x06054b50) { first = i; break; }
+}
+const cl = b.readUInt16LE(first + 20);
+process.stdout.write(String(first + 22 + cl === b.length ? 0 : 1));
+' "$WORK/decoy_eocd.zip")
+if [ "$decoy_first" != "1" ]; then
+  echo "FAIL: fixture did not plant a decoy ahead of the real EOCD" >&2
+  exit 1
+fi
+if ! node scripts/normalize-vsix.mjs "$WORK/decoy_eocd.zip" > "$WORK/decoy.log" 2>&1; then
+  echo "FAIL: validated EOCD scan should have skipped the decoy and normalised" >&2
+  cat "$WORK/decoy.log" >&2
+  exit 1
+fi
+# Reaching the real EOCD is what proves the decoy was rejected: anchoring on the
+# decoy reads the entry count out of comment filler. Not asserted with `unzip -t`,
+# which applies its own recovery heuristics to the planted signature and reports
+# spurious multi-part errors regardless of whether this script behaved.
+decoy_entries=$(sed -n 's/.*modes for \([0-9]*\) entries.*/\1/p' "$WORK/decoy.log")
+if [ "$decoy_entries" != "$entries" ]; then
+  echo "FAIL: decoy archive normalised $decoy_entries entries, expected $entries" >&2
+  cat "$WORK/decoy.log" >&2
+  exit 1
+fi
+
 echo "normalize-vsix.mjs test passed"

@@ -260,13 +260,14 @@ checks the weaker, always-true property — that two builds of one tree agree �
 guards the publish retry path.
 
 Reproducibility is guaranteed _for a given toolchain_, not universally. `package-lock.json`
-pins `vsce` and `esbuild`, but the deflate streams come from Node's bundled zlib and the
-publish workflow requests `node-version: 22.x`, which floats. A rebuild on a different Node
-major — or a runner image whose zlib changed — can compress identically-normalised entries
-to different bytes. That is outside `scripts/normalize-vsix.mjs`, which never re-compresses
-by design. In practice it means a digest comparison is meaningful when both sides ran the
-same Node major, and a mismatch should be investigated as a toolchain difference before
-being read as tampering.
+pins `vsce` and `esbuild`, and the publish workflow pins Node exactly
+(`node-version: 22.23.2`) rather than floating on `22.x`, because the deflate streams come
+from Node's bundled zlib — which `scripts/normalize-vsix.mjs` never touches, since it does
+not re-compress. Without that pin a patch bump between the original publish and a
+`targets:`-scoped retry could change the artifact. Bumping the pin is a deliberate act: it
+invalidates digest comparison against releases published on the previous version. To
+reproduce a release locally, match the Node version it was built with, and treat a mismatch
+as a toolchain difference to investigate before reading it as tampering.
 
 [issues]: https://github.com/michen00/invisible-squiggles/issues
 [issues_new]: https://github.com/michen00/invisible-squiggles/issues/new

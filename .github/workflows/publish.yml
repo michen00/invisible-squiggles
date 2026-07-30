@@ -69,10 +69,17 @@ jobs:
           echo "targets=${targets}" >> "$GITHUB_OUTPUT"
           echo "Publishing ${tag} to: ${targets}"
 
+      # Pinned exactly, unlike the floating 22.x elsewhere in CI. The retry path
+      # below depends on a rebuild of a tag producing identical bytes, and the
+      # deflate streams come from Node's bundled zlib -- which normalize-vsix.mjs
+      # deliberately never touches, since it does not re-compress. A patch bump
+      # between the original publish and a `targets:`-scoped retry could therefore
+      # change the artifact. Bumping this is a deliberate act: it invalidates digest
+      # comparison against releases published on the previous version.
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 22.x
+          node-version: 22.23.2
           cache: npm
 
       - name: Install dependencies

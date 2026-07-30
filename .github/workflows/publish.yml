@@ -103,9 +103,21 @@ jobs:
           fi
           echo "vsix=${vsix}" >> "$GITHUB_OUTPUT"
 
-      # Attests the exact file that the publish steps below ship. A .vsix is a
-      # zip carrying entry mtimes, so two builds of one tree differ -- attesting
-      # in a separate workflow would vouch for bytes nobody receives.
+      # Attests the exact file that the publish steps below ship.
+      #
+      # `make package-vsix` pins entry timestamps, Unix modes, and entry order, so
+      # a rebuild of this tag produces byte-identical output
+      # (`make verify-reproducible` proves it). That is what makes a partial retry
+      # safe: re-dispatching with `targets: vscode` after Open VSX already
+      # succeeded rebuilds the same bytes, so both registries agree.
+      #
+      # Note what this step does NOT protect. It has no `if:` guard, so a retry
+      # mints a *fresh* attestation over whatever it just built -- those bytes
+      # always verify. Provenance therefore cannot detect a registry-vs-registry
+      # divergence; reproducibility is the only thing preventing it. Before the
+      # pinning, a retry left the two registries holding different bytes, the
+      # release asset clobbered with the later build, and one tag carrying two
+      # independently valid attestations.
       # Verify with:
       #   gh attestation verify <file>.vsix --repo michen00/invisible-squiggles
       - name: Attest build provenance

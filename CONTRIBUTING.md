@@ -156,7 +156,7 @@ Then open a PR.
 ### Publishing
 
 Releases publish themselves. `.github/workflows/publish.yml` verifies the tag matches
-`package.json`, builds the VSIX once via `make build-vsix` (so marketplace README
+`package.json`, builds the VSIX once via `make package-vsix` (so marketplace README
 preparation happens exactly one way), then publishes to both registries.
 
 Repository secrets required:
@@ -187,6 +187,18 @@ To publish a tag manually — backfilling an older release, or retrying after on
 fails — run the workflow via `workflow_dispatch` with a `tag` and a `targets` choice of
 `both`, `vscode`, or `openvsx`. Target a single registry when retrying, since republishing
 an already-published version fails.
+
+Retrying one registry is safe because the package is byte-reproducible. `make
+package-vsix` pins entry timestamps and Unix modes via `scripts/normalize-vsix.mjs`, and
+pins `SOURCE_DATE_EPOCH` so vsce also sorts entries, so rebuilding a tag yields identical
+bytes and both registries end up with the same artifact. Confirm with `make
+verify-reproducible`, which builds twice — under two different umasks — and compares.
+
+Reproducibility is the only thing preventing that divergence. The attest step has no
+condition on it, so a retry mints a fresh attestation over whatever it just built; those
+bytes always pass `gh attestation verify`. Provenance cannot tell you that two registries
+disagree. Before the pinning, a retry left them holding different bytes, the release asset
+clobbered with the later build, and one tag carrying two independently valid attestations.
 
 Local fallback (requires `VSCE_PAT` / `OVSX_PAT` in your environment):
 
@@ -223,6 +235,29 @@ Note the two are not substitutes. The VSIX ships only a minified `dist/` bundle 
 source files, so provenance proves "this bundle was built by this repo's CI at this
 commit" while the signed tag proves "this is the source the maintainer released." One
 build is attested, published, and attached, so the attested bytes are the shipped bytes.
+
+**Both together** — the package is byte-reproducible, so the two anchors can be joined.
+From a clone at a verified tag, rebuild and compare against the published artifact:
+
+```bash
+npm ci          # exact lockfile install, matching what CI does
+make package-vsix
+shasum -a 256 invisible-squiggles-<version>.vsix
+# compare against the release asset downloaded above
+```
+
+That closes the gap the minified bundle would otherwise leave: the signed tag vouches for
+the source, and an independent rebuild shows that source really does produce the shipped
+bytes. Two things are pinned to make this hold across machines — entry timestamps
+(1980-01-01) and entry Unix modes — because vsce otherwise copies each file's mode from
+disk, which makes the digest depend on the rebuilder's umask. See
+`scripts/normalize-vsix.mjs`.
+
+Use `npm ci`, not `npm install`. The bundle is whatever the pinned `esbuild` emits and the
+zip layout is whatever the pinned `vsce` writes, so a dependency tree that has drifted from
+`package-lock.json` can legitimately produce a different digest. `make verify-reproducible`
+checks the weaker, always-true property — that two builds of one tree agree — and is what
+guards the publish retry path.
 
 [issues]: https://github.com/michen00/invisible-squiggles/issues
 [issues_new]: https://github.com/michen00/invisible-squiggles/issues/new

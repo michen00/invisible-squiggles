@@ -45,8 +45,10 @@ jobs:
   bot-automerge:
     # `do not auto-merge` is the kill switch, and this is the path that needs one:
     # arming takes no human action, so without a label there is nothing to withhold.
-    # The workflow re-runs on labeled and unlabeled, so applying the label mid-flight
-    # re-evaluates and stops arming.
+    #
+    # This check alone only stops the job from arming again. Auto-merge already enabled
+    # lives server-side, so a label applied afterwards would not turn it off --
+    # bot-automerge-disarm.yml does that, and is the half that makes arming defensible.
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       (github.event.pull_request.user.login == 'dependabot[bot]' ||
@@ -56,6 +58,7 @@ jobs:
     timeout-minutes: 10
     env:
       GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
       PR_URL: ${{ github.event.pull_request.html_url }}
     steps:
       # No checkout step: nothing below reads the repository.
@@ -84,7 +87,25 @@ jobs:
         env:
           AUTHOR: ${{ github.event.pull_request.user.login }}
           UPDATE_TYPE: ${{ steps.meta.outputs.update-type }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
+          # Keying on the PR author is what makes the guard survive later pushes by other
+          # identities, but on its own it would also let anything pushed onto a bot's
+          # branch inherit the bot's eligibility -- a collaborator could land arbitrary
+          # code through a path that approves and merges itself. Require every commit to
+          # be the bot's own. An unreadable or unmatched author counts as foreign, so the
+          # probe fails closed.
+          foreign=0
+          logins=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}/commits" --paginate \
+            --jq '.[].author.login // "UNKNOWN"' 2>/dev/null || echo UNKNOWN)
+          while IFS= read -r login; do
+            [ "$login" = "$AUTHOR" ] || foreign=$((foreign + 1))
+          done <<< "$logins"
+          if [ "$foreign" -ne 0 ]; then
+            echo "::warning::${foreign} commit(s) not authored by ${AUTHOR}; holding."
+            echo "should_merge=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if [ "$AUTHOR" = "pre-commit-ci[bot]" ]; then
             echo "::notice::pre-commit-ci hook bump; eligible for auto-merge."
             echo "should_merge=true" >> "$GITHUB_OUTPUT"

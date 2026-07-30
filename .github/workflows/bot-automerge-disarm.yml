@@ -1,0 +1,70 @@
+---
+name: Bot auto-merge disarm
+
+# The half that makes arming defensible. bot-automerge.yml arms GitHub's native
+# auto-merge with no human action, and that has to be revocable: a label that cannot
+# take the merge back is a one-way door, and the margin it removes is the one a mistake
+# needs.
+#
+# Gating the arming job on the label is not enough. Once auto-merge is enabled it lives
+# server-side, so a label applied afterwards stops the workflow from running again while
+# GitHub still merges the moment requirements pass. Something has to actively turn it off.
+#
+# No branch filter and no fork guard, deliberately. A suppressor must be at least as
+# broad as the thing it suppresses, and disarming a pull request that was never armed is
+# a no-op -- so the cheap failure is running when it need not, and the expensive one is
+# declining to run when it should.
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  # Keyed on the label as well as the number: a disarm must not be cancelled by a
+  # different label event arriving on the same pull request.
+  group: bot-automerge-disarm-${{ github.event.pull_request.number }}-${{ github.event.label.name }}
+  cancel-in-progress: false
+
+jobs:
+  disarm:
+    if: github.event.label.name == 'do not auto-merge'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      # Fails closed. A pull request whose state cannot be read is treated as one that
+      # should not stay armed: disarming one that was never armed is a no-op, whereas
+      # leaving one armed on a failed probe is the outcome with a cost.
+      #
+      # Verified rather than trusted: each attempt re-reads whether auto-merge is still
+      # on, so a --disable-auto that reported success without taking effect is caught.
+      - name: Disarm auto-merge
+        run: |
+          state=$(gh pr view "$PR_NUMBER" --json state --jq .state 2>/dev/null || echo "")
+          if [ "$state" = "CLOSED" ] || [ "$state" = "MERGED" ]; then
+            echo "::notice::PR #${PR_NUMBER} is ${state}; nothing to disarm."
+            exit 0
+          fi
+          for attempt in 1 2 3; do
+            armed=$(gh pr view "$PR_NUMBER" --json autoMergeRequest \
+              --jq '.autoMergeRequest != null' 2>/dev/null) || armed=""
+            if [ "$armed" = "false" ]; then
+              echo "::notice::Auto-merge is off on PR #${PR_NUMBER}."
+              exit 0
+            fi
+            if [ "$armed" = "true" ]; then
+              gh pr merge --disable-auto "$PR_NUMBER" || true
+            fi
+            echo "::warning::attempt ${attempt}: auto-merge not yet confirmed off on #${PR_NUMBER}."
+            sleep 5
+          done
+          echo "::error::Could not confirm auto-merge is off on #${PR_NUMBER}. Disable it by hand:"
+          echo "::error::gh pr merge --disable-auto ${PR_NUMBER} --repo ${GH_REPO}"
+          exit 1

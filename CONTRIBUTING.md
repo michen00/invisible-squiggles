@@ -259,6 +259,15 @@ zip layout is whatever the pinned `vsce` writes, so a dependency tree that has d
 checks the weaker, always-true property — that two builds of one tree agree — and is what
 guards the publish retry path.
 
+Reproducibility is guaranteed _for a given toolchain_, not universally. `package-lock.json`
+pins `vsce` and `esbuild`, but the deflate streams come from Node's bundled zlib and the
+publish workflow requests `node-version: 22.x`, which floats. A rebuild on a different Node
+major — or a runner image whose zlib changed — can compress identically-normalised entries
+to different bytes. That is outside `scripts/normalize-vsix.mjs`, which never re-compresses
+by design. In practice it means a digest comparison is meaningful when both sides ran the
+same Node major, and a mismatch should be investigated as a toolchain difference before
+being read as tampering.
+
 [issues]: https://github.com/michen00/invisible-squiggles/issues
 [issues_new]: https://github.com/michen00/invisible-squiggles/issues/new
 [issues_bugs]: https://github.com/michen00/invisible-squiggles/issues?q=label%3Abug

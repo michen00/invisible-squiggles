@@ -12,6 +12,10 @@ updates:
         update-types: [minor, patch]
     cooldown:
       semver-major-days: 30
+    ignore:
+      # Pinned to the engines.vscode floor on purpose. If this floats ahead,
+      # vsce refuses to package and releases break. Bump both together.
+      - dependency-name: '@types/vscode'
   - package-ecosystem: github-actions
     directory: /
     schedule:

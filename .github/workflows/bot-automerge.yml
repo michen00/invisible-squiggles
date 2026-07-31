@@ -51,22 +51,10 @@ jobs:
     # This check alone only stops the job from arming again. Auto-merge already enabled
     # lives server-side, so a label applied afterwards would not turn it off --
     # bot-automerge-disarm.yml does that, and is the half that makes arming defensible.
-    #
-    # Both identities are checked, because each covers what the other misses.
-    # pull_request.user.login says the PR is a bot's and stays true for its whole life, so
-    # a bot-pushed synchronize does not lose the only chance to act. github.actor says
-    # *this* event was not a human pushing onto that branch -- which user.login cannot
-    # tell, and which the commit-authorship probe below cannot reliably tell either, since
-    # .author.login is resolved from the commit's author email and anyone who can push can
-    # set that to dependabot's noreply address. Requiring both means a human push skips the
-    # job outright rather than relying on a probe that can be spoofed.
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       (github.event.pull_request.user.login == 'dependabot[bot]' ||
       github.event.pull_request.user.login == 'pre-commit-ci[bot]') &&
-      (github.actor == 'dependabot[bot]' ||
-      github.actor == 'pre-commit-ci[bot]' ||
-      github.actor == 'github-actions[bot]') &&
       !contains(github.event.pull_request.labels.*.name, 'do not auto-merge')
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -104,43 +92,54 @@ jobs:
           ECOSYSTEM: ${{ steps.meta.outputs.package-ecosystem }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          # Keying on the PR author is what makes the guard survive later pushes by other
-          # identities, but on its own it would also let anything pushed onto a bot's
-          # branch inherit the bot's eligibility -- a collaborator could land arbitrary
-          # code through a path that approves and merges itself. Require every commit to
-          # be the bot's own. An unreadable or unmatched author counts as foreign, so the
-          # probe fails closed.
-          # `set -e` does the fail-closed work. Every hand-written error branch here has
-          # been a way to fail open instead: a swallowed failure becomes "no findings" and
-          # the guard passes. So no `2>/dev/null` and no `|| fallback` -- if the query
-          # fails, the step dies, should_merge is never set, the steps below skip, and the
-          # error is in the log where whoever is debugging can read it.
+          # Every commit must have been created by GitHub itself, and be the bot's own
+          # unless it is a merge.
           #
-          # A sentinel, not an empty string, for an unlinked author: command substitution
-          # strips trailing newlines, so a null author on the final commit would vanish
-          # before the loop counted it and the guard would pass.
+          # The signature is the load-bearing half. Author identity alone is not a guard:
+          # .author.login is resolved from the commit's author email, so anyone who can
+          # push can set it to dependabot's noreply address and be read as the bot. A
+          # commit created through GitHub -- by Dependabot, by pre-commit-ci, or by the
+          # Update branch button -- is signed by GitHub's key, and its signed payload names
+          # `committer GitHub <noreply@github.com>`. A collaborator cannot forge that
+          # without GitHub's private key, and the payload is inside the signature, so it
+          # cannot be edited either. A locally pushed commit is signed by the pusher's own
+          # key, or not at all.
+          #
+          # Merges are exempt from the author check but not from the signature check, and
+          # that pairing is what makes the exemption safe. A merge commit's tree is not
+          # constrained to be the mechanical merge of its parents, so a local "evil merge"
+          # can carry content present in neither parent while contributing no non-merge
+          # commits to the range. Requiring GitHub's signature rules that out: the only
+          # merges GitHub signs are the mechanical ones its own UI produces, and the button
+          # cannot inject a tree. That is what lets a required Update branch merge through
+          # without reopening the hole.
+          #
+          # `set -e` does the fail-closed work. Every hand-written error branch here has
+          # been a way to fail open instead. So no `2>/dev/null` and no `|| fallback` -- if
+          # the query fails the step dies, should_merge is never set, the steps below skip,
+          # and the error is in the log where whoever is debugging can read it.
           set -euo pipefail
-          logins=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}/commits" --paginate \
-            --jq '.[].author.login // "<none>"')
-          # Counted apart so the reason is accurate: an unlinked author is not the same
-          # finding as a commit by somebody else, and reporting either as the other sends
-          # whoever reads the log looking in the wrong place.
-          foreign=0
-          unlinked=0
-          while IFS= read -r login; do
-            if [ -z "$login" ] || [ "$login" = "<none>" ]; then
-              unlinked=$((unlinked + 1))
-            elif [ "$login" != "$AUTHOR" ]; then
-              foreign=$((foreign + 1))
+          jq_rows='.[] | [
+            (if (.commit.verification.verified == true)
+                and ((.commit.verification.payload // "") | split("\n")
+                     | any(startswith("committer GitHub <noreply@github.com>")))
+             then "github" else "elsewhere" end),
+            (if (.parents | length) >= 2 then "merge" else "plain" end),
+            (.author.login // "<none>")
+          ] | join("|")'
+          rows=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}/commits" --paginate --jq "$jq_rows")
+          rejected=0
+          while IFS='|' read -r origin kind commit_author; do
+            [ -z "$origin" ] && continue
+            if [ "$origin" != "github" ]; then
+              echo "::warning::a commit was not created by GitHub; holding."
+              rejected=$((rejected + 1))
+            elif [ "$kind" != "merge" ] && [ "$commit_author" != "$AUTHOR" ]; then
+              echo "::warning::non-merge commit authored by ${commit_author}; holding."
+              rejected=$((rejected + 1))
             fi
-          done <<< "$logins"
-          if [ "$unlinked" -ne 0 ]; then
-            echo "::warning::${unlinked} commit(s) with no linked GitHub author; holding."
-            echo "should_merge=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if [ "$foreign" -ne 0 ]; then
-            echo "::warning::${foreign} commit(s) not authored by ${AUTHOR}; holding."
+          done <<< "$rows"
+          if [ "$rejected" -ne 0 ]; then
             echo "should_merge=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi

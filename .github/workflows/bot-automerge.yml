@@ -95,15 +95,18 @@ jobs:
           # code through a path that approves and merges itself. Require every commit to
           # be the bot's own. An unreadable or unmatched author counts as foreign, so the
           # probe fails closed.
-          # Emits a sentinel rather than an empty string for an unlinked author: command
-          # substitution strips trailing newlines, so a null author on the final commit
-          # would vanish before the loop counted it and the guard would pass.
-          if ! logins=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}/commits" --paginate \
-              --jq '.[].author.login // "<none>"' 2>/dev/null); then
-            echo "::warning::Could not read commit authors for #${PR_NUMBER}; holding."
-            echo "should_merge=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
+          # `set -e` does the fail-closed work. Every hand-written error branch here has
+          # been a way to fail open instead: a swallowed failure becomes "no findings" and
+          # the guard passes. So no `2>/dev/null` and no `|| fallback` -- if the query
+          # fails, the step dies, should_merge is never set, the steps below skip, and the
+          # error is in the log where whoever is debugging can read it.
+          #
+          # A sentinel, not an empty string, for an unlinked author: command substitution
+          # strips trailing newlines, so a null author on the final commit would vanish
+          # before the loop counted it and the guard would pass.
+          set -euo pipefail
+          logins=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}/commits" --paginate \
+            --jq '.[].author.login // "<none>"')
           # Counted apart so the reason is accurate: an unlinked author is not the same
           # finding as a commit by somebody else, and reporting either as the other sends
           # whoever reads the log looking in the wrong place.
@@ -161,8 +164,12 @@ jobs:
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          if gh pr view "$PR_NUMBER" --json labels --jq '.labels[].name' \
-              | grep -qx 'do not auto-merge'; then
+          # Read into a variable first, under `set -e`. Piping the query straight into
+          # grep would treat a failed query as "label absent" -- grep sees no input,
+          # matches nothing, and the step arms without ever having verified the switch.
+          set -euo pipefail
+          labels=$(gh pr view "$PR_NUMBER" --json labels --jq '.labels[].name')
+          if grep -qx 'do not auto-merge' <<< "$labels"; then
             echo "::warning::do not auto-merge applied since this run started; not arming."
             exit 0
           fi

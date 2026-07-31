@@ -47,14 +47,20 @@ jobs:
       # on, so a --disable-auto that reported success without taking effect is caught.
       - name: Disarm auto-merge
         run: |
-          state=$(gh pr view "$PR_NUMBER" --json state --jq .state 2>/dev/null || echo "")
+          # An unreadable state falls through to the disarm loop rather than exiting, so
+          # the fallback here is the safe direction. stderr stays visible: only a
+          # confirmed CLOSED or MERGED short-circuits.
+          state=$(gh pr view "$PR_NUMBER" --json state --jq .state || echo "")
           if [ "$state" = "CLOSED" ] || [ "$state" = "MERGED" ]; then
             echo "::notice::PR #${PR_NUMBER} is ${state}; nothing to disarm."
             exit 0
           fi
           for attempt in 1 2 3; do
+            # stderr is left visible on purpose: this probe is allowed to fail (the
+            # disable below runs regardless), but a silent failure would hide why a
+            # disarm needed three attempts.
             armed=$(gh pr view "$PR_NUMBER" --json autoMergeRequest \
-              --jq '.autoMergeRequest != null' 2>/dev/null) || armed=""
+              --jq '.autoMergeRequest != null') || armed=""
             if [ "$armed" = "false" ]; then
               echo "::notice::Auto-merge is off on PR #${PR_NUMBER}."
               exit 0

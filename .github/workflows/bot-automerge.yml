@@ -127,7 +127,23 @@ jobs:
             (if (.parents | length) >= 2 then "merge" else "plain" end),
             (.author.login // "<none>")
           ] | join("|")'
+          # This endpoint returns at most 250 commits and --paginate still exits 0, so a
+          # longer PR would be inspected only in part and the unseen tail could be
+          # anything. Count first and refuse rather than under-inspect. A bot PR reaching
+          # 250 commits means something is wrong regardless.
+          total=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}" --jq '.commits')
+          if [ "$total" -gt 250 ]; then
+            echo "::warning::${total} commits exceeds the 250 this API returns; holding."
+            echo "should_merge=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           rows=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}/commits" --paginate --jq "$jq_rows")
+          seen=$(printf '%s\n' "$rows" | grep -c . || true)
+          if [ "$seen" -ne "$total" ]; then
+            echo "::warning::inspected ${seen} of ${total} commits; holding."
+            echo "should_merge=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           rejected=0
           while IFS='|' read -r origin kind commit_author; do
             [ -z "$origin" ] && continue
@@ -168,6 +184,29 @@ jobs:
             if [ "$ECOSYSTEM" = "npm" ]; then
               echo "::notice::npm major; CI exercises the extension end to end; eligible."
               echo "should_merge=true" >> "$GITHUB_OUTPUT"
+            elif [ "$ECOSYSTEM" = "github-actions" ]; then
+              # For actions the changed file IS the blast radius: an action runs only
+              # where its `uses:` line is written. So a per-file test is sound here, where
+              # for npm it was not -- ovsx is used by publish.yml while the diff touches
+              # package.json alone. Held only when the diff reaches a workflow no pull
+              # request executes; those are listed rather than inferred, because a
+              # workflow's triggers can change without this file noticing.
+              #
+              # Note the repository floats major tags (@v7, not @v7.0.1), so Dependabot
+              # raises an actions PR only when a major moves -- which made a blanket
+              # semver-major hold a blanket hold on every actions PR there will ever be.
+              held=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}/files" --paginate \
+                --jq '.[] | .filename, (.previous_filename // empty)' \
+                | grep -cFx -e '.github/workflows/publish.yml' \
+                             -e '.github/workflows/changelog-autoupdate.yml' \
+                             -e '.github/workflows/pre-commit-autoupdate.yml' || true)
+              if [ "$held" -ne 0 ]; then
+                echo "::warning::actions major touches a workflow no PR runs; holding."
+                echo "should_merge=false" >> "$GITHUB_OUTPUT"
+              else
+                echo "::notice::actions major, only in workflows CI runs; eligible."
+                echo "should_merge=true" >> "$GITHUB_OUTPUT"
+              fi
             else
               echo "::warning::${ECOSYSTEM:-unknown} major is not exercised by CI; holding."
               echo "should_merge=false" >> "$GITHUB_OUTPUT"
@@ -177,25 +216,12 @@ jobs:
             echo "should_merge=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # Kept even though the upstream copy of this workflow has no approval step: that
-      # repository requires no approving review, whereas the main-protect ruleset here
-      # requires one. Without this, auto-merge would arm and then wait indefinitely.
-      - name: Approve
-        if: steps.eligible.outputs.should_merge == 'true'
-        run: |
-          decision=$(gh pr view "$PR_URL" --json reviewDecision -q .reviewDecision)
-          if [ "$decision" = "APPROVED" ]; then
-            echo "::notice::Already approved."
-          else
-            gh pr review --approve "$PR_URL"
-          fi
-
       # The label is re-read live rather than taken from the event payload. A label
       # applied while this run was in flight is not in that payload, and the disarm
       # workflow runs in its own concurrency group, so it can finish before this step
       # arms -- leaving the PR armed with the kill switch applied. Checking here closes
       # that ordering gap; the disarm workflow covers the label arriving afterwards.
-      - name: Re-check the kill switch, then enable auto-merge
+      - name: Re-check the kill switch, then approve and arm
         if: steps.eligible.outputs.should_merge == 'true'
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -205,8 +231,25 @@ jobs:
           # matches nothing, and the step arms without ever having verified the switch.
           set -euo pipefail
           labels=$(gh pr view "$PR_NUMBER" --json labels --jq '.labels[].name')
-          if grep -qx 'do not auto-merge' <<< "$labels"; then
+          # Case-insensitive and fixed-string: GitHub treats label names as unique
+          # case-insensitively, so "Do Not Auto-Merge" is the same switch to a human and
+          # must be to this check too.
+          if grep -qixF 'do not auto-merge' <<< "$labels"; then
             echo "::warning::do not auto-merge applied since this run started; not arming."
             exit 0
+          fi
+          # Approving here rather than in a step of its own, so the approval and the
+          # arming stand or fall together. Approving first left a standing approval on a
+          # PR this step then declined to arm, and nothing withdraws it: the disarm
+          # workflow turns auto-merge off but does not dismiss a review.
+          #
+          # The approval exists at all because main-protect requires one review, unlike
+          # the upstream copy of this workflow, where auto-merge would otherwise arm and
+          # then wait forever.
+          decision=$(gh pr view "$PR_URL" --json reviewDecision -q .reviewDecision)
+          if [ "$decision" = "APPROVED" ]; then
+            echo "::notice::Already approved."
+          else
+            gh pr review --approve "$PR_URL"
           fi
           gh pr merge --auto --squash "$PR_URL"

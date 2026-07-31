@@ -195,8 +195,14 @@ jobs:
               # Note the repository floats major tags (@v7, not @v7.0.1), so Dependabot
               # raises an actions PR only when a major moves -- which made a blanket
               # semver-major hold a blanket hold on every actions PR there will ever be.
-              held=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}/files" --paginate \
-                --jq '.[] | .filename, (.previous_filename // empty)' \
+              # Query and match are separate statements on purpose. As one pipeline the
+              # trailing `|| true` -- needed because grep exits 1 when it matches nothing
+              # -- also swallows the query failing, and an unreadable file list would then
+              # count as zero held files and arm. Split, the query is bare so `set -e`
+              # kills the step if it fails, and `|| true` covers only the honest no-match.
+              changed=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}/files" --paginate \
+                --jq '.[] | .filename, (.previous_filename // empty)')
+              held=$(printf '%s\n' "$changed" \
                 | grep -cFx -e '.github/workflows/publish.yml' \
                              -e '.github/workflows/changelog-autoupdate.yml' \
                              -e '.github/workflows/pre-commit-autoupdate.yml' || true)

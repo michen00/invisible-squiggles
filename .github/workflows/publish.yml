@@ -1,6 +1,15 @@
 ---
 name: publish extension
 on:
+  # Drafts the release. Immutable releases freeze a release's assets the moment
+  # it is published, so the VSIX has to be attached before that -- which means
+  # the release must start as a draft, and the thing that builds the VSIX has to
+  # be the thing that creates it. A tag push therefore lands here, builds,
+  # attests, and leaves a draft. It publishes to no registry.
+  push:
+    tags:
+      - v[0-9]+.[0-9]+.[0-9]+
+  # Publishes it. Reached by publishing that draft, which `make release` does.
   release:
     types: [published]
   workflow_dispatch:
@@ -20,11 +29,13 @@ on:
           - openvsx
 
 concurrency:
-  group: publish-${{ github.event.release.tag_name || inputs.tag }}
+  # Keyed on the tag, not the event, so the draft run and the publish run for one
+  # version queue behind each other instead of racing.
+  group: publish-${{ github.event.release.tag_name || inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
 permissions:
-  # Attaching the VSIX to the release.
+  # Creating the draft release and attaching the VSIX to it.
   contents: write
   # Mints the OIDC token, used both for the provenance attestation and for
   # Entra ID federated auth.
@@ -41,7 +52,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.release.tag_name || inputs.tag }}
+          ref: >-
+            ${{ github.event.release.tag_name || inputs.tag
+            || github.ref_name }}
 
       - name: Resolve release metadata
         id: metadata
@@ -49,15 +62,30 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           INPUT_TAG: ${{ inputs.tag }}
           INPUT_TARGETS: ${{ inputs.targets }}
+          PUSHED_TAG: ${{ github.ref_name }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          if [ "${EVENT_NAME}" = "release" ]; then
-            tag="${RELEASE_TAG}"
-            targets="both"
-          else
-            tag="${INPUT_TAG}"
-            targets="${INPUT_TARGETS}"
-          fi
+          case "${EVENT_NAME}" in
+            # `targets=none` is load-bearing, not a placeholder. Both publish
+            # steps test membership in a list that does not contain it, so a tag
+            # push cannot reach a registry no matter what else changes -- and the
+            # gate at the end still runs, which is what proves it didn't.
+            push)
+              tag="${PUSHED_TAG}"
+              targets="none"
+              mode="draft"
+              ;;
+            release)
+              tag="${RELEASE_TAG}"
+              targets="both"
+              mode="publish"
+              ;;
+            *)
+              tag="${INPUT_TAG}"
+              targets="${INPUT_TARGETS}"
+              mode="publish"
+              ;;
+          esac
           case "${tag}" in
             v[0-9]*.[0-9]*.[0-9]*) ;;
             *)
@@ -65,9 +93,12 @@ jobs:
               exit 1
               ;;
           esac
-          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
-          echo "targets=${targets}" >> "$GITHUB_OUTPUT"
-          echo "Publishing ${tag} to: ${targets}"
+          {
+            echo "tag=${tag}"
+            echo "targets=${targets}"
+            echo "mode=${mode}"
+          } >> "$GITHUB_OUTPUT"
+          echo "${mode}: ${tag} -> ${targets}"
 
       # Pinned exactly, unlike the floating 22.x elsewhere in CI. The retry path
       # below depends on a rebuild of a tag producing identical bytes, and the
@@ -140,40 +171,53 @@ jobs:
         with:
           subject-path: ${{ steps.build.outputs.vsix }}
 
-      # Best-effort, and deliberately non-fatal. The registries below are the
-      # release; a missing download convenience on the release page is not a
-      # reason to skip them. Before this guard existed, a refused upload took
-      # both publish steps down with it and a tagged, announced release shipped
-      # to neither registry.
+      # The draft half of the release, and the only point at which an asset can
+      # be attached: immutable releases freeze assets when a release is
+      # published, so anything not on it by then never will be. This runs before
+      # the release exists, which is the whole reason a tag push triggers this
+      # workflow at all.
       #
-      # Immutable releases are enabled for this repository, and they freeze a
-      # release's assets at the moment it is published. This job only runs after
-      # that point -- its trigger is `release: published` -- and the asset does
-      # not exist until the build step above produces it, so no ordering of these
-      # steps can attach one. GitHub refuses the upload with HTTP 422. Restoring
-      # the asset means creating the release as a draft, uploading, and only then
-      # publishing: a change to who creates the release, not to this step.
+      # Publishing the draft afterwards -- `make release VERSION=vX.Y.Z`, or the
+      # button in the web UI -- freezes it with the artifact in place and fires
+      # the `release: published` half of this same workflow, which ships those
+      # bytes to the registries.
       #
-      # Nothing becomes unrecoverable. `make verify-reproducible` rebuilds the
-      # exact bytes from the tag, and the attestation above covers them.
-      - name: Attach the VSIX to the release
-        continue-on-error: true
+      # Nothing here can publish anything. `targets` is `none` on this path.
+      - name: Draft the release with the VSIX attached
+        if: steps.metadata.outputs.mode == 'draft'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
           TAG: ${{ steps.metadata.outputs.tag }}
           VSIX: ${{ steps.build.outputs.vsix }}
         run: |
-          # Skipping a release already known to be frozen keeps a genuine failure
-          # -- bad credentials, a missing file, a network fault -- visible as a
-          # failed step, rather than teaching everyone to ignore a red mark that
-          # appears on every single release.
-          if [ "$(gh api "repos/${REPO}/releases/tags/${TAG}" --jq '.immutable')" = "true" ]; then
-            echo "::notice::${TAG} is immutable; assets froze when it was" \
-              "published. Skipping upload."
-            exit 0
-          fi
-          gh release upload "${TAG}" "${VSIX}" --clobber
+          # `absent` on any read failure, so an unreadable release is treated as
+          # one to create -- `gh release create` then fails loudly on a genuine
+          # conflict, which beats silently skipping the attach and leaving a
+          # release that looks finished and carries nothing.
+          state=$(gh release view "${TAG}" --json isDraft --jq '.isDraft' \
+            2>/dev/null || echo absent)
+          case "${state}" in
+            absent)
+              gh release create "${TAG}" --draft --generate-notes \
+                --verify-tag "${VSIX}"
+              echo "::notice::Drafted ${TAG} with ${VSIX}. Review it, then" \
+                "publish with: make release VERSION=${TAG}"
+              ;;
+            true)
+              # Re-running against an existing draft refreshes the asset instead
+              # of failing. The rebuild is byte-identical, so this is a no-op in
+              # the ordinary case and a repair when a first upload was cut short.
+              gh release upload "${TAG}" "${VSIX}" --clobber
+              echo "::notice::Refreshed ${VSIX} on the existing ${TAG} draft."
+              ;;
+            *)
+              # Published, therefore frozen. There is nothing to attach and
+              # nothing to repair; a run that built correctly should not fail
+              # over a door that closed on purpose.
+              echo "::warning::${TAG} is already published, so its assets are" \
+                "frozen. Leaving the release alone."
+              ;;
+          esac
 
       # Azure DevOps retires global PATs on 2026-12-01, and a global PAT is the
       # only kind that can reach the Marketplace today. Setting the AZURE_*
@@ -219,7 +263,9 @@ jobs:
             echo "Publishing with Entra ID federated credentials."
             npx vsce publish --azure-credential --packagePath "${VSIX}"
           elif [ -n "${VSCE_PAT}" ]; then
-            echo "Publishing with VSCE_PAT. Migrate to Entra ID before 2026-12-01."
+            echo "::warning::Publishing with VSCE_PAT. Azure retires global" \
+              "PATs on 2026-12-01, after which this stops working. Migrate to" \
+              "Entra ID: see issue #242."
             npx vsce publish --packagePath "${VSIX}"
           else
             echo "Error: no Marketplace credentials. Set the AZURE_CLIENT_ID and"
@@ -249,6 +295,10 @@ jobs:
       #
       # A skipped step means the registry was not requested, which is not a
       # failure. Only a requested target that did not publish fails the job.
+      #
+      # Left running on the draft path deliberately, where it reports both
+      # registries as not requested. That is the assertion that a tag push
+      # published nothing, printed in the run itself rather than assumed.
       - name: Verify every requested registry published
         if: '!cancelled()'
         env:

@@ -116,7 +116,18 @@ npm audit fix --package-lock-only
 
 The rest are transitive dependencies whose parent pins a range that excludes the fixed version. Dependabot cannot fix those — its npm updates only bump direct dependencies — so they need an entry in `overrides` in [package.json](package.json), and they stay open indefinitely until someone adds one.
 
-Verify an override before trusting it, because a wrong one fails quietly. `npm audit` reports the resolved version and goes green whether or not the package still works, and the unit suite does not exercise most of the toolchain. Forcing `brace-expansion` to 5.x, for example, resolves cleanly and leaves all unit tests passing, but 5.x dropped the default export that `minimatch` 3 and 9 both import, so mocha throws the first time a pattern is brace-expanded. Run `make test` in full, and exercise the code path the overridden package actually sits behind.
+Nest the entry under the parent whose range you are overriding rather than declaring it at the top level. An override is a deliberate breach of a declared semver contract, and nesting it says whose contract:
+
+```json
+"overrides": { "mocha": { "serialize-javascript": "^7.0.5" } }
+```
+
+Verify an override before trusting it, because a wrong one fails quietly. `npm audit` reports the resolved version and goes green whether or not the package still works, and the unit suite does not exercise most of the toolchain. Two ways that has already bitten this repository:
+
+- Forcing `brace-expansion` to 5.x resolves cleanly and leaves all unit tests passing, but 5.x dropped the default export that `minimatch` 3 and 9 both import, so mocha throws the first time a pattern is brace-expanded.
+- mocha requires `serialize-javascript` only from its parallel worker pool, so a normal serial run never loads it at all. A broken major would have looked green everywhere. [ci.yml](.github/workflows/ci.yml) now runs the unit tests a second time under `--parallel` for no reason other than to load that one package.
+
+So run `make test` in full, then find the code path the overridden package actually sits behind and make something exercise it. A green audit is not evidence.
 
 Drop an override once the parent's own range catches up. Leaving a stale one pinned holds the tree behind the version the parent would otherwise pick.
 

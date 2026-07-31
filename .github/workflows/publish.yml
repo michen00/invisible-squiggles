@@ -140,12 +140,40 @@ jobs:
         with:
           subject-path: ${{ steps.build.outputs.vsix }}
 
+      # Best-effort, and deliberately non-fatal. The registries below are the
+      # release; a missing download convenience on the release page is not a
+      # reason to skip them. Before this guard existed, a refused upload took
+      # both publish steps down with it and a tagged, announced release shipped
+      # to neither registry.
+      #
+      # Immutable releases are enabled for this repository, and they freeze a
+      # release's assets at the moment it is published. This job only runs after
+      # that point -- its trigger is `release: published` -- and the asset does
+      # not exist until the build step above produces it, so no ordering of these
+      # steps can attach one. GitHub refuses the upload with HTTP 422. Restoring
+      # the asset means creating the release as a draft, uploading, and only then
+      # publishing: a change to who creates the release, not to this step.
+      #
+      # Nothing becomes unrecoverable. `make verify-reproducible` rebuilds the
+      # exact bytes from the tag, and the attestation above covers them.
       - name: Attach the VSIX to the release
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
           TAG: ${{ steps.metadata.outputs.tag }}
           VSIX: ${{ steps.build.outputs.vsix }}
-        run: gh release upload "${TAG}" "${VSIX}" --clobber
+        run: |
+          # Skipping a release already known to be frozen keeps a genuine failure
+          # -- bad credentials, a missing file, a network fault -- visible as a
+          # failed step, rather than teaching everyone to ignore a red mark that
+          # appears on every single release.
+          if [ "$(gh api "repos/${REPO}/releases/tags/${TAG}" --jq '.immutable')" = "true" ]; then
+            echo "::notice::${TAG} is immutable; assets froze when it was" \
+              "published. Skipping upload."
+            exit 0
+          fi
+          gh release upload "${TAG}" "${VSIX}" --clobber
 
       # Azure DevOps retires global PATs on 2026-12-01, and a global PAT is the
       # only kind that can reach the Marketplace today. Setting the AZURE_*

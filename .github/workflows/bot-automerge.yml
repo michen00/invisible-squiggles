@@ -1,15 +1,40 @@
 ---
 name: Bot auto-merge
 
+# Arms GitHub's native auto-merge (squash) on Dependabot patch/minor PRs and on
+# pre-commit-ci hook bumps. GitHub performs the merge only once the PR is mergeable --
+# required checks green, no unresolved review threads -- so leaving a review comment
+# pauses it until that thread is resolved.
+#
+# Major bumps are left for a human on purpose. Consider what the required checks
+# actually cover: unit and E2E tests, pre-commit, and Package VSIX (which runs
+# `make verify-reproducible`). None of them execute publish.yml, which only triggers on
+# `release` and workflow_dispatch -- and that is precisely where a github-actions major
+# lands. A green PR is therefore not evidence that a major is safe, so auto-merging one
+# risks breaking publishing unattended.
+#
+# The guard reads pull_request.user.login, not github.actor. github.actor is whoever
+# triggered *this* event rather than whoever opened the PR, so any later push by another
+# identity makes that synchronize event's actor the other identity and the job skips --
+# leaving only the `opened` event as a chance to act, with no retry. user.login stays
+# dependabot[bot] for the life of the PR. It is not spoofable: GitHub records it as the
+# authenticated author, never derived from PR content, and the [bot] suffix cannot occur
+# in a human account name.
+#
+# There is deliberately no in-workflow check polling. `gh pr checks --watch` races check
+# registration and fails with "no required checks reported" before CI has posted;
+# native auto-merge gates on the ruleset server-side instead.
+#
+# The merge is attributed to github-actions[bot], which suppresses downstream push
+# events. Nothing here depends on those: changelog-autoupdate.yml runs on a schedule and
+# publish.yml triggers on releases.
+
 on:
   pull_request:
     types: [opened, synchronize, reopened, labeled, unlabeled]
 
-# A ruleset that requires status checks to pass should be configured for the repository.
-
 permissions:
   contents: write
-  packages: read
   pull-requests: write
 
 concurrency:
@@ -18,73 +43,134 @@ concurrency:
 
 jobs:
   bot-automerge:
-    runs-on: ubuntu-latest
+    # `do not auto-merge` is the kill switch, and this is the path that needs one:
+    # arming takes no human action, so without a label there is nothing to withhold.
+    #
+    # This check alone only stops the job from arming again. Auto-merge already enabled
+    # lives server-side, so a label applied afterwards would not turn it off --
+    # bot-automerge-disarm.yml does that, and is the half that makes arming defensible.
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      (github.actor == 'dependabot[bot]' || github.actor == 'pre-commit-ci[bot]')
-    timeout-minutes: 30
+      (github.event.pull_request.user.login == 'dependabot[bot]' ||
+      github.event.pull_request.user.login == 'pre-commit-ci[bot]') &&
+      !contains(github.event.pull_request.labels.*.name, 'do not auto-merge')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      PR_NUMBER: ${{ github.event.pull_request.number }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PR_URL: ${{ github.event.pull_request.html_url }}
     steps:
-      - uses: actions/checkout@v7
-      - name: Dependabot metadata
-        if: github.actor == 'dependabot[bot]'
-        id: dependabot
+      # No checkout step: nothing below reads the repository.
+      - name: Fetch Dependabot metadata
+        id: meta
+        if: github.event.pull_request.user.login == 'dependabot[bot]'
         uses: dependabot/fetch-metadata@v3
-        with:
-          github-token: ${{ env.GITHUB_TOKEN }}
-      - name: Check merge eligibility
+
+      # Dependabot's metadata trailer omits update-type for some ecosystems. v3 recovers
+      # it by parsing the "Updates X from A to B" line in the commit message; v2 did not.
+      # Keep this at v3 or newer or those ecosystems silently stop merging. When even
+      # that recovery finds no versions there is nothing to gate on, so hold for a human
+      # -- but say so, because a green run that merged nothing is otherwise
+      # indistinguishable from a deliberate hold.
+      - name: Report metadata that cannot be gated on
+        if: >-
+          github.event.pull_request.user.login == 'dependabot[bot]' &&
+          !steps.meta.outputs.update-type
+        env:
+          ECOSYSTEM: ${{ steps.meta.outputs.package-ecosystem }}
+        run: |
+          echo "::notice::No update-type for ${ECOSYSTEM:-unknown}; leaving this for a human."
+
+      - name: Decide eligibility
         id: eligible
         env:
-          ACTOR: ${{ github.actor }}
-          UPDATE_TYPE: ${{ steps.dependabot.outputs.update-type }}
-          HAS_DO_NOT_MERGE: ${{contains(github.event.pull_request.labels.*.name, 'do not auto-merge') }} # yamllint disable-line rule:line-length
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          UPDATE_TYPE: ${{ steps.meta.outputs.update-type }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          if [ "$HAS_DO_NOT_MERGE" = "true" ]; then
-            echo "::warning::PR has 'do not auto-merge' label, skipping"
+          # Keying on the PR author is what makes the guard survive later pushes by other
+          # identities, but on its own it would also let anything pushed onto a bot's
+          # branch inherit the bot's eligibility -- a collaborator could land arbitrary
+          # code through a path that approves and merges itself. Require every commit to
+          # be the bot's own. An unreadable or unmatched author counts as foreign, so the
+          # probe fails closed.
+          # `set -e` does the fail-closed work. Every hand-written error branch here has
+          # been a way to fail open instead: a swallowed failure becomes "no findings" and
+          # the guard passes. So no `2>/dev/null` and no `|| fallback` -- if the query
+          # fails, the step dies, should_merge is never set, the steps below skip, and the
+          # error is in the log where whoever is debugging can read it.
+          #
+          # A sentinel, not an empty string, for an unlinked author: command substitution
+          # strips trailing newlines, so a null author on the final commit would vanish
+          # before the loop counted it and the guard would pass.
+          set -euo pipefail
+          logins=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}/commits" --paginate \
+            --jq '.[].author.login // "<none>"')
+          # Counted apart so the reason is accurate: an unlinked author is not the same
+          # finding as a commit by somebody else, and reporting either as the other sends
+          # whoever reads the log looking in the wrong place.
+          foreign=0
+          unlinked=0
+          while IFS= read -r login; do
+            if [ -z "$login" ] || [ "$login" = "<none>" ]; then
+              unlinked=$((unlinked + 1))
+            elif [ "$login" != "$AUTHOR" ]; then
+              foreign=$((foreign + 1))
+            fi
+          done <<< "$logins"
+          if [ "$unlinked" -ne 0 ]; then
+            echo "::warning::${unlinked} commit(s) with no linked GitHub author; holding."
             echo "should_merge=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if [ "$ACTOR" = "dependabot[bot]" ]; then
-            # Dependabot: only auto-merge patch/minor updates
-            if [ "$UPDATE_TYPE" = "version-update:semver-patch" ] || \
-               [ "$UPDATE_TYPE" = "version-update:semver-minor" ]; then
-              echo "::info::Dependabot patch/minor update, eligible for auto-merge"
-              echo "should_merge=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "::warning::Dependabot major update, skipping auto-merge"
-              echo "should_merge=false" >> "$GITHUB_OUTPUT"
-            fi
-          elif [ "$ACTOR" = "pre-commit-ci[bot]" ]; then
-            # pre-commit-ci: auto-merge all PRs (they're always hook updates)
-            echo "::info::pre-commit-ci PR, eligible for auto-merge"
+          if [ "$foreign" -ne 0 ]; then
+            echo "::warning::${foreign} commit(s) not authored by ${AUTHOR}; holding."
+            echo "should_merge=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$AUTHOR" = "pre-commit-ci[bot]" ]; then
+            echo "::notice::pre-commit-ci hook bump; eligible for auto-merge."
             echo "should_merge=true" >> "$GITHUB_OUTPUT"
+          elif [ "$UPDATE_TYPE" = "version-update:semver-patch" ] || \
+               [ "$UPDATE_TYPE" = "version-update:semver-minor" ]; then
+            echo "::notice::Dependabot ${UPDATE_TYPE}; eligible for auto-merge."
+            echo "should_merge=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Holding ${UPDATE_TYPE:-unknown update type} for a human."
+            echo "should_merge=false" >> "$GITHUB_OUTPUT"
           fi
-      - name: Wait for required checks
-        id: checks
+
+      # Kept even though the upstream copy of this workflow has no approval step: that
+      # repository requires no approving review, whereas the main-protect ruleset here
+      # requires one. Without this, auto-merge would arm and then wait indefinitely.
+      - name: Approve
         if: steps.eligible.outputs.should_merge == 'true'
         run: |
-          echo "::info::Waiting for required checks to pass..."
-          if gh pr checks "$PR_NUMBER" --required --watch --fail-fast; then
-            echo "::info::All required checks passed"
-            echo "checks_passed=true" >> "$GITHUB_OUTPUT"
+          decision=$(gh pr view "$PR_URL" --json reviewDecision -q .reviewDecision)
+          if [ "$decision" = "APPROVED" ]; then
+            echo "::notice::Already approved."
           else
-            echo "::error::Required checks failed"
-            exit 1
+            gh pr review --approve "$PR_URL"
           fi
-      - name: Approve PR
-        if: steps.checks.outputs.checks_passed == 'true'
-        run: |
-          REVIEW_STATE=$(gh pr view "$PR_NUMBER" --json reviewDecision -q .reviewDecision)
-          if [ "$REVIEW_STATE" != "APPROVED" ]; then
-            echo "::info::Approving PR..."
-            gh pr review --approve "$PR_NUMBER"
-          else
-            echo "::info::PR already approved."
-          fi
-      - name: Enable auto-merge
+
+      # The label is re-read live rather than taken from the event payload. A label
+      # applied while this run was in flight is not in that payload, and the disarm
+      # workflow runs in its own concurrency group, so it can finish before this step
+      # arms -- leaving the PR armed with the kill switch applied. Checking here closes
+      # that ordering gap; the disarm workflow covers the label arriving afterwards.
+      - name: Re-check the kill switch, then enable auto-merge
         if: steps.eligible.outputs.should_merge == 'true'
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          echo "::info::Enabling auto-merge for PR #$PR_NUMBER"
-          gh pr merge --auto --squash "$PR_NUMBER"
+          # Read into a variable first, under `set -e`. Piping the query straight into
+          # grep would treat a failed query as "label absent" -- grep sees no input,
+          # matches nothing, and the step arms without ever having verified the switch.
+          set -euo pipefail
+          labels=$(gh pr view "$PR_NUMBER" --json labels --jq '.labels[].name')
+          if grep -qx 'do not auto-merge' <<< "$labels"; then
+            echo "::warning::do not auto-merge applied since this run started; not arming."
+            exit 0
+          fi
+          gh pr merge --auto --squash "$PR_URL"

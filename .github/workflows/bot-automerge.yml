@@ -130,7 +130,7 @@ jobs:
           # This endpoint returns at most 250 commits and --paginate still exits 0, so a
           # longer PR would be inspected only in part and the unseen tail could be
           # anything. Count first and refuse rather than under-inspect. A bot PR reaching
-          # 250 commits means something is wrong regardless.
+          # 250 commits suggests something is wrong regardless.
           total=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}" --jq '.commits')
           if [ "$total" -gt 250 ]; then
             echo "::warning::${total} commits exceeds the 250 this API returns; holding."

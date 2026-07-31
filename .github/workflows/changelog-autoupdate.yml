@@ -21,7 +21,7 @@ jobs:
         with:
           fetch-depth: 0 # Full history needed for git cliff
       - name: Install git-cliff
-        uses: taiki-e/install-action@v2.85.3
+        uses: taiki-e/install-action@v2
         with:
           tool: git-cliff
       # git-cliff needs a token to resolve commit authors to GitHub usernames.

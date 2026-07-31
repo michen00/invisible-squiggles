@@ -74,6 +74,14 @@ jobs:
             echo "::warning::attempt ${attempt}: auto-merge not yet confirmed off on #${PR_NUMBER}."
             sleep 5
           done
+          # One last read: the loop disables on its final pass and then falls straight
+          # through, so without this a disarm that worked on attempt three still reports
+          # failure and pages somebody to do what has already been done.
+          if [ "$(gh pr view "$PR_NUMBER" --json autoMergeRequest \
+              --jq '.autoMergeRequest != null')" = "false" ]; then
+            echo "::notice::Auto-merge is off on PR #${PR_NUMBER}."
+            exit 0
+          fi
           echo "::error::Could not confirm auto-merge is off on #${PR_NUMBER}. Disable it by hand:"
           echo "::error::gh pr merge --disable-auto ${PR_NUMBER} --repo ${GH_REPO}"
           exit 1

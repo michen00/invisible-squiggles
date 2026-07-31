@@ -104,6 +104,33 @@ To test manually, press `F5` in VSCode to launch the Extension Development Host.
 
 > **Note:** After installing a `.vsix` file, run **Developer: Reload Window** to load the new version.
 
+#### Dependency overrides
+
+Every dependency here is a development dependency: `dependencies` is empty and [.vscodeignore](.vscodeignore) ships only the bundled `dist/`, so nothing in `node_modules` reaches a user. Security advisories against this tree are build- and test-time risks, not shipped ones, and they are still worth clearing — a clean `npm audit` is what makes the next real advisory visible.
+
+Most of them clear with a lockfile-only bump, which changes no declared range:
+
+```sh
+npm audit fix --package-lock-only
+```
+
+The rest are transitive dependencies whose parent pins a range that excludes the fixed version. Dependabot cannot fix those — its npm updates only bump direct dependencies — so they need an entry in `overrides` in [package.json](package.json), and they stay open indefinitely until someone adds one.
+
+Nest the entry under the parent whose range you are overriding rather than declaring it at the top level. An override is a deliberate breach of a declared semver contract, and nesting it says whose contract:
+
+```json
+"overrides": { "mocha": { "serialize-javascript": "^7.0.5" } }
+```
+
+Verify an override before trusting it, because a wrong one fails quietly. `npm audit` reports the resolved version and goes green whether or not the package still works, and the unit suite does not exercise most of the toolchain. Two ways that has already bitten this repository:
+
+- Forcing `brace-expansion` to 5.x resolves cleanly and leaves all unit tests passing, but 5.x dropped the default export that `minimatch` 3 and 9 both import, so mocha throws the first time a pattern is brace-expanded.
+- mocha requires `serialize-javascript` only from its parallel worker pool, so a normal serial run never loads it at all. A broken major would have looked green everywhere. [ci.yml](.github/workflows/ci.yml) now runs the unit tests a second time under `--parallel` for no reason other than to load that one package.
+
+So run `make test` in full, then find the code path the overridden package actually sits behind and make something exercise it. A green audit is not evidence.
+
+Drop an override once the parent's own range catches up. Leaving a stale one pinned holds the tree behind the version the parent would otherwise pick.
+
 #### Committing changes
 
 Use [conventional commits](https://www.conventionalcommits.org):

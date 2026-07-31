@@ -73,6 +73,15 @@ jobs:
         run: npm run pretest
       - name: Run unit tests with coverage
         run: npm run test:coverage
+      # The same tests again, in mocha's parallel mode. Not for the tests --
+      # they already passed on the line above -- but for the one dependency the
+      # serial run never loads. mocha requires serialize-javascript only from
+      # lib/nodejs/buffered-worker-pool.js, so a serial run leaves it untouched,
+      # and package.json overrides it past the range mocha declares. Without
+      # this step nothing installs, loads, or executes the overridden package,
+      # and a breaking major would reach main with every check green.
+      - name: Run unit tests in parallel mode
+        run: npm run test:unit:parallel
       - name: Upload coverage to Codecov
         if: matrix.node == '22.x'
         uses: codecov/codecov-action@v7

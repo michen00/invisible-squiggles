@@ -128,8 +128,9 @@
     "pretest": "npm run compile-tests && npm run compile",
     "check-types": "tsc --noEmit",
     "lint": "eslint src",
-    "test": "npm run test:unit && npm run test:integration && npm run test:e2e",
+    "test": "npm run test:unit && npm run test:unit:parallel && npm run test:integration && npm run test:e2e",
     "test:unit": "mocha --require out/test/unit/setup.js out/test/unit/**/*.test.js",
+    "test:unit:parallel": "mocha --parallel --require out/test/unit/setup.js out/test/unit/**/*.test.js",
     "test:integration": "vscode-test --config .vscode-test.integration.mjs",
     "test:e2e": "vscode-test --config .vscode-test.e2e.mjs",
     "test:coverage": "c8 npm run test:unit"
@@ -174,6 +175,11 @@
     "ovsx": "^1.0.2",
     "sinon": "^22.1.0",
     "typescript": "^6.0.3"
+  },
+  "overrides": {
+    "mocha": {
+      "serialize-javascript": "^7.0.5"
+    }
   },
   "license": "SEE LICENSE IN LICENSE",
   "repository": {

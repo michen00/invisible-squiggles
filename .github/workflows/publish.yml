@@ -262,10 +262,17 @@ jobs:
             case "${outcome}" in
               success) echo "${registry}: published." ;;
               skipped) echo "${registry}: not requested." ;;
+              # Names the outcome and sends the reader to the log, rather than
+              # naming a cause. This annotation is the first thing a responder
+              # sees, and bad credentials, a registry outage, a rejected
+              # package, and a network fault all arrive here identically -- so
+              # guessing between them here would just point at the wrong repair
+              # most of the time.
               *)
-                echo "::error::${registry}: ${outcome}. Fix the credentials," \
-                  "then re-dispatch this workflow with targets set to" \
-                  "this registry alone."
+                echo "::error::${registry}: publish did not succeed" \
+                  "(${outcome}). Read that step's log for the cause. Once it" \
+                  "is addressed, re-dispatch this workflow with targets set" \
+                  "to this registry alone."
                 failed=1
                 ;;
             esac

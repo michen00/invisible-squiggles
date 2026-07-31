@@ -129,6 +129,27 @@ git push origin <branch name>
 
 Then open a PR.
 
+#### Keeping the description true
+
+Revise the PR description whenever review changes what the branch does. A description
+written when the PR opened describes the branch as it was then, and on anything that takes
+more than one round it usually stops matching: an approach gets replaced, a fix turns out
+to be wrong, a reviewer's point reshapes the change. Reviewers read the description to
+decide what to look at, and after the merge it is the only prose explaining why the commit
+exists — the branch is gone and the discussion is buried.
+
+Two habits keep it honest:
+
+- When a later commit supersedes an earlier one, say so, rather than leaving both stories
+  standing. A description claiming a fix the branch no longer contains is worse than one
+  that says nothing.
+- Write for somebody who was not in the review. Avoid tool names, round numbers, and
+  references to who suggested what; describe the problem in terms of this repository, and
+  say how the change was checked.
+
+Editing a merged PR's description is fine and worth doing when it turns out to be wrong.
+Note at the top that it was rewritten, so the discussion below still makes sense.
+
 ## Creating a release
 
 1. Prepare a release branch: `git switch main && git pull && git switch -c release/vX.Y.Z`

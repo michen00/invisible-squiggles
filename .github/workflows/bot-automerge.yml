@@ -6,12 +6,14 @@ name: Bot auto-merge
 # required checks green, no unresolved review threads -- so leaving a review comment
 # pauses it until that thread is resolved.
 #
-# Major bumps are left for a human on purpose. Consider what the required checks
-# actually cover: unit and E2E tests, pre-commit, and Package VSIX (which runs
-# `make verify-reproducible`). None of them execute publish.yml, which only triggers on
-# `release` and workflow_dispatch -- and that is precisely where a github-actions major
-# lands. A green PR is therefore not evidence that a major is safe, so auto-merging one
-# risks breaking publishing unattended.
+# npm majors ride on green CI; github-actions majors do not. The split is about what a
+# green PR is evidence of. CI drives the extension end to end -- type-check, lint, unit,
+# integration and E2E across two operating systems and two VSCode versions, and Package
+# VSIX, which runs `make verify-reproducible` and so exercises vsce. It drives almost none
+# of the workflows: six of the ten actions here appear only in workflows no pull request
+# runs, and azure/login and actions/attest-build-provenance appear solely in publish.yml,
+# which triggers on `release` and workflow_dispatch alone. A break there surfaces at
+# release time, not review time.
 #
 # The guard reads pull_request.user.login, not github.actor. github.actor is whoever
 # triggered *this* event rather than whoever opened the PR, so any later push by another
@@ -49,10 +51,22 @@ jobs:
     # This check alone only stops the job from arming again. Auto-merge already enabled
     # lives server-side, so a label applied afterwards would not turn it off --
     # bot-automerge-disarm.yml does that, and is the half that makes arming defensible.
+    #
+    # Both identities are checked, because each covers what the other misses.
+    # pull_request.user.login says the PR is a bot's and stays true for its whole life, so
+    # a bot-pushed synchronize does not lose the only chance to act. github.actor says
+    # *this* event was not a human pushing onto that branch -- which user.login cannot
+    # tell, and which the commit-authorship probe below cannot reliably tell either, since
+    # .author.login is resolved from the commit's author email and anyone who can push can
+    # set that to dependabot's noreply address. Requiring both means a human push skips the
+    # job outright rather than relying on a probe that can be spoofed.
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       (github.event.pull_request.user.login == 'dependabot[bot]' ||
       github.event.pull_request.user.login == 'pre-commit-ci[bot]') &&
+      (github.actor == 'dependabot[bot]' ||
+      github.actor == 'pre-commit-ci[bot]' ||
+      github.actor == 'github-actions[bot]') &&
       !contains(github.event.pull_request.labels.*.name, 'do not auto-merge')
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -87,6 +101,7 @@ jobs:
         env:
           AUTHOR: ${{ github.event.pull_request.user.login }}
           UPDATE_TYPE: ${{ steps.meta.outputs.update-type }}
+          ECOSYSTEM: ${{ steps.meta.outputs.package-ecosystem }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           # Keying on the PR author is what makes the guard survive later pushes by other
@@ -136,6 +151,28 @@ jobs:
                [ "$UPDATE_TYPE" = "version-update:semver-minor" ]; then
             echo "::notice::Dependabot ${UPDATE_TYPE}; eligible for auto-merge."
             echo "should_merge=true" >> "$GITHUB_OUTPUT"
+          elif [ "$UPDATE_TYPE" = "version-update:semver-major" ]; then
+            # Majors are gated on ecosystem, because that is what decides whether a green
+            # PR is evidence. For npm, CI genuinely exercises the result: type-check,
+            # lint, 100 unit tests, integration and E2E across two operating systems and
+            # two VSCode versions, and Package VSIX, which runs `make verify-reproducible`
+            # and so drives vsce itself. For github-actions it is not: six of the ten
+            # actions used here appear only in workflows no pull request runs, and two of
+            # those -- azure/login and actions/attest-build-provenance -- exist solely in
+            # publish.yml, where a break is invisible until a release.
+            #
+            # Deliberately not a file-path test. "Does the diff touch publish.yml" reads
+            # like the same rule but is not: ovsx appears only in publish.yml and the
+            # Makefile publish targets, so an ovsx major changes publishing while the diff
+            # touches package.json alone and would sail through. Ecosystem needs no such
+            # proxy, and cannot be evaded by a rename or a truncated file list.
+            if [ "$ECOSYSTEM" = "npm" ]; then
+              echo "::notice::npm major; CI exercises the extension end to end; eligible."
+              echo "should_merge=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "::warning::${ECOSYSTEM:-unknown} major is not exercised by CI; holding."
+              echo "should_merge=false" >> "$GITHUB_OUTPUT"
+            fi
           else
             echo "::warning::Holding ${UPDATE_TYPE:-unknown update type} for a human."
             echo "should_merge=false" >> "$GITHUB_OUTPUT"

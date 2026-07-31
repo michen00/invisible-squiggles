@@ -59,9 +59,12 @@ jobs:
               echo "::notice::Auto-merge is off on PR #${PR_NUMBER}."
               exit 0
             fi
-            if [ "$armed" = "true" ]; then
-              gh pr merge --disable-auto "$PR_NUMBER" || true
-            fi
+            # Attempt the disable whenever "off" was not positively confirmed, which
+            # includes the probe itself having failed and left $armed empty. Only
+            # confirmed-off exits above. Gating this on "true" would mean a transient API
+            # error skipped the attempt entirely and left the PR armed -- the outcome
+            # this workflow exists to prevent.
+            gh pr merge --disable-auto "$PR_NUMBER" || true
             echo "::warning::attempt ${attempt}: auto-merge not yet confirmed off on #${PR_NUMBER}."
             sleep 5
           done

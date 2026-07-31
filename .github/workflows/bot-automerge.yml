@@ -95,12 +95,32 @@ jobs:
           # code through a path that approves and merges itself. Require every commit to
           # be the bot's own. An unreadable or unmatched author counts as foreign, so the
           # probe fails closed.
+          # Emits a sentinel rather than an empty string for an unlinked author: command
+          # substitution strips trailing newlines, so a null author on the final commit
+          # would vanish before the loop counted it and the guard would pass.
+          if ! logins=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}/commits" --paginate \
+              --jq '.[].author.login // "<none>"' 2>/dev/null); then
+            echo "::warning::Could not read commit authors for #${PR_NUMBER}; holding."
+            echo "should_merge=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Counted apart so the reason is accurate: an unlinked author is not the same
+          # finding as a commit by somebody else, and reporting either as the other sends
+          # whoever reads the log looking in the wrong place.
           foreign=0
-          logins=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}/commits" --paginate \
-            --jq '.[].author.login // "UNKNOWN"' 2>/dev/null || echo UNKNOWN)
+          unlinked=0
           while IFS= read -r login; do
-            [ "$login" = "$AUTHOR" ] || foreign=$((foreign + 1))
+            if [ -z "$login" ] || [ "$login" = "<none>" ]; then
+              unlinked=$((unlinked + 1))
+            elif [ "$login" != "$AUTHOR" ]; then
+              foreign=$((foreign + 1))
+            fi
           done <<< "$logins"
+          if [ "$unlinked" -ne 0 ]; then
+            echo "::warning::${unlinked} commit(s) with no linked GitHub author; holding."
+            echo "should_merge=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if [ "$foreign" -ne 0 ]; then
             echo "::warning::${foreign} commit(s) not authored by ${AUTHOR}; holding."
             echo "should_merge=false" >> "$GITHUB_OUTPUT"
@@ -131,6 +151,19 @@ jobs:
             gh pr review --approve "$PR_URL"
           fi
 
-      - name: Enable auto-merge
+      # The label is re-read live rather than taken from the event payload. A label
+      # applied while this run was in flight is not in that payload, and the disarm
+      # workflow runs in its own concurrency group, so it can finish before this step
+      # arms -- leaving the PR armed with the kill switch applied. Checking here closes
+      # that ordering gap; the disarm workflow covers the label arriving afterwards.
+      - name: Re-check the kill switch, then enable auto-merge
         if: steps.eligible.outputs.should_merge == 'true'
-        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if gh pr view "$PR_NUMBER" --json labels --jq '.labels[].name' \
+              | grep -qx 'do not auto-merge'; then
+            echo "::warning::do not auto-merge applied since this run started; not arming."
+            exit 0
+          fi
+          gh pr merge --auto --squash "$PR_URL"

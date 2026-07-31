@@ -25,3 +25,4 @@ dd491d212aa5d82b907e4ac362f57d04c79c2f66  # style: add whitespace
 47e66a774a26fddf7edbe9c42aa445cf31aaf57a  # style(.github/dependabot.yml): use fewer quotes
 45d5b74c644893ff3bcf7dcb49dd49c9d2474f6b  # style: reorder imports
 f3a23771c9a662389237f0f4e41cd7d8f699299e  # style: restyle quotes and trailing commas
+029ff84fe93e127f02e037a4498b24707a0009f7  # docs: remove manual line breaks from prose

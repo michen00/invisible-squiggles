@@ -7,6 +7,11 @@ on:
   # be the thing that creates it. A tag push therefore lands here, builds,
   # attests, and leaves a draft. It publishes to no registry.
   push:
+    # Glob, not regex, but `+` is still a quantifier here: GitHub's filter
+    # patterns read it as one or more of the preceding element, so this is one
+    # or more digits per position. Deliberately stricter than the `[0-9]*` form
+    # used by the shell validation below, where `*` is any-characters and would
+    # also admit v1abc.2.3.
     tags:
       - v[0-9]+.[0-9]+.[0-9]+
   # Publishes it. Reached by publishing that draft, which `make release` does.

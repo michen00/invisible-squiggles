@@ -248,15 +248,35 @@ verify-tag: ## Verify a release tag's signature (VERSION=vX.Y.Z)
 	@if [ -z "$(VERSION)" ]; then echo "Usage: make verify-tag VERSION=vX.Y.Z"; exit 1; fi
 	@git -c gpg.ssh.allowedSignersFile=$(SIGNERS_FILE) verify-tag $(VERSION)
 
-# The publish workflow owns artifact upload: it builds the VSIX once, attests
-# that exact file, publishes it, and attaches it to the release. Building or
-# uploading here as well would mean the attested bytes are not the shipped bytes.
+# Publishes the draft that pushing the tag already created; it does not create a
+# release. The publish workflow owns the artifact end to end -- it builds the VSIX
+# once, attests that exact file, and attaches it to the draft -- because building
+# or uploading here too would mean the attested bytes are not the shipped bytes.
+#
+# This is still the release gate, and still the irreversible step: publishing the
+# draft freezes it and fires the workflow that pushes to both registries, neither
+# of which allows replacing a published version. What changed is that the draft
+# now exists first, so the gate can be walked up to and looked at.
 .PHONY: release
-release: ## Create a GitHub release (VERSION=vX.Y.Z)
+release: ## Publish the drafted release (VERSION=vX.Y.Z)
 	@if [ -z "$(VERSION)" ]; then echo "Usage: make release VERSION=vX.Y.Z"; exit 1; fi
 	@git rev-parse --verify refs/tags/$(VERSION) >/dev/null 2>&1 || { echo "Error: Tag $(VERSION) does not exist"; exit 1; }
-	gh release create $(VERSION) --generate-notes --discussion-category "Announcements"
-	@echo "The publish workflow attests, publishes, and attaches the VSIX."
+	@gh release view $(VERSION) --json isDraft --jq .isDraft 2>/dev/null | grep -qx true || { \
+		echo "Error: no draft release for $(VERSION)."; \
+		echo "Push the tag and let the publish workflow draft it:"; \
+		echo "  git push --follow-tags"; \
+		echo "Already published? Then it is done, or retry a registry with:"; \
+		echo "  gh workflow run publish.yml -f tag=$(VERSION) -f targets=both"; \
+		exit 1; }
+	@gh release view $(VERSION) --json assets --jq '.assets[].name' | grep -q '\.vsix$$' || { \
+		echo "Error: the $(VERSION) draft carries no VSIX."; \
+		echo "Publishing now would freeze it that way -- assets cannot be added"; \
+		echo "to a published release, though a draft still accepts them."; \
+		echo "Re-trigger the draft build (same tag object, same signature):"; \
+		echo "  git push --delete origin $(VERSION) && git push origin $(VERSION)"; \
+		exit 1; }
+	gh release edit $(VERSION) --draft=false --discussion-category "Announcements"
+	@echo "Published $(VERSION). The publish workflow now ships it to both registries."
 
 .PHONY: test
 # Chained under one `set -e`. This file sets .ONESHELL, so the whole recipe goes

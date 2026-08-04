@@ -185,13 +185,18 @@ Editing a merged PR's description is fine and worth doing when it turns out to b
       is unsigned and `make verify-tag` will fail on it. Confirm with
       `make verify-tag VERSION=vX.Y.Z` before pushing.
 11. Push with tags: `git push --follow-tags`
-12. Create a GitHub release from the tag: `make release VERSION=vX.Y.Z`
-13. Review the release notes and edit them if needed (via GitHub web UI).
-14. The `publish extension` workflow fires on `release: published` and does the rest: it builds one VSIX, attests it, attaches it to the release, and publishes that same file to the VSCode Marketplace and Open VSX.
+12. That push starts the `publish extension` workflow in **draft** mode: it builds one VSIX, proves it reproducible, attests it, and leaves a draft release carrying that exact file. Nothing reaches a registry on this path.
+13. Review the draft. The generated notes and the attested artifact are both sitting there to be looked at, and a draft can still be deleted — nothing is committed to yet. Edit the notes in the web UI if they need it.
+14. Publish it: `make release VERSION=vX.Y.Z`. **This is the irreversible step.** It freezes the release with its asset, starts the Announcements discussion, and fires the same workflow again, which ships that build to the VSCode Marketplace and Open VSX. Neither registry allows replacing a published version.
 
 ### Publishing
 
-Releases publish themselves. `.github/workflows/publish.yml` verifies the tag matches `package.json`, builds the VSIX once via `make package-vsix` (so marketplace README preparation happens exactly one way), then publishes to both registries.
+`.github/workflows/publish.yml` runs twice per release, once per half, and the split exists because of immutable releases: they freeze a release's assets the instant it is published, so the VSIX has to be attached before that, by the thing that builds it.
+
+- **Tag push → draft.** Verifies the tag matches `package.json`, builds the VSIX once via `make package-vsix` (so marketplace README preparation happens exactly one way), proves the build reproducible, attests it, and drafts the release around it. `targets` is `none` here, so neither publish step can run — and the verification gate still executes, reporting both registries as not requested, which is what evidences that.
+- **Release published → registries.** The same build, re-derived from the same tag and therefore byte-identical, goes to both registries independently. A failure in one does not withhold the other, and the gate at the end fails the job for any requested registry that did not publish.
+
+Publishing the draft is what connects the two, and it is a human action by design: `make release` refuses to run unless a draft exists and carries a `.vsix`, since publishing a draft without one would freeze it empty.
 
 Repository secrets required:
 

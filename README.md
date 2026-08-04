@@ -51,7 +51,34 @@ Click the **👁️ Toggle Squiggles** button at the **bottom right**.
 1. Type **`Toggle Squiggles`**.
 1. Select the command to hide/show squiggles.
 
-<!-- TODO: Add instructions for mapping a shortcut. -->
+### **Option 3: Using a Keyboard Shortcut**
+
+There is no default shortcut, so pick one that suits you:
+
+1. Press **`Ctrl/Cmd + K`** then **`Ctrl/Cmd + S`** to open Keyboard Shortcuts.
+1. Search for **`Toggle Squiggles`**.
+1. Click the **+** beside it and press your key combination.
+
+Or add it to `keybindings.json` yourself:
+
+```json
+{ "key": "ctrl+alt+s", "command": "invisible-squiggles.toggle" }
+```
+
+## 🔹 Settings
+
+Everything lives under `invisibleSquiggles` and applies globally.
+
+| Setting                | Default | Effect                                           |
+| ---------------------- | ------- | ------------------------------------------------ |
+| `hideErrors`           | `true`  | Hide error squiggles when toggling.              |
+| `hideWarnings`         | `true`  | Hide warning squiggles when toggling.            |
+| `hideInfo`             | `true`  | Hide info squiggles when toggling.               |
+| `hideHint`             | `true`  | Hide hint squiggles when toggling.               |
+| `showStatusBarMessage` | `false` | Show a brief status bar message on each toggle.  |
+| `startHidden`          | `false` | Hide squiggles automatically when VSCode starts. |
+
+The four `hide*` settings choose which squiggle types the toggle acts on — this is the "independently control" part. Set `hideErrors` to `false` and errors stay visible while warnings, info, and hints disappear. Turn all four off and the toggle has nothing to act on.
 
 ## ⚠️ Important Notes
 
@@ -59,15 +86,8 @@ Click the **👁️ Toggle Squiggles** button at the **bottom right**.
 - **Customizations stored in settings**: Your original color customizations are saved in VS Code's `settings.json`. If this file becomes corrupted, your saved customizations may be lost.
 - Users who upgrade while squiggles are hidden may need to toggle twice to reset state.
 
-## 🔹 Verifying a release
-
-Releases carry keyless build provenance, and release tags from v0.2.1 onward are signed:
-
-```bash
-gh attestation verify invisible-squiggles-<version>.vsix --repo michen00/invisible-squiggles
-git -c gpg.ssh.allowedSignersFile=.github/allowed_signers verify-tag v<version>
-```
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for what each one proves.
-
 ## 🔹 Documentation [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/michen00/invisible-squiggles)
+
+- [CONTRIBUTING.md](CONTRIBUTING.md) — development setup, the release process, and the dependency-override policy
+- [SECURITY.md](SECURITY.md) — reporting a vulnerability, what the extension can touch, and how to verify a release you installed
+- [CHANGELOG.md](CHANGELOG.md) — release history

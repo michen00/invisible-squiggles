@@ -243,15 +243,20 @@ update-unreleased: ## Update the Unreleased section of CHANGELOG.md and commit
 # The two mechanical halves of cutting a release. Between them they replace the
 # steps that were hand-typed, and only those: deciding what the changelog says,
 # reviewing the draft, and publishing it stay manual on purpose.
+#
+# VERSION is quoted on the way through so the value reaches the script as one
+# argument whatever it contains. Unquoted, `VERSION="v1.0.0 x"` arrives as two
+# arguments and the script reports a wrong argument count instead of a malformed
+# version -- the guard still holds, but it names the wrong problem.
 .PHONY: prep-release
 prep-release: ## Branch, bump the version, open a changelog section, check (VERSION=vX.Y.Z)
 	@if [ -z "$(VERSION)" ]; then echo "Usage: make prep-release VERSION=vX.Y.Z"; exit 1; fi
-	@scripts/prep-release.sh $(VERSION)
+	@scripts/prep-release.sh "$(VERSION)"
 
 .PHONY: tag
 tag: ## Sign, verify, and push a release tag, drafting the release (VERSION=vX.Y.Z)
 	@if [ -z "$(VERSION)" ]; then echo "Usage: make tag VERSION=vX.Y.Z"; exit 1; fi
-	@SIGNERS_FILE=$(SIGNERS_FILE) scripts/release-tag.sh $(VERSION)
+	@SIGNERS_FILE="$(SIGNERS_FILE)" scripts/release-tag.sh "$(VERSION)"
 
 # Verifies a release tag against the committed public key in
 # .github/allowed_signers. The signed tag is the source-authenticity anchor;

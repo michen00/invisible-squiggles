@@ -84,6 +84,19 @@ expect 1 'perf: speed up packaging' scripts/normalize-vsix.mjs
 expect 1 'add a thing without a type' src/extension.ts
 expect 1 'Update README' README.md
 
+# Malformed but opening with a kept type, so cliff's prefix match files them under a
+# user-facing group and then prints the raw subject. Backing them with src/ changes is
+# deliberate: without a shape check these are the cases that slip through.
+expect 1 'feat add setting' src/extension.ts
+expect 1 'fixing startup' src/extension.ts
+expect 1 'feat:no space after the colon' src/extension.ts
+expect 1 'fixup! wip' src/extension.ts
+
+# But the shape is required only of titles that reach the changelog. A bare version
+# subject is what `npm version` writes and cliff.toml skips it by name, so demanding a
+# conventional shape everywhere would reject a release commit cliff never prints.
+expect 0 '0.4.2' package.json CHANGELOG.md
+
 # --- Misuse of the checker itself --------------------------------------------------
 if printf 'src/extension.ts\n' | node "$CHECKER" > /dev/null 2>&1; then
   echo "FAIL: expected a usage error with no title argument" >&2

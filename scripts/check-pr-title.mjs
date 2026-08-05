@@ -18,7 +18,10 @@
 //     by accident while looking at something else.
 //   - A title that is not conventional at all. cliff.toml ends with a catch-all
 //     `^.*` parser that is *not* skipped, so an unrecognised prefix does not fall out
-//     of the changelog -- it lands in "Other".
+//     of the changelog -- it lands in "Other". A subject that opens with a kept type
+//     but drops the colon is worse still: cliff's parsers are prefix matches, so
+//     "feat add setting" is filed under Features, and since the conventional parse
+//     then fails the raw subject is printed verbatim, type and all.
 //   - A breaking marker on a type that is otherwise skipped. cliff.toml sets
 //     `protect_breaking_commits`, which exempts breaking changes from a skipping
 //     parser, so "ci!: drop the release workflow" still reaches the changelog under
@@ -42,8 +45,21 @@ const CATCH_ALL = '^.*';
 
 // A breaking change in the Conventional Commits sense: `!` immediately before the
 // colon, after the type or the scope. The other spelling, a `BREAKING CHANGE:` footer,
-// cannot be seen from here -- see the note on breaking footers further down.
+// cannot be seen from here -- see the note below.
 const BREAKING = /^[a-z]+(\([^()]+\))?!:/;
+
+// A conventional subject: type, optional scope, optional `!`, then a colon, a space,
+// and something. cliff's own parsers are looser than this on purpose -- `^feat` is a
+// prefix match that also accepts "feat add setting" -- so the shape is checked
+// separately for any title that reaches the changelog.
+const CONVENTIONAL = /^[a-z]+(\([^()]+\))?!?: \S/;
+
+// Note on breaking footers: the other way to declare a breaking change is a
+// `BREAKING CHANGE:` footer in the commit body. GitHub builds the squash body from the
+// branch's commit messages on this repository (squash_merge_commit_message is
+// COMMIT_MESSAGES), so a footer in one of those commits can make the squashed commit
+// breaking while the title says nothing, and this check is handed nothing but the
+// title. gitlint does see those commit messages, which is the nearest thing to cover.
 
 /**
  * Files that are shipped in the VSIX or decide what the VSIX contains, and so can
@@ -226,6 +242,19 @@ if (parser.message === CATCH_ALL) {
   console.error('::error::than being filtered out. Prefix it with a type:');
   console.error('::error::feat, fix, perf, revert, docs, build, ci, test, refactor,');
   console.error('::error::style or chore.');
+  process.exit(1);
+}
+
+if (!CONVENTIONAL.test(title)) {
+  console.error(`::error::"${title}" reaches the changelog, but it is not a`);
+  console.error('::error::conventional subject: that is type, an optional (scope),');
+  console.error('::error::an optional !, then a colon, a space and a description.');
+  console.error('::error::');
+  console.error(`::error::${CLIFF}'s parsers are prefix matches, so a subject like`);
+  console.error('::error::"feat add setting" is grouped under Features anyway, and');
+  console.error('::error::because the conventional parse then fails git-cliff prints');
+  console.error('::error::the raw subject -- the changelog entry reads');
+  console.error('::error::"- feat add setting", type included.');
   process.exit(1);
 }
 

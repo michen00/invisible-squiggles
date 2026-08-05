@@ -21,7 +21,7 @@ The **Invisible Squiggles** VSCode extension allows you to **selectively toggle 
 
 - ✅ **Toggle squiggles on/off globally or by type** from the **status bar** or **command palette**
 - ✅ **Independently control hint, info, warning, and error squiggles**
-- ✅ When squiggles are hidden, problem icons in the Problems panel are also made less visible for a fully distraction-free experience.
+- ✅ **The Problems panel follows along** — its icons take their color from the editor's diagnostic colors, so hiding squiggles fades them too
 
 ![demo](https://github.com/user-attachments/assets/50bce932-ee6a-4422-88d1-a500b81eac57)
 
@@ -29,7 +29,7 @@ The **Invisible Squiggles** VSCode extension allows you to **selectively toggle 
 
 ### Why not use the built-in "Problems: Visibility" setting?
 
-VS Code's [built-in setting](https://code.visualstudio.com/updates/v1_85#_hide-problem-decorations) (`problems.visibility`) hides all problem decorations when turned off—but it always shows a **warning in the status bar** while they’re hidden. Invisible Squiggles gives you:
+VS Code's [built-in setting](https://code.visualstudio.com/updates/v1_85#_hide-problem-decorations) (`problems.visibility`) hides all problem decorations when turned off — but it always shows a **warning in the status bar** while they're hidden. Invisible Squiggles gives you:
 
 - **No forced status bar clutter** — The status bar indicator is optional and can be disabled.
 - **Choose subsets** — Hide only errors, only warnings, only info, only hints, or any combination. The built-in option is all-or-nothing.
@@ -43,7 +43,7 @@ VS Code's [built-in setting](https://code.visualstudio.com/updates/v1_85#_hide-p
 
 ### **Option 1: Using the Status Bar Button**
 
-Click the **👁️ Toggle Squiggles** button at the **bottom right**.
+Click **Squiggles:** at the **bottom right**. The eye beside it shows the current state — open while squiggles are visible, closed while they are hidden.
 
 ### **Option 2: Using the Command Palette**
 
@@ -80,11 +80,11 @@ Everything lives under `invisibleSquiggles` and applies globally.
 
 The four `hide*` settings choose which squiggle types the toggle acts on — this is the "independently control" part. Set `hideErrors` to `false` and errors stay visible while warnings, info, and hints disappear. Turn all four off and the toggle has nothing to act on.
 
-## ⚠️ Important Notes
+## 🔹 Important Notes
 
 - **Manual edits will be overwritten**: When squiggles are hidden, the extension stores your original color customizations and applies transparent colors. Toggling squiggles will overwrite any manual changes you make to these colors while they're hidden.
 - **Customizations stored in settings**: Your original color customizations are saved in VS Code's `settings.json`. If this file becomes corrupted, your saved customizations may be lost.
-- Users who upgrade while squiggles are hidden may need to toggle twice to reset state.
+- **Upgrading while hidden**: you may need to toggle twice to reset the state.
 
 ## 🔹 Documentation [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/michen00/invisible-squiggles)
 

@@ -1,24 +1,163 @@
 #!/usr/bin/env bash
 
+# Tests for scripts/prepare-readme.sh.
+#
+# The golden case pins the original job -- stripping the zenodo badge and the
+# Documentation section. Everything after it covers link handling, where the failures
+# are invisible rather than loud: a relative link that reaches a marketplace page
+# resolves against the marketplace, and an absolute link to a path that moved is a 404.
+# Neither looks broken from inside the repository, which is why they are asserted here.
+#
+# Link targets are checked against the real repository, so these fixtures reference
+# files that genuinely exist (CONTRIBUTING.md, icon.png) and one that genuinely does not.
+
 set -euo pipefail
 
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT="$REPO_ROOT/scripts/prepare-readme.sh"
 INPUT="test-workspace/README.md"
 EXPECTED="scripts/fixtures/test-readme-expected.md"
-TMP_OUT=""
+BLOB="https://github.com/michen00/invisible-squiggles/blob/main"
+RAW="https://github.com/michen00/invisible-squiggles/raw/main"
+WORKSPACE=""
+FAILURES=0
 
 cleanup() {
-  rm -f "$TMP_OUT"
+  [ -n "$WORKSPACE" ] && rm -rf "$WORKSPACE"
 }
 trap cleanup EXIT
 
-TMP_OUT=$(mktemp)
+WORKSPACE=$(mktemp -d)
 
-# Run the prepare script
-scripts/prepare-readme.sh "$INPUT" "$TMP_OUT"
+fail() {
+  echo "FAIL: $*" >&2
+  FAILURES=$((FAILURES + 1))
+}
 
-# Compare with expected output
-if ! diff -u "$EXPECTED" "$TMP_OUT"; then
-  echo "FAIL: Output does not match expected" >&2
+# run <name> <want-rc>; README body arrives on stdin, output lands in <name>.out
+run() {
+  local name="$1" want="$2" got=0
+  cat > "$WORKSPACE/$name.in"
+  "$SCRIPT" "$WORKSPACE/$name.in" "$WORKSPACE/$name.out" \
+    > "$WORKSPACE/$name.log" 2>&1 || got=$?
+  if [ "$got" != "$want" ]; then
+    fail "$name: expected exit $want, got $got"
+    sed 's/^/    /' "$WORKSPACE/$name.log" >&2
+  fi
+}
+
+has() {
+  grep -qF "$2" "$WORKSPACE/$1.out" || fail "$1: expected to find $2"
+}
+
+# --- The original job, pinned to a golden file --------------------------------------
+"$SCRIPT" "$INPUT" "$WORKSPACE/golden.out"
+if ! diff -u "$EXPECTED" "$WORKSPACE/golden.out"; then
+  fail "golden output no longer matches $EXPECTED"
+fi
+
+# --- Relative links become absolute, with the right base for each kind --------------
+run relative-link 0 << 'EOF'
+# Title
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup.
+EOF
+has relative-link "]($BLOB/CONTRIBUTING.md)"
+
+# An image needs /raw/; a blob URL serves an HTML page and renders as a broken image.
+run relative-image 0 << 'EOF'
+# Title
+
+![icon](icon.png)
+EOF
+has relative-image "]($RAW/icon.png)"
+
+run reference-definition 0 << 'EOF'
+# Title
+
+[guide]: CONTRIBUTING.md
+
+Start with the [guide].
+EOF
+has reference-definition "[guide]: $BLOB/CONTRIBUTING.md"
+
+# A file link carrying an anchor keeps the anchor and is still checked for existence.
+run link-with-anchor 0 << 'EOF'
+# Title
+
+See [releases](CONTRIBUTING.md#creating-a-release).
+EOF
+has link-with-anchor "]($BLOB/CONTRIBUTING.md#creating-a-release)"
+
+# --- Absolute targets are left exactly as they are ----------------------------------
+run absolute-untouched 0 << 'EOF'
+# Title
+
+[example](https://example.com/page) and ![badge](https://img.shields.io/badge/a-b-c.svg)
+EOF
+has absolute-untouched "](https://example.com/page)"
+has absolute-untouched "](https://img.shields.io/badge/a-b-c.svg)"
+
+# --- Anchors: allowed when the heading survives the strip ---------------------------
+# The slug matters more than it looks. GitHub lowercases, drops characters that are not
+# alphanumeric, space, hyphen or underscore, then turns spaces into hyphens -- so this
+# repository's emoji headings slug to a leading hyphen, and "#-features" is correct.
+run anchor-resolves 0 << 'EOF'
+# Title
+
+Jump to [Features](#-features).
+
+## 🔹 Features
+
+Body.
+EOF
+
+# ...and rejected when the heading was in the part that got cut, which is damage this
+# transform causes rather than finds.
+run anchor-orphaned 1 << 'EOF'
+# Title
+
+Jump to [the index](#-documentation).
+
+## 🔹 Documentation
+
+- something
+EOF
+grep -qF "anchors point at headings" "$WORKSPACE/anchor-orphaned.log" ||
+  fail "anchor-orphaned: expected the dangling-anchor message"
+
+# --- A link to a path that is not in the repository stops the build ----------------
+run missing-target 1 << 'EOF'
+# Title
+
+See [the plan](docs/NOPE.md).
+EOF
+grep -qF "not in the repository" "$WORKSPACE/missing-target.log" ||
+  fail "missing-target: expected the missing-file message"
+
+# --- Without a usable repository URL, refuse rather than ship relative links -------
+# This is the condition that makes the rewrite necessary in the first place: vsce infers
+# its base from the same field, so a shape it cannot read is exactly when links break.
+printf '# Title\n\nSee [CONTRIBUTING.md](CONTRIBUTING.md).\n' > "$WORKSPACE/nourl.in"
+got=0
+REPO_URL="git@github.com:michen00/invisible-squiggles.git" \
+  "$SCRIPT" "$WORKSPACE/nourl.in" "$WORKSPACE/nourl.out" \
+  > "$WORKSPACE/nourl.log" 2>&1 || got=$?
+[ "$got" = 1 ] || fail "nourl: expected exit 1 for a non-https repository URL, got $got"
+
+# --- REPO_REF chooses the ref the absolute links point at -------------------------
+printf '# Title\n\nSee [CONTRIBUTING.md](CONTRIBUTING.md).\n' > "$WORKSPACE/ref.in"
+REPO_REF=v9.9.9 "$SCRIPT" "$WORKSPACE/ref.in" "$WORKSPACE/ref.out" > /dev/null 2>&1
+grep -qF "/blob/v9.9.9/CONTRIBUTING.md" "$WORKSPACE/ref.out" ||
+  fail "ref: REPO_REF did not reach the rewritten link"
+
+# --- Usage ------------------------------------------------------------------------
+if "$SCRIPT" > /dev/null 2>&1; then
+  fail "expected a usage error with no arguments"
+fi
+
+if [ "$FAILURES" -ne 0 ]; then
+  echo "prepare-readme.sh: $FAILURES test(s) failed" >&2
   exit 1
 fi
 

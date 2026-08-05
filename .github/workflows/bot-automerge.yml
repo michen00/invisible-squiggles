@@ -64,6 +64,69 @@ jobs:
       PR_URL: ${{ github.event.pull_request.html_url }}
     steps:
       # No checkout step: nothing below reads the repository.
+
+      # Optional, and inert unless both settings resolve. Arming under an App matters
+      # because auto-merge is completed by whoever armed it, and GitHub creates no workflow
+      # run for an event caused by `GITHUB_TOKEN` -- so a `GITHUB_TOKEN` merge fires no
+      # `push` and no `pull_request_target: closed` trigger downstream, while an App merge
+      # does. The note at the top of this file says nothing here depends on those triggers,
+      # and that stays true; this buys the option rather than a fix for a current break.
+      #
+      # Neither setting exists here yet, so this resolves false on every run and the whole
+      # App path is inert -- which is why it is written as a detection rather than a
+      # requirement. Note that a Dependabot-triggered run is handed the *Dependabot* secret
+      # store rather than the Actions one, so whenever these are added the private key has
+      # to go into both stores or the App path stays inert on exactly the pull requests it
+      # was added for. Saying so here is the point: the failure is otherwise entirely silent
+      # -- the token comes back empty and the fallback takes over with nothing logged.
+      - name: Detect App credentials
+        id: creds
+        env:
+          APP_ID_VALUE: ${{ vars.APP_ID }}
+          APP_KEY_VALUE: ${{ secrets.APP_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -n "$APP_ID_VALUE" ] && [ -n "$APP_KEY_VALUE" ]; then
+            echo "available=true" >>"$GITHUB_OUTPUT"
+          else
+            echo "available=false" >>"$GITHUB_OUTPUT"
+            echo "::notice::No App credential on this run; arming under the default" \
+                 "token. The merge will fire no downstream push or closed event."
+          fi
+
+      # `APP_ID` holds the App's numeric id, which is what `create-github-app-token` wants;
+      # the client id is the separate `Iv23li...` string and is not what goes here. The
+      # sibling repositories use the same two names, so a key rotation is one operation
+      # across all of them rather than several spellings to remember. It is a variable
+      # rather than a secret because `if:` can read `vars` and cannot read `secrets`, and
+      # that test is what keeps this path optional.
+      - name: Mint an App token, if one is configured
+        id: app-token
+        if: steps.creds.outputs.available == 'true'
+        continue-on-error: true
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          # Without these the token inherits every permission the installation holds, which
+          # is more than this job declares for itself. Narrowing the borrowed identity to
+          # match the default one keeps the two carrying the same authority.
+          permission-contents: write
+          permission-pull-requests: write
+
+      # `continue-on-error` above means a failed mint does not stop the job, so it has to be
+      # reported here or it passes unnoticed. Worth knowing while reading a run: a
+      # `continue-on-error` step is recorded as `conclusion: success` by the jobs API even
+      # when its log carries a hard refusal, so this notice is the only honest signal short
+      # of opening the log.
+      - name: Report a mint that failed
+        if: >-
+          steps.creds.outputs.available == 'true' &&
+          (steps.app-token.outcome != 'success' || steps.app-token.outputs.token == '')
+        run: |
+          echo "::warning::App credentials are set but minting failed; falling back to" \
+               "the default token. Auto-merge still works; downstream triggers will not."
+
       - name: Fetch Dependabot metadata
         id: meta
         if: github.event.pull_request.user.login == 'dependabot[bot]'
@@ -245,6 +308,10 @@ jobs:
         if: steps.eligible.outputs.should_merge == 'true'
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          # Overrides the job-level GH_TOKEN when an App token was minted. This is the step
+          # whose identity decides the merge event's identity, so it is the only one where
+          # the borrowed token changes anything observable.
+          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
         run: |
           # Read into a variable first, under `set -e`. Piping the query straight into
           # grep would treat a failed query as "label absent" -- grep sees no input,

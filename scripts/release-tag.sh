@@ -129,7 +129,17 @@ if ! git -c gpg.format=ssh -c "gpg.ssh.allowedSignersFile=$SIGNERS_FILE" \
     "Check that your signing key is present and listed in $SIGNERS_FILE."
 fi
 
-git push --follow-tags
+# An explicit refspec rather than --follow-tags, which pushes more than it looks
+# like. Per git-push(1) it also pushes "annotated tags in refs/tags that are missing
+# from the remote but are pointing at commit-ish that are reachable from the refs
+# being pushed" -- so any stray local annotated tag would ride along having passed
+# none of the checks above, and could start the draft workflow for a version nobody
+# asked to release. Everything above validates exactly one tag; this pushes exactly
+# that one.
+#
+# main needs no push of its own: the check above already required HEAD and
+# origin/main to be the same commit.
+git push origin "refs/tags/$VERSION"
 echo
 echo "Pushed $VERSION. CI is now drafting the release with the VSIX attached."
 echo "Nothing has been published. Review the draft, then publish it:"

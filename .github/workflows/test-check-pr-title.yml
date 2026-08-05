@@ -1,0 +1,43 @@
+---
+name: Test check-pr-title.mjs
+
+# cliff.toml is in the path filter because the checker reads it and asserts what it
+# finds there. A change to which commit types reach the changelog is exactly the change
+# that makes the checker's expectations stale, and the test is what says so.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/test-check-pr-title.yml
+      - cliff.toml
+      - scripts/check-pr-title.mjs
+      - scripts/test-check-pr-title.sh
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/test-check-pr-title.yml
+      - cliff.toml
+      - scripts/check-pr-title.mjs
+      - scripts/test-check-pr-title.sh
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-check-pr-title:
+    name: Test check-pr-title.mjs (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      # The test edits cliff.toml to prove the checker refuses a config it cannot
+      # read, and restores it on exit. Both runners get exercised because that
+      # editing uses sed, whose in-place behaviour differs between GNU and BSD --
+      # the test avoids `-i` for that reason, and this matrix is what keeps it honest.
+      - name: Test check-pr-title.mjs
+        run: |
+          scripts/test-check-pr-title.sh

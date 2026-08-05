@@ -1,0 +1,57 @@
+---
+name: PR title
+# The pull request title is unguarded and load-bearing. This repository squash-merges,
+# and GitHub uses the title as the squash subject whenever a branch carries more than
+# one commit -- so the title, not any commit message, is what git-cliff reads when it
+# builds CHANGELOG.md and the marketplace changelog tab. gitlint runs on local commit
+# messages and never sees it.
+#
+# `types` has to include `edited`, because retitling is the fix this check asks for and
+# a check that does not re-run on a retitle cannot confirm it. That is also why this
+# lives in its own workflow rather than as a job in ci.yml: adding `edited` there would
+# re-run the entire test matrix every time somebody touched a title or description.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, synchronize, reopened]
+
+concurrency:
+  # Superseded titles are not worth checking; the latest edit is the one that matters.
+  group: pr-title-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  changelog-visibility:
+    name: Changelog visibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # cliff.toml and the checker are read from the PR head rather than from main, so
+      # a branch that changes which commit types reach the changelog is judged by its
+      # own rules. The trade is that a branch could also neuter the check by editing
+      # either file -- acceptable here, because this guards labelling quality rather
+      # than anything a determined author should be prevented from changing, and the
+      # edit would be sitting in the diff. `pull_request` rather than
+      # `pull_request_target`, so the token stays read-only and no secrets are exposed
+      # to branch code.
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Check the title against cliff.toml
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          # Via env rather than interpolated into the script: a title is arbitrary
+          # user-controlled text and has no business being expanded by the shell.
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          gh pr view "${PR_NUMBER}" --json files --jq '.files[].path' > changed.txt
+          echo "Changed files:"
+          sed 's/^/  /' changed.txt
+          echo
+          node scripts/check-pr-title.mjs "${PR_TITLE}" < changed.txt

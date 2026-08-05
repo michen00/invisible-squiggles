@@ -137,6 +137,37 @@ run definition-routes-by-extension 0 << 'EOF'
 EOF
 has definition-routes-by-extension "[doc]: $BLOB/CONTRIBUTING.md"
 
+# A definition may carry a title just as an inline link may. Handling it inline without
+# handling it here left the destination unrewritten and unreported -- shipped relative.
+run titled-definition 0 << 'EOF'
+# Title
+
+See [the guide][id].
+
+[id]: CONTRIBUTING.md "setup"
+EOF
+has titled-definition "[id]: $BLOB/CONTRIBUTING.md \"setup\""
+
+run titled-definition-image 0 << 'EOF'
+# Title
+
+![pic][ic]
+
+[ic]: icon.png "the icon"
+EOF
+has titled-definition-image "[ic]: $RAW/icon.png \"the icon\""
+
+# ...and it is still checked for existence, which the old shape skipped entirely.
+run titled-definition-missing 1 << 'EOF'
+# Title
+
+See [the plan][id].
+
+[id]: docs/NOPE.md "t"
+EOF
+grep -qF "not in the repository" "$WORKSPACE/titled-definition-missing.log" ||
+  fail "titled-definition-missing: expected the missing-file message"
+
 # Brackets that are not references at all. Each of these once counted as a shortcut link
 # and produced a conflict against the image, refusing to package a correct README --
 # a false positive on the release path, which is the costlier direction to be wrong in.

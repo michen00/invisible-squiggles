@@ -130,14 +130,15 @@ LINK_BASE="$repo_url/blob/$REPO_REF/" \
     # appear in task lists, code spans and fenced examples; three separate false
     # conflicts came out of trying, each one refusing to package a correct README. The
     # file extension is a property of the target alone and needs no document scan.
-    s{^(\[[^\]]+\]:[ \t]*)(\S+)[ \t]*$}{
-      my ($prefix, $target) = ($1, $2);
+    # A definition may carry a title too, exactly as an inline link may.
+    s{^(\[[^\]]+\]:[ \t]*)(\S+)($title[ \t]*)$}{
+      my ($prefix, $target, $suffix) = ($1, $2, $3);
       if (absolute($target)) {
-        "$prefix$target";
+        "$prefix$target$suffix";
       } else {
         print $fh "$target\n";
         my $is_image = $target =~ /\.(?:png|jpe?g|gif|svg|webp|avif|bmp|ico)$/i;
-        "$prefix" . ($is_image ? $ENV{IMG_BASE} : $ENV{LINK_BASE}) . $target;
+        "$prefix" . ($is_image ? $ENV{IMG_BASE} : $ENV{LINK_BASE}) . "$target$suffix";
       }
     }gme;
     END { close($fh) }
@@ -205,7 +206,9 @@ leftover=$(
       $target =~ s/>$//;
       print "$target\n" unless $target =~ m{^(?:\w+:|//|\#)};
     }
-    while (/^\[[^\]]+\]:[ \t]*(\S+)[ \t]*$/gm) {
+    # Only the destination token is inspected, whatever follows it, so this stays broader
+    # than the rewrite for definitions the way it already is for inline links.
+    while (/^\[[^\]]+\]:[ \t]*(\S+)/gm) {
       print "$1\n" unless $1 =~ m{^(?:\w+:|//|\#)};
     }
   ' "$out" | sort -u

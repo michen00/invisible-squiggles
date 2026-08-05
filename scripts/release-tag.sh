@@ -78,6 +78,30 @@ if [ "$manifest" != "$VERSION" ]; then
     "Bump the manifest first, or tag the version it already declares."
 fi
 
+# The changelog's date for this version is written when the release branch is
+# prepared, which can be days before the tag, and it is what users read as the release
+# date. v0.4.1 was prepared on one day and tagged the next, shipping a date that had to
+# be corrected twice. Checked here because this is the last moment before the tag
+# exists, and because nothing downstream looks at the changelog at all.
+BARE="${VERSION#v}"
+CHANGELOG="CHANGELOG.md"
+changelog_heading=$(grep -m1 -F "## [$BARE](" "$CHANGELOG" || true)
+if [ -z "$changelog_heading" ]; then
+  die "$CHANGELOG has no section for $BARE." \
+    "The release commit should have added one, so check that this tag is on the" \
+    "commit you meant to release."
+fi
+today=$(date +%Y-%m-%d)
+case "$changelog_heading" in
+  *" - $today") ;;
+  *)
+    die "the $BARE changelog heading is not dated today ($today)." \
+      "  $changelog_heading" \
+      "That date is the release date as far as readers are concerned. Correct the" \
+      "line on main before tagging."
+    ;;
+esac
+
 branch=$(git branch --show-current)
 if [ "$branch" != "main" ]; then
   die "on '$branch', not main." \

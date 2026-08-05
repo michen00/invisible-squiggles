@@ -58,8 +58,11 @@ jobs:
           # 3000 files, far past anything this repository will produce. A failure here
           # aborts the step rather than handing the checker a short list, because the
           # default shell for `run` is `bash -e`.
+          # Renames emit both paths, matching the idiom bot-automerge.yml already uses:
+          # `filename` is the path after the move, so a file renamed out of src/ would
+          # otherwise look like nothing user-facing changed and reject a true feat:.
           gh api --paginate "repos/${GH_REPO}/pulls/${PR_NUMBER}/files?per_page=100" \
-            --jq '.[].filename' > changed.txt
+            --jq '.[] | .filename, (.previous_filename // empty)' > changed.txt
           echo "Changed files:"
           sed 's/^/  /' changed.txt
           echo

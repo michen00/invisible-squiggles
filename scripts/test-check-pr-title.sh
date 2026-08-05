@@ -54,6 +54,15 @@ expect 0 'feat(extension)!: change the default' src/extension.ts
 expect 0 'feat: redraw the icon' icon.png
 expect 0 'fix: restore the missing dist directory in the vsix' .vscodeignore
 
+# A rename reaches the checker as both of its paths, so a file moved out of src/ is
+# still recognised by where it came from. The workflow is what supplies the old path.
+expect 0 'fix: relocate the toggle helper' lib/toggle.ts src/toggle.ts
+if ! grep -q 'previous_filename' "$REPO_ROOT/.github/workflows/pr-title.yml"; then
+  echo "FAIL: pr-title.yml no longer emits previous_filename, so the rename case" >&2
+  echo "      above cannot occur in CI and proves nothing" >&2
+  FAILURES=$((FAILURES + 1))
+fi
+
 # --- Titles cliff.toml skips, so the diff does not matter --------------------------
 expect 0 'ci: add prep-release and tag make targets' Makefile scripts/prep-release.sh
 expect 0 'docs: document settings' README.md
@@ -86,6 +95,13 @@ expect 1 'Update README' README.md
 # Conventionally shaped, but no parser claims `wip`, so it lands in Other too.
 expect 1 'wip: hack on the toggle' src/extension.ts
 
+# Types cliff's prefix parsers accept but this repository does not. These reach a
+# user-facing group -- `^feat` matches "feature", `^fix` matches "fixes" -- so the type
+# has to be one gitlint would have accepted had it ever seen the title.
+expect 1 'feature: add a setting' src/extension.ts
+expect 1 'fixes: restore startup' src/extension.ts
+expect 1 'features(ui): add a setting' src/extension.ts
+
 # Malformed but opening with a kept type, so cliff's prefix match files them under a
 # user-facing group and then prints the raw subject. Backing them with src/ changes is
 # deliberate: without a shape check these are the cases that slip through.
@@ -117,6 +133,26 @@ if grep -q '^protect_breaking_commits = true$' cliff.toml; then
   FAILURES=$((FAILURES + 1))
 fi
 expect 0 'ci!: drop the release workflow' .github/workflows/publish.yml
+
+# An inline comment is valid TOML and must not read as "off". Before this was handled,
+# the flag silently parsed as false and every breaking internal title passed.
+sed 's/^protect_breaking_commits = false$/protect_breaking_commits = true # keep these/' \
+  cliff.toml > commented.toml
+mv commented.toml cliff.toml
+if ! grep -q 'protect_breaking_commits = true # keep these' cliff.toml; then
+  echo "FAIL: the inline-comment form was not written to the copy" >&2
+  FAILURES=$((FAILURES + 1))
+fi
+expect 1 'ci!: drop the release workflow' .github/workflows/publish.yml
+
+# A form the scan cannot read must stop the run rather than default to off, which would
+# be a silent disagreement with git-cliff on every breaking title.
+sed 's/^protect_breaking_commits = true # keep these$/protect_breaking_commits = "yes"/' \
+  cliff.toml > weird.toml
+mv weird.toml cliff.toml
+expect 2 'ci!: drop the release workflow' .github/workflows/publish.yml
+expect 2 'feat: add a startHidden setting' src/extension.ts
+
 cp "$REPO_ROOT/cliff.toml" cliff.toml
 
 # --- Degradation: a cliff.toml the checker cannot read must fail, not pass ---------

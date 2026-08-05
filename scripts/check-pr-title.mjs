@@ -9,7 +9,8 @@
 // hook or linter currently touches -- decides what users see in CHANGELOG.md and in
 // the marketplace changelog tab, while gitlint only ever sees local commit messages.
 //
-// Two ways that goes wrong, both of which have happened here:
+// Four ways that goes wrong. The first has happened here twice; the rest are shapes
+// git-cliff was confirmed to accept, caught in review before they could:
 //
 //   - A change with no user-facing effect titled `feat:` or `fix:`. Release tooling
 //     and CI work landed as "feat: draft releases so they carry the vsix" and
@@ -27,11 +28,16 @@
 //     parser, so "ci!: drop the release workflow" still reaches the changelog under
 //     Continuous Integration. Confirmed against git-cliff 2.13.1: with the flag on
 //     both `ci!:` and `docs(scope)!:` are rendered, and with it off both vanish.
+//   - A type outside this repository's vocabulary. Because the parsers match on
+//     prefix, `^feat` also accepts "feature:" and `^fix` accepts "fixes:", either of
+//     which lands in a user-facing group under a type gitlint would have rejected on
+//     a commit message -- and gitlint never sees a title.
 //
-// Derived from cliff.toml rather than from a hardcoded list of types, so that
-// changing which types are skipped -- or turning breaking protection off -- changes
-// this check too. The parse is asserted against known cases below; a cliff.toml this
-// cannot read fails the run instead of passing it.
+// Derived from configuration rather than from hardcoded lists. Which types reach the
+// changelog, and whether a breaking marker overrides a skip, come from cliff.toml; the
+// accepted type vocabulary comes from .gitlint. The cliff.toml parse is asserted
+// against known cases below, and a configuration this cannot read fails the run rather
+// than passing everything.
 //
 // Usage:
 //   node scripts/check-pr-title.mjs "<pr title>" < changed-files.txt
@@ -42,6 +48,7 @@ import { readFileSync } from 'node:fs';
 
 const CLIFF = 'cliff.toml';
 const CATCH_ALL = '^.*';
+const UNPARSABLE = Symbol('unparsable');
 
 // A breaking change in the Conventional Commits sense: `!` immediately before the
 // colon, after the type or the scope. The other spelling, a `BREAKING CHANGE:` footer,
@@ -51,8 +58,35 @@ const BREAKING = /^[a-z]+(\([^()]+\))?!:/;
 // A conventional subject: type, optional scope, optional `!`, then a colon, a space,
 // and something. cliff's own parsers are looser than this on purpose -- `^feat` is a
 // prefix match that also accepts "feat add setting" -- so the shape is checked
-// separately for any title that reaches the changelog.
-const CONVENTIONAL = /^[a-z]+(\([^()]+\))?!?: \S/;
+// separately for any title that reaches the changelog. Group 1 is the type, which is
+// then checked against the vocabulary below for the same reason: `^feat` also accepts
+// "feature:" and `^fix` accepts "fixes:".
+const CONVENTIONAL = /^([a-z]+)(\([^()]+\))?!?: \S/;
+
+const GITLINT = '.gitlint';
+
+// The commit types this repository accepts. gitlint's
+// contrib-title-conventional-commits rule enforces this vocabulary on every local
+// commit message, and a pull request title never passes through gitlint -- GitHub
+// composes the squash subject server-side, after every hook has run -- so this check is
+// the only place the same list can be applied to it.
+//
+// Taken from `[contrib-title-conventional-commits] types` in .gitlint when that is set,
+// so overriding the vocabulary there changes this check too. It is commented out today,
+// which means gitlint is enforcing its own default; the fallback is that default.
+const DEFAULT_TYPES = [
+  'fix',
+  'feat',
+  'chore',
+  'docs',
+  'style',
+  'refactor',
+  'perf',
+  'test',
+  'revert',
+  'ci',
+  'build',
+];
 
 // Note on breaking footers: the other way to declare a breaking change is a
 // `BREAKING CHANGE:` footer in the commit body. GitHub builds the squash body from the
@@ -129,12 +163,45 @@ function parseCommitParsers(toml) {
  * Read `protect_breaking_commits` out of cliff.toml.
  *
  * When it is on, git-cliff exempts breaking changes from a parser that would skip
- * them, so a breaking title reaches the changelog whatever its type. Absent means off,
- * which is git-cliff's own default, so an unreadable or missing setting makes this
- * check *less* strict rather than rejecting titles cliff would happily drop.
+ * them, so a breaking title reaches the changelog whatever its type.
+ *
+ * Returns `true`, `false`, or `UNPARSABLE`. Three cases, deliberately distinct:
+ * the flag reads cleanly; the key is absent, which is git-cliff's own default of off;
+ * or the key is present in a form this scan does not understand. That last case used
+ * to fall in with "absent" and quietly disagree with git-cliff about every breaking
+ * title, so it now stops the run instead -- the same reasoning as `selfCheck`.
  */
 function parseProtectBreaking(toml) {
-  return /^[ \t]*protect_breaking_commits[ \t]*=[ \t]*true[ \t]*$/m.test(toml);
+  const setting =
+    /^[ \t]*protect_breaking_commits[ \t]*=[ \t]*(true|false)[ \t]*(#.*)?$/m;
+  const match = setting.exec(toml);
+  if (match) return match[1] === 'true';
+  if (/protect_breaking_commits/.test(toml)) return UNPARSABLE;
+  return false;
+}
+
+/**
+ * Read the accepted commit types out of .gitlint, falling back to gitlint's default.
+ *
+ * Section-scoped on purpose: `types` is a plausible key elsewhere in that file, and the
+ * only one that governs commit types is the one inside the contrib rule's own section.
+ * The commented-out example in .gitlint does not match, because a comment cannot open a
+ * section header. An empty list is treated as unreadable rather than as "reject
+ * everything".
+ */
+function parseGitlintTypes(ini) {
+  const header = /^\[contrib-title-conventional-commits\][ \t]*$/m.exec(ini);
+  if (!header) return DEFAULT_TYPES;
+  const rest = ini.slice(header.index + header[0].length);
+  const nextSection = /^\[/m.exec(rest);
+  const block = nextSection ? rest.slice(0, nextSection.index) : rest;
+  const declared = /^[ \t]*types[ \t]*=[ \t]*(.+)$/m.exec(block);
+  if (!declared) return DEFAULT_TYPES;
+  const types = declared[1]
+    .split(',')
+    .map((type) => type.trim().toLowerCase())
+    .filter(Boolean);
+  return types.length > 0 ? types : UNPARSABLE;
 }
 
 /** Classify a subject the way git-cliff does: first matching parser wins. */
@@ -204,6 +271,34 @@ try {
 const parsers = parseCommitParsers(toml);
 const protectBreaking = parseProtectBreaking(toml);
 
+let acceptedTypes;
+try {
+  acceptedTypes = parseGitlintTypes(readFileSync(GITLINT, 'utf8'));
+} catch {
+  // No .gitlint at all is not a problem: gitlint's default vocabulary is what the
+  // contrib rule enforces when the section is absent, which is the fallback anyway.
+  acceptedTypes = DEFAULT_TYPES;
+}
+
+if (acceptedTypes === UNPARSABLE) {
+  console.error(`::error::${GITLINT} declares an empty commit-type list, so this`);
+  console.error('::error::check cannot tell which types are acceptable. Either list');
+  console.error('::error::the types under [contrib-title-conventional-commits] or');
+  console.error("::error::remove the key to fall back to gitlint's default.");
+  process.exit(2);
+}
+
+if (protectBreaking === UNPARSABLE) {
+  console.error(`::error::${CLIFF} sets protect_breaking_commits in a form this`);
+  console.error('::error::script cannot read, so it cannot tell whether a breaking');
+  console.error('::error::title on a skipped type reaches the changelog. Guessing');
+  console.error('::error::would put this check into silent disagreement with');
+  console.error('::error::git-cliff, which is worse than stopping. Expected a line');
+  console.error('::error::reading `protect_breaking_commits = true` or `= false`,');
+  console.error('::error::with an optional trailing comment.');
+  process.exit(2);
+}
+
 const problems = selfCheck(parsers);
 if (problems.length > 0) {
   console.error(`::error::This check no longer agrees with ${CLIFF}, so it is not in`);
@@ -241,12 +336,12 @@ if (parser.message === CATCH_ALL) {
   console.error(`::error::the list. ${CLIFF}'s catch-all parser is not skipped, so it`);
   console.error('::error::would appear in the user-facing changelog under "Other"');
   console.error('::error::rather than being filtered out. Use a known type:');
-  console.error('::error::feat, fix, perf, revert, docs, build, ci, test, refactor,');
-  console.error('::error::style or chore.');
+  console.error(`::error::${acceptedTypes.join(', ')}.`);
   process.exit(1);
 }
 
-if (!CONVENTIONAL.test(title)) {
+const shape = CONVENTIONAL.exec(title);
+if (!shape) {
   console.error(`::error::"${title}" reaches the changelog, but it is not a`);
   console.error('::error::conventional subject: that is type, an optional (scope),');
   console.error('::error::an optional !, then a colon, a space and a description.');
@@ -256,6 +351,23 @@ if (!CONVENTIONAL.test(title)) {
   console.error('::error::because the conventional parse then fails git-cliff prints');
   console.error('::error::the raw subject -- the changelog entry reads');
   console.error('::error::"- feat add setting", type included.');
+  process.exit(1);
+}
+
+const type = shape[1];
+if (!acceptedTypes.includes(type)) {
+  console.error(`::error::"${title}" reaches the changelog under the type "${type}",`);
+  console.error(`::error::which is not one this repository uses. ${GITLINT} accepts:`);
+  console.error(`::error::${acceptedTypes.join(', ')}.`);
+  console.error('::error::');
+  console.error(`::error::${CLIFF}'s parsers match on prefix, so "feature:" is filed`);
+  console.error('::error::as a feature and "fixes:" as a fix even though neither is a');
+  console.error('::error::type in that list. gitlint enforces it on commit messages,');
+  console.error(
+    '::error::but GitHub composes the squash subject from this title after'
+  );
+  console.error('::error::gitlint has run, so the title is the only place it can be');
+  console.error('::error::applied.');
   process.exit(1);
 }
 

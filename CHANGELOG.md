@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com) and this p
 
 ## [Unreleased]
 
-## [0.4.1](https://github.com/michen00/invisible-squiggles/compare/v0.4.0..v0.4.1) - 2026-08-03
+## [0.4.1](https://github.com/michen00/invisible-squiggles/compare/v0.4.0..v0.4.1) - 2026-08-04
 
 No functional changes. The extension behaves exactly as it did in 0.4.0.
 
@@ -16,7 +16,7 @@ No functional changes. The extension behaves exactly as it did in 0.4.0.
 
 - Document all six `invisibleSquiggles.*` settings, which were previously discoverable only through the Settings UI - ([#248](https://github.com/michen00/invisible-squiggles/pull/248))
 - Add instructions for binding a keyboard shortcut to **Toggle Squiggles**; the extension ships no default binding - ([#248](https://github.com/michen00/invisible-squiggles/pull/248))
-- Add [SECURITY.md](https://github.com/michen00/invisible-squiggles/blob/main/SECURITY.md), covering vulnerability reporting, what the extension can reach, and how to verify a release - ([#248](https://github.com/michen00/invisible-squiggles/pull/248))
+- Add [SECURITY.md](https://github.com/michen00/invisible-squiggles/blob/b57143d/SECURITY.md), covering vulnerability reporting, what the extension can reach, and how to verify a release - ([#248](https://github.com/michen00/invisible-squiggles/pull/248))
 
 ### 💚 Release pipeline
 

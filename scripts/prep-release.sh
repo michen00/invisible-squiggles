@@ -100,9 +100,14 @@ if git rev-parse --verify "refs/tags/$VERSION" > /dev/null 2>&1 ||
   die "tag $VERSION already exists." "That version has been cut. Release forward instead."
 fi
 
-if ! grep -q '^## \[Unreleased\]' "$CHANGELOG"; then
+# Anchored to match the awk below exactly. Without the `$`, a heading carrying
+# trailing text passed this check and then matched nothing during insertion, and the
+# script went on to report success.
+if ! grep -q '^## \[Unreleased\]$' "$CHANGELOG"; then
   die "no '## [Unreleased]' heading in $CHANGELOG." \
-    "Run 'make update-unreleased' first, which creates it."
+    "Run 'make update-unreleased' first, which creates it." \
+    "A heading with trailing text does not count: the insertion below matches" \
+    "the line exactly, so it has to be exactly that."
 fi
 
 if grep -q "^## \[$BARE\]" "$CHANGELOG"; then
@@ -129,6 +134,16 @@ awk -v heading="$heading" '
   /^## \[Unreleased\]$/ && !done { print; print ""; print heading; done = 1; next }
   { print }
 ' "$CHANGELOG" > "$CHANGELOG.tmp" && mv "$CHANGELOG.tmp" "$CHANGELOG"
+
+# Checked rather than announced. The awk above silently makes no change if its
+# pattern does not match, and reporting an insertion that did not happen is worse
+# than failing: the next steps are a commit and a tag, and the missing section would
+# surface as a released version with no changelog entry at all.
+if ! grep -qF "$heading" "$CHANGELOG"; then
+  die "failed to insert the changelog heading." \
+    "Expected to add: $heading" \
+    "Check the '## [Unreleased]' heading in $CHANGELOG."
+fi
 echo "Opened changelog section: $heading"
 
 echo

@@ -1,0 +1,69 @@
+---
+name: PR title
+# The pull request title is unguarded and load-bearing. This repository squash-merges,
+# and GitHub uses the title as the squash subject whenever a branch carries more than
+# one commit -- so the title, not any commit message, is what git-cliff reads when it
+# builds CHANGELOG.md and the marketplace changelog tab. gitlint runs on local commit
+# messages and never sees it.
+#
+# `types` has to include `edited`, because retitling is the fix this check asks for and
+# a check that does not re-run on a retitle cannot confirm it. That is also why this
+# lives in its own workflow rather than as a job in ci.yml: adding `edited` there would
+# re-run the entire test matrix every time somebody touched a title or description.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, synchronize, reopened]
+
+concurrency:
+  # Superseded titles are not worth checking; the latest edit is the one that matters.
+  group: pr-title-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  changelog-visibility:
+    name: Changelog visibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # cliff.toml and the checker are read from the PR head rather than from main, so
+      # a branch that changes which commit types reach the changelog is judged by its
+      # own rules. The trade is that a branch could also neuter the check by editing
+      # either file -- acceptable here, because this guards labelling quality rather
+      # than anything a determined author should be prevented from changing, and the
+      # edit would be sitting in the diff. `pull_request` rather than
+      # `pull_request_target`, so the token stays read-only and no secrets are exposed
+      # to branch code.
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Check the title against cliff.toml
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          # Via env rather than interpolated into the script: a title is arbitrary
+          # user-controlled text and has no business being expanded by the shell.
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          # Not `gh pr view --json files`: that asks for the first 100 files and says
+          # nothing about the rest, so on a larger pull request the only src/ change
+          # could sit past the cut and a correct feat:/fix: title would be rejected.
+          # Measured against a 115-file pull request: --json files returned 100 paths,
+          # the call below returned all 115. Its own ceiling is the REST endpoint's
+          # 3000 files, far past anything this repository will produce. A failure here
+          # aborts the step rather than handing the checker a short list, because the
+          # default shell for `run` is `bash -e`.
+          # Renames emit both paths, matching the idiom bot-automerge.yml already uses:
+          # `filename` is the path after the move, so a file renamed out of src/ would
+          # otherwise look like nothing user-facing changed and reject a true feat:.
+          gh api --paginate "repos/${GH_REPO}/pulls/${PR_NUMBER}/files?per_page=100" \
+            --jq '.[] | .filename, (.previous_filename // empty)' > changed.txt
+          echo "Changed files:"
+          sed 's/^/  /' changed.txt
+          echo
+          node scripts/check-pr-title.mjs "${PR_TITLE}" < changed.txt

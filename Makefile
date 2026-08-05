@@ -308,7 +308,8 @@ test: install ## Run tests
     npm run pretest; \
     npm run test; \
     scripts/test-prepare-readme.sh; \
-    scripts/test-normalize-vsix.sh
+    scripts/test-normalize-vsix.sh; \
+    scripts/test-check-pr-title.sh
 
 .PHONY: lint
 lint: install ## Run linters

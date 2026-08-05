@@ -95,6 +95,27 @@ if [ "$current" = "$BARE" ]; then
     "Pick the next version, or check whether this release is already prepared."
 fi
 
+# Ordering, not just inequality. `npm version` rewrites both manifests to whatever it
+# is given, downward included and without complaint, so preparing v0.3.2 from a 0.4.1
+# main would produce a branch that looks like a release and declares a version the
+# project already moved past. Merged and tagged, that either collides with a
+# published version or silently ships a regression in the version number.
+#
+# Compared numerically in node rather than with `sort -V`, which BSD sort on macOS
+# does not implement.
+if ! node -e '
+  const parse = (v) => v.split(".").map(Number);
+  const [next, prev] = [parse(process.argv[1]), parse(process.argv[2])];
+  for (let i = 0; i < 3; i++) {
+    if (next[i] !== prev[i]) process.exit(next[i] > prev[i] ? 0 : 1);
+  }
+  process.exit(1);
+' "$BARE" "$current"; then
+  die "$BARE is not ahead of the current version ($current)." \
+    "Releases only move forward. Both registries refuse to replace a version" \
+    "that has been published, so a number cannot be walked back afterwards."
+fi
+
 if git rev-parse --verify "refs/tags/$VERSION" > /dev/null 2>&1 ||
   git ls-remote --exit-code --tags origin "refs/tags/$VERSION" > /dev/null 2>&1; then
   die "tag $VERSION already exists." "That version has been cut. Release forward instead."

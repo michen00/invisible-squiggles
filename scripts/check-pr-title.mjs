@@ -36,18 +36,37 @@ const CLIFF = 'cliff.toml';
 const CATCH_ALL = '^.*';
 
 /**
- * Paths whose contents can change what a user of the extension experiences.
+ * Files that are shipped in the VSIX or decide what the VSIX contains, and so can
+ * change what a user of the installed extension experiences.
  *
- * Deliberately narrow: `src/` is the extension, and `package.json` carries the
- * contributed commands, settings and engine range. Everything else in the repository
- * -- workflows, scripts, the Makefile, docs, configuration -- can be rewritten
- * wholesale without altering the installed extension's behaviour, which is exactly
- * why a `feat:` covering only those files is a mislabel.
+ *   - `package.json` -- the manifest: contributed commands, settings, engine range.
+ *   - `icon.png` -- the extension's visible identity in the marketplace and the
+ *     Extensions view. `.vscodeignore` unignores it and the manifest names it.
+ *   - `.vscodeignore` -- an `**` deny-all followed by `!` allowances, so it decides
+ *     what `vsce package` puts in the VSIX. Editing it changes the installed bytes.
  *
- * `src/test/` is excluded: tests are `test:` in this convention, and cliff skips it.
+ * `README.md`, `CHANGELOG.md` and `LICENSE` are also unignored, and are deliberately
+ * *not* here. They document the extension rather than being it, their conventional
+ * type is `docs:`, and cliff.toml skips that -- so including them could only ever
+ * manufacture a pass for something like `feat: reword the README`.
+ *
+ * Everything else in the repository -- workflows, scripts, the Makefile, docs,
+ * tooling configuration -- can be rewritten wholesale without altering the installed
+ * extension, which is exactly why a `feat:` covering only those files is a mislabel.
+ * `src/test/` is excluded for the same reason: tests are `test:`, which cliff skips.
+ *
+ * Known limitation, whole-file granularity: a `package.json` diff touching only npm
+ * scripts or devDependency ranges counts as user-facing here. Narrowing it to the
+ * manifest keys that users can observe would mean reading the base revision of the
+ * file, and the fail-open half of that (base unavailable) leaves the same hole while
+ * the fail-closed half adds a new way for this check to block a pull request. The
+ * exposure is small in practice because dependency bumps and version bumps arrive
+ * under types cliff.toml skips, so they never reach this predicate at all.
  */
+const PACKAGED_FILES = new Set(['package.json', 'icon.png', '.vscodeignore']);
+
 function isUserFacing(path) {
-  if (path === 'package.json') return true;
+  if (PACKAGED_FILES.has(path)) return true;
   return path.startsWith('src/') && !path.startsWith('src/test/');
 }
 
@@ -193,8 +212,8 @@ if (userFacing.length > 0) {
 
 console.error(`::error::"${title}" would appear in the user-facing changelog, but`);
 console.error('::error::this pull request changes nothing a user of the extension');
-console.error('::error::can observe -- no files under src/ outside src/test/, and');
-console.error('::error::no change to package.json.');
+console.error('::error::can observe -- nothing under src/ outside src/test/, and');
+console.error(`::error::none of ${[...PACKAGED_FILES].join(', ')}.`);
 console.error('::error::');
 console.error('::error::Retitle it with a type cliff.toml skips. ci for workflows');
 console.error('::error::and release tooling, build for dependencies and packaging,');

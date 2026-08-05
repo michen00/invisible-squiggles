@@ -49,6 +49,11 @@ expect 0 'fix: restore colors on toggle' src/extension.ts
 expect 0 'perf: avoid a redundant write' src/extension.ts
 expect 0 'feat(extension)!: change the default' src/extension.ts
 
+# Shipped assets and the file that decides what ships are user-facing on their own:
+# both are installed alongside the extension, so a release note about either is real.
+expect 0 'feat: redraw the icon' icon.png
+expect 0 'fix: restore the missing dist directory in the vsix' .vscodeignore
+
 # --- Titles cliff.toml skips, so the diff does not matter --------------------------
 expect 0 'ci: add prep-release and tag make targets' Makefile scripts/prep-release.sh
 expect 0 'docs: document settings' README.md

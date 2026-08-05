@@ -62,10 +62,13 @@ esac
 
 VERSION="$1"
 
-case "$VERSION" in
-  v[0-9]*.[0-9]*.[0-9]*) ;;
-  *) die "version must look like vX.Y.Z, got '$VERSION'." ;;
-esac
+# Anchored regex rather than a glob. `v[0-9]*.[0-9]*.[0-9]*` reads as if it means
+# digits, but glob `*` is any-characters, so it admits v1abc.2.3 -- which passes here
+# and then fails somewhere less obvious, in whichever tool touches it first. This
+# matches the publish workflow's own tag filter, where `+` really is a quantifier.
+if [[ ! $VERSION =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  die "version must look like vX.Y.Z, got '$VERSION'."
+fi
 
 # Checked here as well as in the publish workflow. The workflow's check is the one
 # that matters, but reaching it costs a queue wait and a dependency install first.

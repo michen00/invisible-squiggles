@@ -61,10 +61,13 @@ esac
 
 VERSION="$1"
 
-case "$VERSION" in
-  v[0-9]*.[0-9]*.[0-9]*) ;;
-  *) die "version must look like vX.Y.Z, got '$VERSION'." ;;
-esac
+# Anchored regex rather than a glob. `v[0-9]*.[0-9]*.[0-9]*` reads as if it means
+# digits, but glob `*` is any-characters, so it admits v1abc.2.3 -- which would pass
+# here and then reach `npm version 1abc.2.3`, failing with an error about semver
+# rather than about the argument. Matches the publish workflow's own tag filter.
+if [[ ! $VERSION =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  die "version must look like vX.Y.Z, got '$VERSION'."
+fi
 
 BARE="${VERSION#v}"
 

@@ -50,7 +50,16 @@ jobs:
           # user-controlled text and has no business being expanded by the shell.
           PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
-          gh pr view "${PR_NUMBER}" --json files --jq '.files[].path' > changed.txt
+          # Not `gh pr view --json files`: that asks for the first 100 files and says
+          # nothing about the rest, so on a larger pull request the only src/ change
+          # could sit past the cut and a correct feat:/fix: title would be rejected.
+          # Measured against a 115-file pull request: --json files returned 100 paths,
+          # the call below returned all 115. Its own ceiling is the REST endpoint's
+          # 3000 files, far past anything this repository will produce. A failure here
+          # aborts the step rather than handing the checker a short list, because the
+          # default shell for `run` is `bash -e`.
+          gh api --paginate "repos/${GH_REPO}/pulls/${PR_NUMBER}/files?per_page=100" \
+            --jq '.[].filename' > changed.txt
           echo "Changed files:"
           sed 's/^/  /' changed.txt
           echo

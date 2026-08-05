@@ -236,10 +236,11 @@ if (parser.skip && !protectedBreaking) {
 }
 
 if (parser.message === CATCH_ALL) {
-  console.error(`::error::"${title}" is not a conventional commit subject.`);
-  console.error(`::error::${CLIFF}'s catch-all parser is not skipped, so this would`);
-  console.error('::error::appear in the user-facing changelog under "Other" rather');
-  console.error('::error::than being filtered out. Prefix it with a type:');
+  console.error(`::error::"${title}" carries no type that ${CLIFF} recognises,`);
+  console.error('::error::whether because it has none or because that one is not in');
+  console.error(`::error::the list. ${CLIFF}'s catch-all parser is not skipped, so it`);
+  console.error('::error::would appear in the user-facing changelog under "Other"');
+  console.error('::error::rather than being filtered out. Use a known type:');
   console.error('::error::feat, fix, perf, revert, docs, build, ci, test, refactor,');
   console.error('::error::style or chore.');
   process.exit(1);

@@ -83,6 +83,8 @@ expect 1 'perf: speed up packaging' scripts/normalize-vsix.mjs
 # --- Non-conventional titles, which cliff's catch-all keeps ------------------------
 expect 1 'add a thing without a type' src/extension.ts
 expect 1 'Update README' README.md
+# Conventionally shaped, but no parser claims `wip`, so it lands in Other too.
+expect 1 'wip: hack on the toggle' src/extension.ts
 
 # Malformed but opening with a kept type, so cliff's prefix match files them under a
 # user-facing group and then prints the raw subject. Backing them with src/ changes is

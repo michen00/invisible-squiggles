@@ -124,6 +124,21 @@ EOF
 grep -qF "used by both an image and a" "$WORKSPACE/reference-label-conflict.log" ||
   fail "reference-label-conflict: expected the both-uses message"
 
+# The same collision in shortcut form. Detecting shortcut images without shortcut links
+# made this pair look image-only, so it took /raw/ and the link resolved to raw bytes.
+# Note the reference-image-shortcut case above is what proves the definition line does
+# not count as a use of its own label -- without that exclusion this check would fire on
+# every defined label and nothing would package at all.
+run shortcut-label-conflict 1 << 'EOF'
+# Title
+
+![x] and see [x] too.
+
+[x]: icon.png
+EOF
+grep -qF "used by both an image and a" "$WORKSPACE/shortcut-label-conflict.log" ||
+  fail "shortcut-label-conflict: expected the both-uses message"
+
 # Link titles are legal Markdown and used to slip past the rewrite entirely: the
 # destination pattern stopped at the first space, so a titled relative link was neither
 # rewritten nor reported, which is the one outcome this script exists to prevent.

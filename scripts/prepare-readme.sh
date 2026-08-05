@@ -126,6 +126,13 @@ LINK_BASE="$repo_url/blob/$REPO_REF/" \
     while (/!\[([^\]]+)\](?![\[\(])/g)      { $image_label{lc $1} = 1 }
     while (/(?<!!)\[[^\]]*\]\[([^\]]+)\]/g) { $link_label{lc $1} = 1 }
     while (/(?<!!)\[([^\]]*)\]\[\]/g)       { $link_label{lc $1} = 1 }
+    # The shortcut link [label], the mirror of the image case above. Every exclusion
+    # here was earned: `!` before it is an image, `]` before it is the second half of a
+    # full reference which the rules above already classified (counting it here made
+    # ![alt][label] register as a link and collide with itself), `[` or `(` after it is
+    # some other form, and `:` after it is the definition line, which must not count as
+    # a use of its own label.
+    while (/(?<![!\]])\[([^\]]+)\](?![\[\(:])/g) { $link_label{lc $1} = 1 }
     # An optional link title after the destination. \x27 is a single quote, spelled that
     # way because this whole program is inside a single-quoted shell string.
     my $title = qr{(?:[ \t]+(?:"[^"]*"|\x27[^\x27]*\x27|\([^()]*\)))?};

@@ -91,9 +91,8 @@ esac
 
 stripped=$(mktemp)
 targets=$(mktemp)
-conflicts=$(mktemp)
 cleanup() {
-  rm -f "$stripped" "$targets" "$conflicts"
+  rm -f "$stripped" "$targets"
 }
 trap cleanup EXIT
 
@@ -106,43 +105,13 @@ sed -e '/zenodo\.org.*\.svg/d' -e '/## .*Documentation/,$d' "$in" |
 LINK_BASE="$repo_url/blob/$REPO_REF/" \
   IMG_BASE="$repo_url/raw/$REPO_REF/" \
   TARGETS="$targets" \
-  CONFLICTS="$conflicts" \
   perl -0777 -pe '
     BEGIN {
       open($fh, ">", $ENV{TARGETS}) or die "cannot record link targets: $!";
-      open($cfh, ">", $ENV{CONFLICTS}) or die "cannot record label conflicts: $!";
     }
     sub absolute {
       my ($target) = @_;
       return $target =~ m{^(?:\w+:|//|\#)};
-    }
-    # Which reference labels are used by images, so `[label]: path` can pick the same
-    # base an inline image would get. Labels are case-insensitive in Markdown. Both the
-    # full form ![alt][label] and the collapsed ![label][] count.
-    # Detection runs over a copy with code removed. A bracket inside a code span or a
-    # fenced block is prose about Markdown, not Markdown, and counting it can only
-    # produce a false conflict -- which refuses to package a README that is entirely
-    # correct. The copy is scanned; the document itself is untouched.
-    my $scan = $_;
-    $scan =~ s/^```.*?^```//gms;
-    $scan =~ s/`[^`\n]*`//g;
-    my (%image_label, %link_label);
-    while ($scan =~ /!\[[^\]]*\]\[([^\]]+)\]/g)      { $image_label{lc $1} = 1 }
-    while ($scan =~ /!\[([^\]]*)\]\[\]/g)            { $image_label{lc $1} = 1 }
-    # The shortcut form ![label], with no second bracket pair and no parenthesis after.
-    while ($scan =~ /!\[([^\]]+)\](?![\[\(])/g)      { $image_label{lc $1} = 1 }
-    while ($scan =~ /(?<!!)\[[^\]]*\]\[([^\]]+)\]/g) { $link_label{lc $1} = 1 }
-    while ($scan =~ /(?<!!)\[([^\]]*)\]\[\]/g)       { $link_label{lc $1} = 1 }
-    # The shortcut link [label], the mirror of the image case above. Every exclusion
-    # here was earned: `!` before it is an image, `]` before it is the second half of a
-    # full reference which the rules above already classified (counting it here made
-    # ![alt][label] register as a link and collide with itself), `[` or `(` after it is
-    # some other form, and `:` after it is the definition line, which must not count as
-    # a use of its own label. The second lookbehind drops task list markers: `- [x]` is
-    # a checkbox, and treating it as a reference to a label named x would refuse any
-    # README that has both a task list and an image reference sharing that label.
-    while ($scan =~ /(?<![!\]])(?<![-*+] )\[([^\]]+)\](?![\[\(:])/g) {
-      $link_label{lc $1} = 1;
     }
     # An optional link title after the destination. \x27 is a single quote, spelled that
     # way because this whole program is inside a single-quoted shell string.
@@ -155,38 +124,24 @@ LINK_BASE="$repo_url/blob/$REPO_REF/" \
     s{(\]\([ \t]*)([^)\s]+)($title[ \t]*\))}{
       absolute($2) ? "$1$2$3" : do { print $fh "$2\n"; "$1$ENV{LINK_BASE}$2$3" }
     }ge;
-    # [label]: path -- the base depends on how the label is used, not on the definition,
-    # because a definition consumed by ![alt][label] is an image and needs /raw/ too.
-    s{^(\[([^\]]+)\]:[ \t]*)(\S+)[ \t]*$}{
-      my ($prefix, $label, $target) = ($1, $2, $3);
-      my $key = lc $label;
+    # [label]: path -- a definition carries no `!` to say whether it feeds an image or a
+    # link, so the base comes from what the target *is* rather than from how the label is
+    # used. Reading usage means classifying every bracket in the document, and brackets
+    # appear in task lists, code spans and fenced examples; three separate false
+    # conflicts came out of trying, each one refusing to package a correct README. The
+    # file extension is a property of the target alone and needs no document scan.
+    s{^(\[[^\]]+\]:[ \t]*)(\S+)[ \t]*$}{
+      my ($prefix, $target) = ($1, $2);
       if (absolute($target)) {
         "$prefix$target";
       } else {
         print $fh "$target\n";
-        if ($image_label{$key} && $link_label{$key}) {
-          # One definition cannot be both an HTML page and raw bytes. Left relative so
-          # the leftover scan also refuses it, and reported by label below.
-          print $cfh "$label\n";
-          "$prefix$target";
-        } else {
-          my $base = $image_label{$key} ? $ENV{IMG_BASE} : $ENV{LINK_BASE};
-          "$prefix$base$target";
-        }
+        my $is_image = $target =~ /\.(?:png|jpe?g|gif|svg|webp|avif|bmp|ico)$/i;
+        "$prefix" . ($is_image ? $ENV{IMG_BASE} : $ENV{LINK_BASE}) . $target;
       }
     }gme;
-    END { close($fh); close($cfh) }
+    END { close($fh) }
   ' "$stripped" > "$out"
-
-# A label used by both an image and a link has no single correct base: /raw/ serves the
-# bytes an image needs and /blob/ serves the page a link needs. Rather than guess and
-# break one of them, name the label and stop.
-if [ -s "$conflicts" ]; then
-  echo "Error: $SCRIPT_NAME: these reference labels are used by both an image and a" >&2
-  echo "  link, so no single base is right for them:" >&2
-  sort -u "$conflicts" | sed 's/^/    /' >&2
-  die "give the image and the link separate labels"
-fi
 
 # A rewritten link is only useful if the file is really there; an absolute URL to a
 # missing path is a 404 on the listing instead of a visibly broken relative link.

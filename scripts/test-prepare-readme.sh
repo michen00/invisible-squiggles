@@ -112,32 +112,30 @@ run reference-image-shortcut 0 << 'EOF'
 EOF
 has reference-image-shortcut "[ic]: $RAW/icon.png"
 
-# One label cannot serve both: /raw/ gives an image its bytes, /blob/ gives a link its
-# page. Naming the label beats silently breaking whichever one loses.
-run reference-label-conflict 1 << 'EOF'
+# A definition routes on what its target is, not on how the label is used, so the same
+# label serving an image and a link is no longer a conflict -- it resolves once, by
+# extension. The trade is stated by the next two cases rather than left implicit.
+run label-used-both-ways 0 << 'EOF'
 # Title
 
 ![pic][x] and [text][x]
 
 [x]: icon.png
 EOF
-grep -qF "used by both an image and a" "$WORKSPACE/reference-label-conflict.log" ||
-  fail "reference-label-conflict: expected the both-uses message"
+has label-used-both-ways "[x]: $RAW/icon.png"
 
-# The same collision in shortcut form. Detecting shortcut images without shortcut links
-# made this pair look image-only, so it took /raw/ and the link resolved to raw bytes.
-# Note the reference-image-shortcut case above is what proves the definition line does
-# not count as a use of its own label -- without that exclusion this check would fire on
-# every defined label and nothing would package at all.
-run shortcut-label-conflict 1 << 'EOF'
+# The limitation, written down: an image whose definition points at a non-image
+# extension gets /blob/ and would render broken. Nothing in this repository does that,
+# and the alternative -- deciding from usage -- is what produced three separate false
+# conflicts that refused to package correct READMEs.
+run definition-routes-by-extension 0 << 'EOF'
 # Title
 
-![x] and see [x] too.
+![pic][doc]
 
-[x]: icon.png
+[doc]: CONTRIBUTING.md
 EOF
-grep -qF "used by both an image and a" "$WORKSPACE/shortcut-label-conflict.log" ||
-  fail "shortcut-label-conflict: expected the both-uses message"
+has definition-routes-by-extension "[doc]: $BLOB/CONTRIBUTING.md"
 
 # Brackets that are not references at all. Each of these once counted as a shortcut link
 # and produced a conflict against the image, refusing to package a correct README --

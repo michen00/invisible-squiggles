@@ -108,12 +108,22 @@ if git ls-remote --exit-code --tags origin "refs/tags/$VERSION" > /dev/null 2>&1
 fi
 
 # -s rather than relying on configuration, which is the entire point of this script.
-git tag -a "$VERSION" -m "$VERSION" -s
-echo "Created signed tag $VERSION."
+#
+# gpg.format is pinned to ssh for the same reason, and it is the more important half.
+# `-s` signs with whatever format happens to be configured, and git's default is
+# openpgp -- so on a machine with a GPG key set up, `-s` produces a tag that this
+# project's documented verification route cannot check, because that route is an SSH
+# allowed-signers file. Worse, the check below would not catch it: verification
+# format follows the signature, so a GPG-signed tag gets GPG-verified and passes
+# wherever the local keyring trusts the key. The tag would push, and only a third
+# party following SECURITY.md would discover it is unverifiable to them.
+git -c gpg.format=ssh tag -a "$VERSION" -m "$VERSION" -s
+echo "Created SSH-signed tag $VERSION."
 
-# Verified rather than assumed: a signing key that has gone missing or expired fails
-# here, while the tag still exists only locally and can simply be deleted.
-if ! git -c "gpg.ssh.allowedSignersFile=$SIGNERS_FILE" verify-tag "$VERSION"; then
+# Verified rather than assumed: a signing key that has gone missing, or one absent
+# from the allowed-signers file, fails here while the tag exists only locally.
+if ! git -c gpg.format=ssh -c "gpg.ssh.allowedSignersFile=$SIGNERS_FILE" \
+  verify-tag "$VERSION"; then
   git tag -d "$VERSION"
   die "signature verification failed; the local tag has been deleted." \
     "Check that your signing key is present and listed in $SIGNERS_FILE."

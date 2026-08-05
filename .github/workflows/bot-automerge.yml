@@ -95,15 +95,27 @@ jobs:
           # Every commit must have been created by GitHub itself, and be the bot's own
           # unless it is a merge.
           #
-          # The signature is the load-bearing half. Author identity alone is not a guard:
-          # .author.login is resolved from the commit's author email, so anyone who can
-          # push can set it to dependabot's noreply address and be read as the bot. A
-          # commit created through GitHub -- by Dependabot, by pre-commit-ci, or by the
-          # Update branch button -- is signed by GitHub's key, and its signed payload names
-          # `committer GitHub <noreply@github.com>`. A collaborator cannot forge that
-          # without GitHub's private key, and the payload is inside the signature, so it
-          # cannot be edited either. A locally pushed commit is signed by the pusher's own
-          # key, or not at all.
+          # Author identity alone is not a guard: .author.login is resolved from the
+          # commit's author email, so anyone who can push can set it to dependabot's
+          # noreply address and be read as the bot.
+          #
+          # `.committer.login == "web-flow"` is the load-bearing half, and it is
+          # deliberately not the payload text. GitHub resolves that field from the signing
+          # key itself, so it is not metadata a pusher can set: measured on real pull
+          # requests across four repositories, both Dependabot and pre-commit-ci commits
+          # report `web-flow` with `verified: true` and `reason: valid`, while a human's
+          # own commits report that human's login.
+          #
+          # The payload test naming `committer GitHub <noreply@github.com>` stays as an
+          # independent second condition rather than as the argument. On its own it would
+          # rest on an unstated premise -- that GitHub declines to mark a commit verified
+          # when its committer email is not a verified email of the signing key's owner --
+          # and a guard should not rest on a premise its reader cannot check. A review on
+          # a sibling repository read that earlier form as spoofable, which was half right:
+          # the specific bypass most likely fails, but the check was keyed on the wrong
+          # field. Requiring both means the guard holds either way. A locally pushed commit
+          # is signed by the pusher's own key, or not at all, and neither comes back as
+          # `web-flow`.
           #
           # Merges are exempt from the author check but not from the signature check, and
           # that pairing is what makes the exemption safe. A merge commit's tree is not
@@ -121,6 +133,8 @@ jobs:
           set -euo pipefail
           jq_rows='.[] | [
             (if (.commit.verification.verified == true)
+                and (.commit.verification.reason == "valid")
+                and ((.committer.login // "") == "web-flow")
                 and ((.commit.verification.payload // "") | split("\n")
                      | any(startswith("committer GitHub <noreply@github.com>")))
              then "github" else "elsewhere" end),

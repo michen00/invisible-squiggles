@@ -62,6 +62,14 @@ expect 0 'chore(deps-dev): bump sinon' package-lock.json
 expect 0 'test: cover the toggle path' src/test/unit/extension.test.ts
 expect 0 'refactor: extract a helper' src/extension.ts
 
+# --- Breaking titles, which cliff.toml protects from its own skips -----------------
+# protect_breaking_commits means the `!` outranks the parser, so an internal type with
+# a breaking marker is changelog-visible and has to earn its place like any other.
+expect 1 'ci!: drop the release workflow' .github/workflows/publish.yml
+expect 1 'docs(guide)!: rewrite the contributing guide' CONTRIBUTING.md
+expect 0 'ci!: drop the release workflow' src/extension.ts
+expect 0 'feat!: change the default' src/extension.ts
+
 # --- The two that actually reached main -------------------------------------------
 expect 1 'feat: draft releases so they carry the vsix' \
   .github/workflows/publish.yml CONTRIBUTING.md
@@ -81,6 +89,20 @@ if printf 'src/extension.ts\n' | node "$CHECKER" > /dev/null 2>&1; then
   echo "FAIL: expected a usage error with no title argument" >&2
   FAILURES=$((FAILURES + 1))
 fi
+
+# --- protect_breaking_commits is read from the config, not assumed -----------------
+# The two breaking cases above fail only because cliff.toml turns that flag on. With it
+# off, git-cliff drops those commits entirely (verified against git-cliff 2.13.1), so
+# the checker has to stop objecting to them or it rejects titles cliff would not print.
+sed 's/^protect_breaking_commits = true$/protect_breaking_commits = false/' cliff.toml \
+  > unprotected.toml
+mv unprotected.toml cliff.toml
+if grep -q '^protect_breaking_commits = true$' cliff.toml; then
+  echo "FAIL: protect_breaking_commits was not turned off in the copy" >&2
+  FAILURES=$((FAILURES + 1))
+fi
+expect 0 'ci!: drop the release workflow' .github/workflows/publish.yml
+cp "$REPO_ROOT/cliff.toml" cliff.toml
 
 # --- Degradation: a cliff.toml the checker cannot read must fail, not pass ---------
 # Without the self-check the checker asserts, removing commit_parsers would classify

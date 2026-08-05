@@ -19,11 +19,16 @@
 //   - A title that is not conventional at all. cliff.toml ends with a catch-all
 //     `^.*` parser that is *not* skipped, so an unrecognised prefix does not fall out
 //     of the changelog -- it lands in "Other".
+//   - A breaking marker on a type that is otherwise skipped. cliff.toml sets
+//     `protect_breaking_commits`, which exempts breaking changes from a skipping
+//     parser, so "ci!: drop the release workflow" still reaches the changelog under
+//     Continuous Integration. Confirmed against git-cliff 2.13.1: with the flag on
+//     both `ci!:` and `docs(scope)!:` are rendered, and with it off both vanish.
 //
 // Derived from cliff.toml rather than from a hardcoded list of types, so that
-// changing which types are skipped changes this check too. The parse is asserted
-// against known cases below; a cliff.toml this cannot read fails the run instead of
-// passing it.
+// changing which types are skipped -- or turning breaking protection off -- changes
+// this check too. The parse is asserted against known cases below; a cliff.toml this
+// cannot read fails the run instead of passing it.
 //
 // Usage:
 //   node scripts/check-pr-title.mjs "<pr title>" < changed-files.txt
@@ -34,6 +39,11 @@ import { readFileSync } from 'node:fs';
 
 const CLIFF = 'cliff.toml';
 const CATCH_ALL = '^.*';
+
+// A breaking change in the Conventional Commits sense: `!` immediately before the
+// colon, after the type or the scope. The other spelling, a `BREAKING CHANGE:` footer,
+// cannot be seen from here -- see the note on breaking footers further down.
+const BREAKING = /^[a-z]+(\([^()]+\))?!:/;
 
 /**
  * Files that are shipped in the VSIX or decide what the VSIX contains, and so can
@@ -99,6 +109,18 @@ function parseCommitParsers(toml) {
   return parsers;
 }
 
+/**
+ * Read `protect_breaking_commits` out of cliff.toml.
+ *
+ * When it is on, git-cliff exempts breaking changes from a parser that would skip
+ * them, so a breaking title reaches the changelog whatever its type. Absent means off,
+ * which is git-cliff's own default, so an unreadable or missing setting makes this
+ * check *less* strict rather than rejecting titles cliff would happily drop.
+ */
+function parseProtectBreaking(toml) {
+  return /^[ \t]*protect_breaking_commits[ \t]*=[ \t]*true[ \t]*$/m.test(toml);
+}
+
 /** Classify a subject the way git-cliff does: first matching parser wins. */
 function classify(parsers, subject) {
   for (const parser of parsers) {
@@ -155,13 +177,16 @@ const changed = readFileSync(0, 'utf8')
   .map((line) => line.trim())
   .filter(Boolean);
 
-let parsers;
+let toml;
 try {
-  parsers = parseCommitParsers(readFileSync(CLIFF, 'utf8'));
+  toml = readFileSync(CLIFF, 'utf8');
 } catch (error) {
   console.error(`::error::Could not read ${CLIFF}: ${error.message}`);
   process.exit(2);
 }
+
+const parsers = parseCommitParsers(toml);
+const protectBreaking = parseProtectBreaking(toml);
 
 const problems = selfCheck(parsers);
 if (problems.length > 0) {
@@ -184,7 +209,10 @@ if (!parser) {
   process.exit(2);
 }
 
-if (parser.skip) {
+const breaking = BREAKING.test(title);
+const protectedBreaking = breaking && protectBreaking;
+
+if (parser.skip && !protectedBreaking) {
   console.log(
     `"${title}" is skipped by ${CLIFF}; it will not appear in the changelog.`
   );
@@ -215,9 +243,18 @@ console.error('::error::this pull request changes nothing a user of the extensio
 console.error('::error::can observe -- nothing under src/ outside src/test/, and');
 console.error(`::error::none of ${[...PACKAGED_FILES].join(', ')}.`);
 console.error('::error::');
-console.error('::error::Retitle it with a type cliff.toml skips. ci for workflows');
-console.error('::error::and release tooling, build for dependencies and packaging,');
-console.error('::error::docs for documentation, test, refactor, style or chore.');
+if (protectedBreaking) {
+  console.error(`::error::${CLIFF} skips ${parser.message} titles, but it also sets`);
+  console.error('::error::protect_breaking_commits, which exempts breaking changes');
+  console.error('::error::from a skipping parser -- so the `!` is the reason this');
+  console.error('::error::title reaches the changelog. Drop it if nothing a user of');
+  console.error('::error::the extension depends on breaks, and describe the impact');
+  console.error('::error::on contributors in the body instead.');
+} else {
+  console.error('::error::Retitle it with a type cliff.toml skips. ci for workflows');
+  console.error('::error::and release tooling, build for dependencies and packaging,');
+  console.error('::error::docs for documentation, test, refactor, style or chore.');
+}
 console.error('::error::');
 console.error(`::error::The title becomes the squash commit subject, so "${title}"`);
 console.error('::error::is what readers of CHANGELOG.md and the marketplace');

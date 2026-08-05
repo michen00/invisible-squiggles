@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+
+# Create, verify, and push a signed release tag.
+#
+# Exists because the three commands it replaces were hand-typed, and one of them
+# carries a flag that must not be forgotten. `tag.gpgsign` is deliberately unset in
+# this project, so `git tag -a vX.Y.Z -m vX.Y.Z` without `-s` produces an unsigned
+# tag that looks identical in `git tag -l` and is caught only by a separate
+# verify-tag step that is equally easy to skip. Here the flag cannot be forgotten
+# and the verification is not optional.
+#
+# The preflight checks below all guard the same class of mistake: tagging a commit
+# that is not the one about to be released. Each of them would otherwise surface as
+# a failed or wrong CI run several minutes later.
+#
+# Pushing is part of this script because a tag that exists only locally does
+# nothing -- pushing it is what makes CI draft the release. That is reversible: the
+# draft build publishes to no registry, and both the draft and the tag can be
+# deleted.
+
+set -euo pipefail
+
+SCRIPT_NAME=$(basename "$0")
+SIGNERS_FILE="${SIGNERS_FILE:-.github/allowed_signers}"
+
+usage() {
+  cat << EOF
+Usage: $SCRIPT_NAME <version>
+
+Create a signed annotated tag, verify its signature, and push it.
+Pushing the tag makes CI draft the release with the VSIX attached.
+Nothing is published to any registry.
+
+Arguments:
+  <version>   Release tag of the form vX.Y.Z (e.g. v0.4.2)
+
+Environment:
+  SIGNERS_FILE   Allowed-signers file (default: .github/allowed_signers)
+
+Example:
+  $SCRIPT_NAME v0.4.2
+EOF
+  exit "${1:-0}"
+}
+
+die() {
+  echo "Error: $1" >&2
+  shift
+  for line in "$@"; do
+    echo "  $line" >&2
+  done
+  exit 1
+}
+
+if [ "$#" -ne 1 ]; then
+  usage 1
+fi
+
+case "$1" in
+  -h | --help) usage 0 ;;
+esac
+
+VERSION="$1"
+
+case "$VERSION" in
+  v[0-9]*.[0-9]*.[0-9]*) ;;
+  *) die "version must look like vX.Y.Z, got '$VERSION'." ;;
+esac
+
+# Checked here as well as in the publish workflow. The workflow's check is the one
+# that matters, but reaching it costs a queue wait and a dependency install first.
+manifest="v$(node -p "require('./package.json').version")"
+if [ "$manifest" != "$VERSION" ]; then
+  die "$VERSION does not match package.json ($manifest)." \
+    "Bump the manifest first, or tag the version it already declares."
+fi
+
+branch=$(git branch --show-current)
+if [ "$branch" != "main" ]; then
+  die "on '$branch', not main." \
+    "A release tag names a commit on main. Tagging elsewhere would ship" \
+    "whatever that branch contains, and the tag would outlive the branch."
+fi
+
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  die "the working tree is dirty." \
+    "The tag would name HEAD, not what you are looking at."
+fi
+
+git fetch origin main --quiet
+if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+  die "main and origin/main point at different commits." \
+    "CI checks out the tag from the remote, so tagging a commit that is not" \
+    "on origin/main would build something other than what you tested."
+fi
+
+if git rev-parse --verify "refs/tags/$VERSION" > /dev/null 2>&1; then
+  die "tag $VERSION already exists locally." \
+    "Delete it first if you meant to re-cut it: git tag -d $VERSION"
+fi
+
+if git ls-remote --exit-code --tags origin "refs/tags/$VERSION" > /dev/null 2>&1; then
+  die "tag $VERSION already exists on origin." \
+    "That version has been cut. Release forward instead."
+fi
+
+# -s rather than relying on configuration, which is the entire point of this script.
+git tag -a "$VERSION" -m "$VERSION" -s
+echo "Created signed tag $VERSION."
+
+# Verified rather than assumed: a signing key that has gone missing or expired fails
+# here, while the tag still exists only locally and can simply be deleted.
+if ! git -c "gpg.ssh.allowedSignersFile=$SIGNERS_FILE" verify-tag "$VERSION"; then
+  git tag -d "$VERSION"
+  die "signature verification failed; the local tag has been deleted." \
+    "Check that your signing key is present and listed in $SIGNERS_FILE."
+fi
+
+git push --follow-tags
+echo
+echo "Pushed $VERSION. CI is now drafting the release with the VSIX attached."
+echo "Nothing has been published. Review the draft, then publish it:"
+echo "  make release VERSION=$VERSION"

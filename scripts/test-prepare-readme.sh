@@ -81,6 +81,39 @@ Start with the [guide].
 EOF
 has reference-definition "[guide]: $BLOB/CONTRIBUTING.md"
 
+# A definition consumed by a reference-style image needs /raw/ like an inline image, not
+# the /blob/ every definition used to get -- a blob URL serves HTML and renders broken.
+run reference-image 0 << 'EOF'
+# Title
+
+![the icon][ic]
+
+[ic]: icon.png
+EOF
+has reference-image "[ic]: $RAW/icon.png"
+
+# The collapsed form takes its label from the alt text.
+run reference-image-collapsed 0 << 'EOF'
+# Title
+
+![ic][]
+
+[ic]: icon.png
+EOF
+has reference-image-collapsed "[ic]: $RAW/icon.png"
+
+# One label cannot serve both: /raw/ gives an image its bytes, /blob/ gives a link its
+# page. Naming the label beats silently breaking whichever one loses.
+run reference-label-conflict 1 << 'EOF'
+# Title
+
+![pic][x] and [text][x]
+
+[x]: icon.png
+EOF
+grep -qF "used by both an image and a" "$WORKSPACE/reference-label-conflict.log" ||
+  fail "reference-label-conflict: expected the both-uses message"
+
 # Link titles are legal Markdown and used to slip past the rewrite entirely: the
 # destination pattern stopped at the first space, so a titled relative link was neither
 # rewritten nor reported, which is the one outcome this script exists to prevent.

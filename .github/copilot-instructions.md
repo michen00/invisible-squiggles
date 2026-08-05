@@ -56,7 +56,8 @@ Make targets mirror these (`make help`). Use `make build-vsix` / `make install-v
 ## Commit & Release
 
 - Conventional Commits, imperative, ≤50 chars: `feat: add toggle`, `fix: restore colors`, etc.
-- Release sketch: update `CHANGELOG.md` + `package.json`, `make rebuild && make check`, `make install-vsix`, then tag/publish (`npx vsce publish`).
+- Release sketch: `make prep-release VERSION=vX.Y.Z`, write the changelog entry by hand, merge the release PR, then `make tag VERSION=vX.Y.Z` (drafts the release) and `make release VERSION=vX.Y.Z` (publishes it). See CONTRIBUTING.md.
+- Never publish by hand. A bare `npx vsce publish` or `ovsx publish` packages internally, skipping the timestamp pinning that makes the build reproducible, so it ships bytes the provenance attestation does not cover.
 
 ## Documentation Hygiene
 

@@ -143,9 +143,26 @@ git switch -c "release/$VERSION"
 npm version "$BARE" --no-git-tag-version > /dev/null
 echo "Bumped $current -> $BARE in package.json and package-lock.json."
 
-# Today, resolved now rather than typed. If the tag is cut on a later day this line
-# needs updating, which is the one thing about the date that cannot be automated
-# from here.
+# Regenerate the Unreleased section before promoting it. The heading insertion below
+# turns whatever is currently under `## [Unreleased]` into the new version's entries,
+# so a section last generated before the most recent feat and fix commits would
+# promote an incomplete list -- and every check here would still pass, because
+# nothing else reads the changelog. The old documented flow ran this as its own step;
+# dropping it silently is what made the omission possible.
+#
+# Without --commit: this script leaves everything staged-but-uncommitted for review.
+echo "Regenerating the Unreleased section..."
+scripts/update-unreleased.sh
+
+# Re-checked, because the updater rewrites the section it is named after.
+if ! grep -q '^## \[Unreleased\]$' "$CHANGELOG"; then
+  die "the Unreleased heading did not survive regeneration." \
+    "Inspect $CHANGELOG and scripts/update-unreleased.sh."
+fi
+
+# Today, resolved now rather than typed. The tag may still be cut on a later day, so
+# scripts/release-tag.sh re-checks this date against the day of the tag and refuses
+# if they disagree.
 today=$(date +%Y-%m-%d)
 heading="## [$BARE]($REPO_URL/compare/v$current..$VERSION) - $today"
 

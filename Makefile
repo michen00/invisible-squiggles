@@ -282,7 +282,7 @@ release: ## Publish the drafted release (VERSION=vX.Y.Z)
 	@gh release view $(VERSION) --json isDraft --jq .isDraft 2>/dev/null | grep -qx true || { \
 		echo "Error: no draft release for $(VERSION)."; \
 		echo "Push the tag and let the publish workflow draft it:"; \
-		echo "  git push --follow-tags"; \
+		echo "  git push origin refs/tags/$(VERSION)"; \
 		echo "Already published? Then it is done, or retry a registry with:"; \
 		echo "  gh workflow run publish.yml -f tag=$(VERSION) -f targets=both"; \
 		exit 1; }

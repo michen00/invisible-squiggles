@@ -122,6 +122,8 @@ LINK_BASE="$repo_url/blob/$REPO_REF/" \
     my (%image_label, %link_label);
     while (/!\[[^\]]*\]\[([^\]]+)\]/g)      { $image_label{lc $1} = 1 }
     while (/!\[([^\]]*)\]\[\]/g)            { $image_label{lc $1} = 1 }
+    # The shortcut form ![label], with no second bracket pair and no parenthesis after.
+    while (/!\[([^\]]+)\](?![\[\(])/g)      { $image_label{lc $1} = 1 }
     while (/(?<!!)\[[^\]]*\]\[([^\]]+)\]/g) { $link_label{lc $1} = 1 }
     while (/(?<!!)\[([^\]]*)\]\[\]/g)       { $link_label{lc $1} = 1 }
     # An optional link title after the destination. \x27 is a single quote, spelled that

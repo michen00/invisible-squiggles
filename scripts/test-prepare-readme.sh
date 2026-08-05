@@ -102,6 +102,16 @@ run reference-image-collapsed 0 << 'EOF'
 EOF
 has reference-image-collapsed "[ic]: $RAW/icon.png"
 
+# ...and the shortcut form, which is just the label with nothing after it.
+run reference-image-shortcut 0 << 'EOF'
+# Title
+
+![ic]
+
+[ic]: icon.png
+EOF
+has reference-image-shortcut "[ic]: $RAW/icon.png"
+
 # One label cannot serve both: /raw/ gives an image its bytes, /blob/ gives a link its
 # page. Naming the label beats silently breaking whichever one loses.
 run reference-label-conflict 1 << 'EOF'

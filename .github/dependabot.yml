@@ -24,3 +24,18 @@ updates:
     groups:
       actions:
         patterns: ['*']
+    cooldown:
+      # Wider than the npm ecosystem above rather than at parity with it, and the
+      # asymmetry is the point. This is the one ecosystem whose packages execute
+      # with this repository's own token, inside jobs holding contents and
+      # pull-requests write, so a compromised release can be published and
+      # proposed here within hours. When the risk is the publisher rather than a
+      # changed interface, a patch is not safer than a major, so the delay covers
+      # every update and not only majors.
+      #
+      # This is also the soak period that bot-automerge.yml's actions-major branch
+      # leans on. That branch arms a major unless the diff reaches publish.yml or
+      # one of the two autoupdate crons, so most actions majors merge unattended;
+      # a delay between publication and proposal is what that relies on.
+      default-days: 7
+      semver-major-days: 30

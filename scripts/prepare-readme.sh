@@ -119,20 +119,31 @@ LINK_BASE="$repo_url/blob/$REPO_REF/" \
     # Which reference labels are used by images, so `[label]: path` can pick the same
     # base an inline image would get. Labels are case-insensitive in Markdown. Both the
     # full form ![alt][label] and the collapsed ![label][] count.
+    # Detection runs over a copy with code removed. A bracket inside a code span or a
+    # fenced block is prose about Markdown, not Markdown, and counting it can only
+    # produce a false conflict -- which refuses to package a README that is entirely
+    # correct. The copy is scanned; the document itself is untouched.
+    my $scan = $_;
+    $scan =~ s/^```.*?^```//gms;
+    $scan =~ s/`[^`\n]*`//g;
     my (%image_label, %link_label);
-    while (/!\[[^\]]*\]\[([^\]]+)\]/g)      { $image_label{lc $1} = 1 }
-    while (/!\[([^\]]*)\]\[\]/g)            { $image_label{lc $1} = 1 }
+    while ($scan =~ /!\[[^\]]*\]\[([^\]]+)\]/g)      { $image_label{lc $1} = 1 }
+    while ($scan =~ /!\[([^\]]*)\]\[\]/g)            { $image_label{lc $1} = 1 }
     # The shortcut form ![label], with no second bracket pair and no parenthesis after.
-    while (/!\[([^\]]+)\](?![\[\(])/g)      { $image_label{lc $1} = 1 }
-    while (/(?<!!)\[[^\]]*\]\[([^\]]+)\]/g) { $link_label{lc $1} = 1 }
-    while (/(?<!!)\[([^\]]*)\]\[\]/g)       { $link_label{lc $1} = 1 }
+    while ($scan =~ /!\[([^\]]+)\](?![\[\(])/g)      { $image_label{lc $1} = 1 }
+    while ($scan =~ /(?<!!)\[[^\]]*\]\[([^\]]+)\]/g) { $link_label{lc $1} = 1 }
+    while ($scan =~ /(?<!!)\[([^\]]*)\]\[\]/g)       { $link_label{lc $1} = 1 }
     # The shortcut link [label], the mirror of the image case above. Every exclusion
     # here was earned: `!` before it is an image, `]` before it is the second half of a
     # full reference which the rules above already classified (counting it here made
     # ![alt][label] register as a link and collide with itself), `[` or `(` after it is
     # some other form, and `:` after it is the definition line, which must not count as
-    # a use of its own label.
-    while (/(?<![!\]])\[([^\]]+)\](?![\[\(:])/g) { $link_label{lc $1} = 1 }
+    # a use of its own label. The second lookbehind drops task list markers: `- [x]` is
+    # a checkbox, and treating it as a reference to a label named x would refuse any
+    # README that has both a task list and an image reference sharing that label.
+    while ($scan =~ /(?<![!\]])(?<![-*+] )\[([^\]]+)\](?![\[\(:])/g) {
+      $link_label{lc $1} = 1;
+    }
     # An optional link title after the destination. \x27 is a single quote, spelled that
     # way because this whole program is inside a single-quoted shell string.
     my $title = qr{(?:[ \t]+(?:"[^"]*"|\x27[^\x27]*\x27|\([^()]*\)))?};

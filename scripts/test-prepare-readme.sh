@@ -139,6 +139,44 @@ EOF
 grep -qF "used by both an image and a" "$WORKSPACE/shortcut-label-conflict.log" ||
   fail "shortcut-label-conflict: expected the both-uses message"
 
+# Brackets that are not references at all. Each of these once counted as a shortcut link
+# and produced a conflict against the image, refusing to package a correct README --
+# a false positive on the release path, which is the costlier direction to be wrong in.
+run task-list-not-a-link 0 << 'EOF'
+# Title
+
+- [x] shipped
+
+![pic][x]
+
+[x]: icon.png
+EOF
+has task-list-not-a-link "[x]: $RAW/icon.png"
+
+run code-span-not-a-link 0 << 'EOF'
+# Title
+
+Write `[x]` to make a checkbox.
+
+![pic][x]
+
+[x]: icon.png
+EOF
+has code-span-not-a-link "[x]: $RAW/icon.png"
+
+run fenced-block-not-a-link 0 << 'EOF'
+# Title
+
+```md
+[x] and ![x]
+```
+
+![pic][x]
+
+[x]: icon.png
+EOF
+has fenced-block-not-a-link "[x]: $RAW/icon.png"
+
 # Link titles are legal Markdown and used to slip past the rewrite entirely: the
 # destination pattern stopped at the first space, so a titled relative link was neither
 # rewritten nor reported, which is the one outcome this script exists to prevent.

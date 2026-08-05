@@ -113,12 +113,15 @@ LINK_BASE="$repo_url/blob/$REPO_REF/" \
       my ($target) = @_;
       return $target =~ m{^(?:\w+:|//|\#)};
     }
-    # ![alt](path)
-    s{(!\[[^\]]*\]\()([^)\s]+)(\))}{
+    # An optional link title after the destination. \x27 is a single quote, spelled that
+    # way because this whole program is inside a single-quoted shell string.
+    my $title = qr{(?:[ \t]+(?:"[^"]*"|\x27[^\x27]*\x27|\([^()]*\)))?};
+    # ![alt](path) and ![alt](path "title")
+    s{(!\[[^\]]*\]\([ \t]*)([^)\s]+)($title[ \t]*\))}{
       absolute($2) ? "$1$2$3" : do { print $fh "$2\n"; "$1$ENV{IMG_BASE}$2$3" }
     }ge;
-    # [text](path)
-    s{(\]\()([^)\s]+)(\))}{
+    # [text](path) and [text](path "title")
+    s{(\]\([ \t]*)([^)\s]+)($title[ \t]*\))}{
       absolute($2) ? "$1$2$3" : do { print $fh "$2\n"; "$1$ENV{LINK_BASE}$2$3" }
     }ge;
     # [label]: path
@@ -175,10 +178,20 @@ if [ -n "$dangling" ]; then
 fi
 
 # Belt and braces: whatever the rules above did or skipped, nothing relative may ship.
+# This scan is deliberately broader than the rewrite: it takes everything up to the
+# closing paren and inspects the first token, so a form the rewrite cannot handle -- a
+# title shape it does not know, an angle-bracketed destination -- fails the build loudly
+# instead of slipping through as a relative link. Wider here, narrower there, on purpose.
 leftover=$(
   perl -0777 -ne '
-    while (/\]\(([^)\s]+)\)/g) {
-      print "$1\n" unless $1 =~ m{^(?:\w+:|//|\#)};
+    while (/\]\(([^)]*)\)/g) {
+      my $inside = $1;
+      $inside =~ s/^[ \t]+//;
+      my ($target) = $inside =~ /^(\S+)/;
+      next unless defined $target;
+      $target =~ s/^<//;
+      $target =~ s/>$//;
+      print "$target\n" unless $target =~ m{^(?:\w+:|//|\#)};
     }
     while (/^\[[^\]]+\]:[ \t]*(\S+)[ \t]*$/gm) {
       print "$1\n" unless $1 =~ m{^(?:\w+:|//|\#)};

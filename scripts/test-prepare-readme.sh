@@ -81,6 +81,38 @@ Start with the [guide].
 EOF
 has reference-definition "[guide]: $BLOB/CONTRIBUTING.md"
 
+# Link titles are legal Markdown and used to slip past the rewrite entirely: the
+# destination pattern stopped at the first space, so a titled relative link was neither
+# rewritten nor reported, which is the one outcome this script exists to prevent.
+run titled-link 0 << 'EOF'
+# Title
+
+See [setup](CONTRIBUTING.md "the guide") first.
+EOF
+has titled-link "]($BLOB/CONTRIBUTING.md \"the guide\")"
+
+run titled-image 0 << 'EOF'
+# Title
+
+![icon](icon.png "the icon")
+EOF
+has titled-image "]($RAW/icon.png \"the icon\")"
+
+run single-quoted-title 0 << 'EOF'
+# Title
+
+See [setup](CONTRIBUTING.md 'the guide') first.
+EOF
+has single-quoted-title "]($BLOB/CONTRIBUTING.md 'the guide')"
+
+# A destination shape the rewrite does not handle must fail rather than ship. The
+# leftover scan is deliberately broader than the rewrite so this direction is guaranteed.
+run unsupported-destination 1 << 'EOF'
+# Title
+
+See [setup](<CONTRIBUTING.md>).
+EOF
+
 # A file link carrying an anchor keeps the anchor and is still checked for existence.
 run link-with-anchor 0 << 'EOF'
 # Title

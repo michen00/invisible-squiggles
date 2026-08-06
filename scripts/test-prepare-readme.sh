@@ -266,6 +266,26 @@ EOF
 grep -qF "angle-bracketed" "$WORKSPACE/indented-definition-bracketed.log" ||
   fail "indented-definition-bracketed: expected the angle-bracket message"
 
+# The indent allowance is spaces, not blank space. A leading tab is a four-column tab
+# stop, so a line starting with one is an indented code block and not a definition -- the
+# first spelling of this allowance counted the tab as one unit and refused a listing over
+# a code example. That is a false positive on the release path, which blocks a release
+# over a file that is correct, and is the costlier of the two directions to be wrong in.
+# printf again, so the tab is unambiguous here.
+printf '# Title\n\nAn example:\n\n\t[foo]: bar.md\n\nDone.\n' \
+  > "$WORKSPACE/tab-indented-code-definition.in"
+printf '# Title\n\nAn example:\n\n\t[foo]: <bar.md>\n\nDone.\n' \
+  > "$WORKSPACE/tab-indented-code-bracketed.in"
+for case in tab-indented-code-definition tab-indented-code-bracketed; do
+  got=0
+  "$SCRIPT" "$WORKSPACE/$case.in" "$WORKSPACE/$case.out" > "$WORKSPACE/$case.log" 2>&1 ||
+    got=$?
+  [ "$got" = 0 ] || {
+    fail "$case: expected exit 0, got $got"
+    sed 's/^/    /' "$WORKSPACE/$case.log" >&2
+  }
+done
+
 # A query or fragment after the extension does not stop it being an image, and does not
 # belong in the path that gets checked for existence either.
 run image-with-query 0 << 'EOF'

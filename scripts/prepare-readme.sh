@@ -110,7 +110,9 @@ sed -e '/zenodo\.org.*\.svg/d' -e '/## .*Documentation/,$d' "$in" |
 # bracket expression, so [ \t] is space, backslash and the letter t. BSD grep reads it that
 # way -- it misses a tab and matches a stray t -- while the ugrep some machines alias to
 # grep honours the escape, so a local run agrees with the intent and CI does not.
-bracketed=$(grep -E '\]\([[:blank:]]*<|^[[:blank:]]{0,3}\[[^]]+\]:[[:blank:]]*<' "$stripped" || true)
+# The indent allowance is spaces only, for the reason given at the leftover scan below:
+# a leading tab makes the line an indented code block rather than a definition.
+bracketed=$(grep -E '\]\([[:blank:]]*<|^ {0,3}\[[^]]+\]:[[:blank:]]*<' "$stripped" || true)
 if [ -n "$bracketed" ]; then
   echo "Error: $SCRIPT_NAME: angle-bracketed link destinations are not supported:" >&2
   printf '%s\n' "$bracketed" | sed 's/^/  /' >&2
@@ -236,7 +238,11 @@ leftover=$(
     # growing what is rewritten is what produced the regressions in this branch. So an
     # indented relative definition stops the build rather than being rewritten, and an
     # indented absolute one passes untouched, which is every case this repository has.
-    while (/^[ \t]{0,3}\[[^\]]+\]:[ \t]*(\S+)/gm) {
+    #
+    # Spaces only, not [ \t]. A leading tab is a four-column tab stop, so a line starting
+    # with one is an indented code block and not a definition at all; counting it as one
+    # unit of indent made a tab-indented code example refuse the whole listing.
+    while (/^ {0,3}\[[^\]]+\]:[ \t]*(\S+)/gm) {
       print "$1\n" unless $1 =~ m{^(?:\w+:|//|\#)};
     }
   ' "$out" | sort -u

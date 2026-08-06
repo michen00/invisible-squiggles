@@ -106,7 +106,11 @@ sed -e '/zenodo\.org.*\.svg/d' -e '/## .*Documentation/,$d' "$in" |
 # every place that inspects a destination, and the place that was missed let an anchor
 # into the removed section ship. Checked against the stripped text so brackets in the part
 # that never reaches the listing do not refuse a README that is fine.
-bracketed=$(grep -E '\]\([ \t]*<|^\[[^]]+\]:[ \t]*<' "$stripped" || true)
+# [[:blank:]] rather than [ \t]: POSIX drops the special meaning of a backslash inside a
+# bracket expression, so [ \t] is space, backslash and the letter t. BSD grep reads it that
+# way -- it misses a tab and matches a stray t -- while the ugrep some machines alias to
+# grep honours the escape, so a local run agrees with the intent and CI does not.
+bracketed=$(grep -E '\]\([[:blank:]]*<|^[[:blank:]]{0,3}\[[^]]+\]:[[:blank:]]*<' "$stripped" || true)
 if [ -n "$bracketed" ]; then
   echo "Error: $SCRIPT_NAME: angle-bracketed link destinations are not supported:" >&2
   printf '%s\n' "$bracketed" | sed 's/^/  /' >&2
@@ -226,8 +230,13 @@ leftover=$(
       print "$target\n" unless $target =~ m{^(?:\w+:|//|\#)};
     }
     # Only the destination token is inspected, whatever follows it, so this stays broader
-    # than the rewrite for definitions the way it already is for inline links.
-    while (/^\[[^\]]+\]:[ \t]*(\S+)/gm) {
+    # than the rewrite for definitions the way it already is for inline links. It also
+    # allows the indent Markdown allows -- up to three spaces, four being a code block --
+    # which the rewrite above deliberately does not. Growing what is refused is safe;
+    # growing what is rewritten is what produced the regressions in this branch. So an
+    # indented relative definition stops the build rather than being rewritten, and an
+    # indented absolute one passes untouched, which is every case this repository has.
+    while (/^[ \t]{0,3}\[[^\]]+\]:[ \t]*(\S+)/gm) {
       print "$1\n" unless $1 =~ m{^(?:\w+:|//|\#)};
     }
   ' "$out" | sort -u

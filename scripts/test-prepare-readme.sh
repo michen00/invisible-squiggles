@@ -217,6 +217,55 @@ Body.
 See [example](<https://example.com>).
 EOF
 
+# A tab is blank space in Markdown and the refusal has to see it. Worth a case of its own
+# because the first spelling of that check used [ \t], which POSIX reads as space,
+# backslash and the letter t -- it missed the tab and matched a stray t. The local grep on
+# a developer machine may be ugrep, which honours the escape and hides the difference.
+# Written with printf so the tab is unambiguous here rather than a character an editor eats.
+printf '# Title\n\nSee [setup](\t<CONTRIBUTING.md>).\n' > "$WORKSPACE/tab-before-bracket.in"
+got=0
+"$SCRIPT" "$WORKSPACE/tab-before-bracket.in" "$WORKSPACE/tab-before-bracket.out" \
+  > "$WORKSPACE/tab-before-bracket.log" 2>&1 || got=$?
+[ "$got" = 1 ] || fail "tab-before-bracket: expected exit 1, got $got"
+grep -qF "angle-bracketed" "$WORKSPACE/tab-before-bracket.log" ||
+  fail "tab-before-bracket: expected the angle-bracket message"
+
+# --- Reference definitions may be indented ------------------------------------------
+# Markdown allows up to three leading spaces before a definition, four being a code block.
+# The rewrite requires column zero and is deliberately left that way: growing what is
+# refused is safe, growing what is rewritten is what produced the regressions in this
+# branch. What changed is that the leftover scan no longer stops at column zero, so an
+# indented relative definition fails the build instead of shipping unrewritten and
+# unreported -- silently relative, which is the one outcome this script exists to prevent.
+run indented-definition-relative 1 << 'EOF'
+# Title
+
+  [guide]: CONTRIBUTING.md
+
+See the [guide].
+EOF
+grep -qF "relative links survived" "$WORKSPACE/indented-definition-relative.log" ||
+  fail "indented-definition-relative: expected the leftover-scan message"
+
+# The same indent with an absolute target is the form a listing can actually use, so it
+# passes untouched. Refusing it would block a release over nothing.
+run indented-definition-absolute 0 << 'EOF'
+# Title
+
+  [vs]: https://example.com
+
+See the [vs].
+EOF
+has indented-definition-absolute "  [vs]: https://example.com"
+
+run indented-definition-bracketed 1 << 'EOF'
+# Title
+
+  [id]: <https://example.com>
+EOF
+grep -qF "angle-bracketed" "$WORKSPACE/indented-definition-bracketed.log" ||
+  fail "indented-definition-bracketed: expected the angle-bracket message"
+
 # A query or fragment after the extension does not stop it being an image, and does not
 # belong in the path that gets checked for existence either.
 run image-with-query 0 << 'EOF'

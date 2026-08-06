@@ -427,11 +427,25 @@ awk '
   in_unreleased { print }
 ' "$CLIFF_OUTPUT" > "$TEMP_FILE"
 
-# Check if we got valid content
+# No Unreleased section is a normal outcome, not a failure. cliff.toml skips docs,
+# build, ci, test, refactor, style and chore, so a cycle made only of those produces no
+# section at all -- and that is exactly the release prep-release.sh warns will need a
+# hand-written sentence. Erroring here made that release impossible to prepare with the
+# tooling: `make prep-release` stopped on it after having already bumped the version.
+#
+# A bare heading is written instead, so the section exists for a human to fill and for
+# prep-release.sh to promote into the new version.
+#
+# Guarded on git-cliff having produced something. An empty CLIFF_OUTPUT means it never
+# rendered its template, which is a real failure and still stops here -- the distinction
+# being between "ran and had nothing to report" and "did not run".
 if [ ! -s "$TEMP_FILE" ]; then
-  echo "Error: No Unreleased section found in git cliff output" >&2
-  rm -f "$TEMP_FILE" "$CLIFF_OUTPUT"
-  exit 1
+  if [ ! -s "$CLIFF_OUTPUT" ]; then
+    echo "Error: git cliff produced no output at all" >&2
+    exit 1
+  fi
+  echo "No unreleased entries: every commit since the last tag is a type cliff.toml skips."
+  printf '## [Unreleased]\n' > "$TEMP_FILE"
 fi
 
 # Remove trailing whitespace and ensure the extracted section ends with exactly one newline

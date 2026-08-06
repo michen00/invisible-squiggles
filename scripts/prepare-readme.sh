@@ -51,8 +51,8 @@ destinations to absolute GitHub URLs, and refuses to write a listing that points
 anything a reader of that listing could not reach.
 
 Rewrites [text](path) and ![alt](path) when the destination is a plain relative path.
-Any other shape -- a title, angle brackets, a reference definition pointing somewhere
-relative -- is refused rather than rewritten; write those as absolute URLs.
+Any other shape -- a title, angle brackets, a reference definition -- is refused rather
+than rewritten. Write the link in that plain form, or make the destination absolute.
 
 Arguments:
   <input-file>   Path to the input README.md
@@ -236,9 +236,12 @@ leftover=$(
   ' "$out" | sort -u
 )
 if [ -n "$leftover" ]; then
-  echo "Error: $SCRIPT_NAME: these destinations would not resolve on a listing page:" >&2
+  echo "Error: $SCRIPT_NAME: these destinations reach the listing unrewritten:" >&2
   printf '%s\n' "$leftover" | sed 's/^/  /' >&2
-  die "the listing rewrites [text](path) and ![alt](path) with a plain destination.
-Anything else -- a title, angle brackets, a reference definition -- has to be written as
-an absolute URL, because a relative one resolves against the marketplace, not GitHub."
+  die "only [text](path) and ![alt](path) with a plain destination are rewritten, and a
+relative destination left alone resolves against the marketplace, not GitHub. Either write
+the link in that plain form -- drop the title, drop the angle brackets -- or make the
+destination absolute. A reference definition is never rewritten, so absolute is the only
+option there. Angle brackets are refused even around an already-absolute URL: this scan
+reads the destination literally rather than normalising it."
 fi

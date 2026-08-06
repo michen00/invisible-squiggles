@@ -60,9 +60,15 @@ has() {
 # Every refusal must name the destination it is refusing. The exit code alone is too weak
 # an assertion: a refusal that fires for the wrong reason still exits 1, and that is how
 # a check keeps passing after it has stopped testing what it was written for.
+#
+# The plain-form repair is asserted too, because the message is the only place an author
+# learns that option exists. An earlier version offered an absolute URL as the only fix,
+# which is the wrong advice for a title and meaningless for a URL already absolute.
 refused() {
-  grep -qF "would not resolve on a listing page" "$WORKSPACE/$1.log" ||
+  grep -qF "reach the listing unrewritten" "$WORKSPACE/$1.log" ||
     fail "$1: expected the unsupported-destination message"
+  grep -qF "plain form" "$WORKSPACE/$1.log" ||
+    fail "$1: expected the message to offer the plain-form repair"
   grep -qF "$2" "$WORKSPACE/$1.log" ||
     fail "$1: expected the message to name $2"
 }

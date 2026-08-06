@@ -165,16 +165,57 @@ run titled-definition-image 0 << 'EOF'
 EOF
 has titled-definition-image "[ic]: $RAW/icon.png \"the icon\""
 
-# An absolute destination in angle brackets is absolute; without stripping them it read
-# as relative and the listing was refused over a URL that was already fine.
-run angle-bracket-absolute 0 << 'EOF'
+# --- Angle-bracketed destinations are refused, whatever is inside them ---------------
+# The bracket form is legal Markdown that nothing here reads. It was briefly accepted by
+# stripping the bracket wherever a destination is inspected, which is a rule that has to
+# be repeated in every such place; the place that was missed treated `<#x>` as an anchor
+# and let a link into the removed section ship. One refusal covers the family instead, so
+# the three cases below differ only in what the brackets contain.
+run angle-bracket-url 1 << 'EOF'
 # Title
 
 See [example][id].
 
 [id]: <https://example.com>
 EOF
-has angle-bracket-absolute "[id]: <https://example.com>"
+grep -qF "angle-bracketed" "$WORKSPACE/angle-bracket-url.log" ||
+  fail "angle-bracket-url: expected the angle-bracket message"
+
+run angle-bracket-path 1 << 'EOF'
+# Title
+
+See [setup](<CONTRIBUTING.md>).
+EOF
+grep -qF "angle-bracketed" "$WORKSPACE/angle-bracket-path.log" ||
+  fail "angle-bracket-path: expected the angle-bracket message"
+
+# The one that shipped: an anchor into the stripped section, bracketed. It reached the
+# listing because `absolute()` saw an anchor after dropping the bracket while the
+# dangling-anchor scan, which looks for `](#`, did not see one at all.
+run angle-bracket-anchor 1 << 'EOF'
+# Title
+
+Jump to [the index](<#-documentation>).
+
+## 🔹 Documentation
+
+- something
+EOF
+grep -qF "angle-bracketed" "$WORKSPACE/angle-bracket-anchor.log" ||
+  fail "angle-bracket-anchor: expected the angle-bracket message"
+
+# ...but only in the part that survives. Refusing over a bracket in the section that is
+# cut would fail the release for something no reader of the listing could ever reach --
+# a false positive on the release path, the costlier direction to be wrong in.
+run angle-bracket-below-cut 0 << 'EOF'
+# Title
+
+Body.
+
+## 🔹 Documentation
+
+See [example](<https://example.com>).
+EOF
 
 # A query or fragment after the extension does not stop it being an image, and does not
 # belong in the path that gets checked for existence either.
@@ -269,13 +310,19 @@ See [setup](CONTRIBUTING.md 'the guide') first.
 EOF
 has single-quoted-title "]($BLOB/CONTRIBUTING.md 'the guide')"
 
-# A destination shape the rewrite does not handle must fail rather than ship. The
-# leftover scan is deliberately broader than the rewrite so this direction is guaranteed.
+# A destination shape the rewrite does not handle must fail rather than ship, including
+# shapes nobody has thought to name. Two titles is one such: the rewrite's title pattern
+# matches one and then wants the closing paren, so the link is passed over silently. The
+# leftover scan takes everything up to that paren and inspects the first token, which is
+# why it is deliberately broader than the rewrite -- the gap fails loudly instead of
+# shipping relative.
 run unsupported-destination 1 << 'EOF'
 # Title
 
-See [setup](<CONTRIBUTING.md>).
+See [setup](CONTRIBUTING.md "one" "two").
 EOF
+grep -qF "relative links survived" "$WORKSPACE/unsupported-destination.log" ||
+  fail "unsupported-destination: expected the leftover-scan message"
 
 # A file link carrying an anchor keeps the anchor and is still checked for existence.
 run link-with-anchor 0 << 'EOF'

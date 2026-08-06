@@ -99,6 +99,20 @@ trap cleanup EXIT
 sed -e '/zenodo\.org.*\.svg/d' -e '/## .*Documentation/,$d' "$in" |
   perl -0777 -pe 's/\s+$/\n/' > "$stripped"
 
+# Markdown allows a destination to be wrapped in angle brackets, and nothing below reads
+# that shape. Refusing it by name is the contract in one rule: a form the rewrite does not
+# understand stops the build with an instruction, rather than being taught to the rewrite
+# one shape at a time. Teaching it was tried -- the bracket then had to be stripped in
+# every place that inspects a destination, and the place that was missed let an anchor
+# into the removed section ship. Checked against the stripped text so brackets in the part
+# that never reaches the listing do not refuse a README that is fine.
+bracketed=$(grep -E '\]\([ \t]*<|^\[[^]]+\]:[ \t]*<' "$stripped" || true)
+if [ -n "$bracketed" ]; then
+  echo "Error: $SCRIPT_NAME: angle-bracketed link destinations are not supported:" >&2
+  printf '%s\n' "$bracketed" | sed 's/^/  /' >&2
+  die "write the destination plainly, without < >"
+fi
+
 # Images resolve through /raw/ and links through /blob/ -- the same split vsce draws
 # between baseImagesUrl and baseContentUrl. A blob URL serves an HTML page, so an image
 # pointed at one renders as a broken image rather than a picture.
@@ -111,9 +125,6 @@ LINK_BASE="$repo_url/blob/$REPO_REF/" \
     }
     sub absolute {
       my ($target) = @_;
-      # <https://example.com> is a legal destination and is absolute; without stripping
-      # the bracket it reads as relative and gets a GitHub base bolted onto a full URL.
-      $target =~ s/^<//;
       return $target =~ m{^(?:\w+:|//|\#)};
     }
     # An optional link title after the destination. \x27 is a single quote, spelled that
@@ -199,8 +210,12 @@ fi
 # Belt and braces: whatever the rules above did or skipped, nothing relative may ship.
 # This scan is deliberately broader than the rewrite: it takes everything up to the
 # closing paren and inspects the first token, so a form the rewrite cannot handle -- a
-# title shape it does not know, an angle-bracketed destination -- fails the build loudly
-# instead of slipping through as a relative link. Wider here, narrower there, on purpose.
+# title shape it does not know, for instance -- fails the build loudly instead of slipping
+# through as a relative link. Wider here, narrower there, on purpose.
+#
+# It normalises nothing, deliberately. Stripping angle brackets here would make `<#x>`
+# read as an anchor and pass, which is the same assumption the check above already makes;
+# a second barrier that shares the first one's blind spot is not a second barrier.
 leftover=$(
   perl -0777 -ne '
     while (/\]\(([^)]*)\)/g) {
@@ -208,17 +223,12 @@ leftover=$(
       $inside =~ s/^[ \t]+//;
       my ($target) = $inside =~ /^(\S+)/;
       next unless defined $target;
-      $target =~ s/^<//;
-      $target =~ s/>$//;
       print "$target\n" unless $target =~ m{^(?:\w+:|//|\#)};
     }
     # Only the destination token is inspected, whatever follows it, so this stays broader
     # than the rewrite for definitions the way it already is for inline links.
     while (/^\[[^\]]+\]:[ \t]*(\S+)/gm) {
-      my $target = $1;
-      $target =~ s/^<//;
-      $target =~ s/>$//;
-      print "$target\n" unless $target =~ m{^(?:\w+:|//|\#)};
+      print "$1\n" unless $1 =~ m{^(?:\w+:|//|\#)};
     }
   ' "$out" | sort -u
 )

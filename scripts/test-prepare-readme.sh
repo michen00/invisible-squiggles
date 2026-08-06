@@ -3,10 +3,17 @@
 # Tests for scripts/prepare-readme.sh.
 #
 # The golden case pins the original job -- stripping the zenodo badge and the
-# Documentation section. Everything after it covers link handling, where the failures
-# are invisible rather than loud: a relative link that reaches a marketplace page
-# resolves against the marketplace, and an absolute link to a path that moved is a 404.
-# Neither looks broken from inside the repository, which is why they are asserted here.
+# Documentation section. Everything after it covers the contract, which is small and
+# stated in two halves:
+#
+#   Supported:  [text](path) and ![alt](path) with a plain destination, plus anything
+#               already absolute. These are rewritten or left alone.
+#   Refused:    every other shape. Titles, angle brackets, reference definitions with
+#               relative targets. These stop the build.
+#
+# The refusals get as much attention as the rewrites here, because they are the contract.
+# A refusal that quietly stops firing turns into a relative link on a marketplace page,
+# which resolves against the marketplace and is invisible from inside the repository.
 #
 # Link targets are checked against the real repository, so these fixtures reference
 # files that genuinely exist (CONTRIBUTING.md, icon.png) and one that genuinely does not.
@@ -50,9 +57,25 @@ has() {
   grep -qF "$2" "$WORKSPACE/$1.out" || fail "$1: expected to find $2"
 }
 
+# Every refusal must name the destination it is refusing. The exit code alone is too weak
+# an assertion: a refusal that fires for the wrong reason still exits 1, and that is how
+# a check keeps passing after it has stopped testing what it was written for.
+#
+# The plain-form repair is asserted too, because the message is the only place an author
+# learns that option exists. An earlier version offered an absolute URL as the only fix,
+# which is the wrong advice for a title and meaningless for a URL already absolute.
+refused() {
+  grep -qF "reach the listing unrewritten" "$WORKSPACE/$1.log" ||
+    fail "$1: expected the unsupported-destination message"
+  grep -qF "plain form" "$WORKSPACE/$1.log" ||
+    fail "$1: expected the message to offer the plain-form repair"
+  grep -qF "$2" "$WORKSPACE/$1.log" ||
+    fail "$1: expected the message to name $2"
+}
+
 # The missing-target cases need a path that genuinely is not in the repository. Checking
 # that here means adding the file later produces this message rather than an unexplained
-# failure in two fixtures that look like they are about something else.
+# failure in fixtures that look like they are about something else.
 MISSING="docs/NOPE.md"
 if [ -e "$REPO_ROOT/$MISSING" ]; then
   fail "the missing-target fixtures assume $MISSING does not exist, but it does now; point them at another path"
@@ -64,7 +87,7 @@ if ! diff -u "$EXPECTED" "$WORKSPACE/golden.out"; then
   fail "golden output no longer matches $EXPECTED"
 fi
 
-# --- Relative links become absolute, with the right base for each kind --------------
+# --- Supported: the two forms the contract rewrites ---------------------------------
 run relative-link 0 << 'EOF'
 # Title
 
@@ -80,318 +103,15 @@ run relative-image 0 << 'EOF'
 EOF
 has relative-image "]($RAW/icon.png)"
 
-run reference-definition 0 << 'EOF'
+# The image rule runs first for this reason: ![alt](path) contains the ](path) the link
+# rule matches, so the generic rule would hand an image the /blob/ base.
+run image-not-given-blob-base 0 << 'EOF'
 # Title
 
-[guide]: CONTRIBUTING.md
-
-Start with the [guide].
+![icon](icon.png) and [setup](CONTRIBUTING.md)
 EOF
-has reference-definition "[guide]: $BLOB/CONTRIBUTING.md"
-
-# A definition consumed by a reference-style image needs /raw/ like an inline image, not
-# the /blob/ every definition used to get -- a blob URL serves HTML and renders broken.
-run reference-image 0 << 'EOF'
-# Title
-
-![the icon][ic]
-
-[ic]: icon.png
-EOF
-has reference-image "[ic]: $RAW/icon.png"
-
-# The collapsed form takes its label from the alt text.
-run reference-image-collapsed 0 << 'EOF'
-# Title
-
-![ic][]
-
-[ic]: icon.png
-EOF
-has reference-image-collapsed "[ic]: $RAW/icon.png"
-
-# ...and the shortcut form, which is just the label with nothing after it.
-run reference-image-shortcut 0 << 'EOF'
-# Title
-
-![ic]
-
-[ic]: icon.png
-EOF
-has reference-image-shortcut "[ic]: $RAW/icon.png"
-
-# A definition routes on what its target is, not on how the label is used, so the same
-# label serving an image and a link is no longer a conflict -- it resolves once, by
-# extension. The trade is stated by the next two cases rather than left implicit.
-run label-used-both-ways 0 << 'EOF'
-# Title
-
-![pic][x] and [text][x]
-
-[x]: icon.png
-EOF
-has label-used-both-ways "[x]: $RAW/icon.png"
-
-# The limitation, written down: an image whose definition points at a non-image
-# extension gets /blob/ and would render broken. Nothing in this repository does that,
-# and the alternative -- deciding from usage -- is what produced three separate false
-# conflicts that refused to package correct READMEs.
-run definition-routes-by-extension 0 << 'EOF'
-# Title
-
-![pic][doc]
-
-[doc]: CONTRIBUTING.md
-EOF
-has definition-routes-by-extension "[doc]: $BLOB/CONTRIBUTING.md"
-
-# A definition may carry a title just as an inline link may. Handling it inline without
-# handling it here left the destination unrewritten and unreported -- shipped relative.
-run titled-definition 0 << 'EOF'
-# Title
-
-See [the guide][id].
-
-[id]: CONTRIBUTING.md "setup"
-EOF
-has titled-definition "[id]: $BLOB/CONTRIBUTING.md \"setup\""
-
-run titled-definition-image 0 << 'EOF'
-# Title
-
-![pic][ic]
-
-[ic]: icon.png "the icon"
-EOF
-has titled-definition-image "[ic]: $RAW/icon.png \"the icon\""
-
-# --- Angle-bracketed destinations are refused, whatever is inside them ---------------
-# The bracket form is legal Markdown that nothing here reads. It was briefly accepted by
-# stripping the bracket wherever a destination is inspected, which is a rule that has to
-# be repeated in every such place; the place that was missed treated `<#x>` as an anchor
-# and let a link into the removed section ship. One refusal covers the family instead, so
-# the three cases below differ only in what the brackets contain.
-run angle-bracket-url 1 << 'EOF'
-# Title
-
-See [example][id].
-
-[id]: <https://example.com>
-EOF
-grep -qF "angle-bracketed" "$WORKSPACE/angle-bracket-url.log" ||
-  fail "angle-bracket-url: expected the angle-bracket message"
-
-run angle-bracket-path 1 << 'EOF'
-# Title
-
-See [setup](<CONTRIBUTING.md>).
-EOF
-grep -qF "angle-bracketed" "$WORKSPACE/angle-bracket-path.log" ||
-  fail "angle-bracket-path: expected the angle-bracket message"
-
-# The one that shipped: an anchor into the stripped section, bracketed. It reached the
-# listing because `absolute()` saw an anchor after dropping the bracket while the
-# dangling-anchor scan, which looks for `](#`, did not see one at all.
-run angle-bracket-anchor 1 << 'EOF'
-# Title
-
-Jump to [the index](<#-documentation>).
-
-## 🔹 Documentation
-
-- something
-EOF
-grep -qF "angle-bracketed" "$WORKSPACE/angle-bracket-anchor.log" ||
-  fail "angle-bracket-anchor: expected the angle-bracket message"
-
-# ...but only in the part that survives. Refusing over a bracket in the section that is
-# cut would fail the release for something no reader of the listing could ever reach --
-# a false positive on the release path, the costlier direction to be wrong in.
-run angle-bracket-below-cut 0 << 'EOF'
-# Title
-
-Body.
-
-## 🔹 Documentation
-
-See [example](<https://example.com>).
-EOF
-
-# A tab is blank space in Markdown and the refusal has to see it. Worth a case of its own
-# because the first spelling of that check used [ \t], which POSIX reads as space,
-# backslash and the letter t -- it missed the tab and matched a stray t. The local grep on
-# a developer machine may be ugrep, which honours the escape and hides the difference.
-# Written with printf so the tab is unambiguous here rather than a character an editor eats.
-printf '# Title\n\nSee [setup](\t<CONTRIBUTING.md>).\n' > "$WORKSPACE/tab-before-bracket.in"
-got=0
-"$SCRIPT" "$WORKSPACE/tab-before-bracket.in" "$WORKSPACE/tab-before-bracket.out" \
-  > "$WORKSPACE/tab-before-bracket.log" 2>&1 || got=$?
-[ "$got" = 1 ] || fail "tab-before-bracket: expected exit 1, got $got"
-grep -qF "angle-bracketed" "$WORKSPACE/tab-before-bracket.log" ||
-  fail "tab-before-bracket: expected the angle-bracket message"
-
-# --- Reference definitions may be indented ------------------------------------------
-# Markdown allows up to three leading spaces before a definition, four being a code block.
-# The rewrite requires column zero and is deliberately left that way: growing what is
-# refused is safe, growing what is rewritten is what produced the regressions in this
-# branch. What changed is that the leftover scan no longer stops at column zero, so an
-# indented relative definition fails the build instead of shipping unrewritten and
-# unreported -- silently relative, which is the one outcome this script exists to prevent.
-run indented-definition-relative 1 << 'EOF'
-# Title
-
-  [guide]: CONTRIBUTING.md
-
-See the [guide].
-EOF
-grep -qF "relative links survived" "$WORKSPACE/indented-definition-relative.log" ||
-  fail "indented-definition-relative: expected the leftover-scan message"
-
-# The same indent with an absolute target is the form a listing can actually use, so it
-# passes untouched. Refusing it would block a release over nothing.
-run indented-definition-absolute 0 << 'EOF'
-# Title
-
-  [vs]: https://example.com
-
-See the [vs].
-EOF
-has indented-definition-absolute "  [vs]: https://example.com"
-
-run indented-definition-bracketed 1 << 'EOF'
-# Title
-
-  [id]: <https://example.com>
-EOF
-grep -qF "angle-bracketed" "$WORKSPACE/indented-definition-bracketed.log" ||
-  fail "indented-definition-bracketed: expected the angle-bracket message"
-
-# The indent allowance is spaces, not blank space. A leading tab is a four-column tab
-# stop, so a line starting with one is an indented code block and not a definition -- the
-# first spelling of this allowance counted the tab as one unit and refused a listing over
-# a code example. That is a false positive on the release path, which blocks a release
-# over a file that is correct, and is the costlier of the two directions to be wrong in.
-# printf again, so the tab is unambiguous here.
-printf '# Title\n\nAn example:\n\n\t[foo]: bar.md\n\nDone.\n' \
-  > "$WORKSPACE/tab-indented-code-definition.in"
-printf '# Title\n\nAn example:\n\n\t[foo]: <bar.md>\n\nDone.\n' \
-  > "$WORKSPACE/tab-indented-code-bracketed.in"
-for case in tab-indented-code-definition tab-indented-code-bracketed; do
-  got=0
-  "$SCRIPT" "$WORKSPACE/$case.in" "$WORKSPACE/$case.out" > "$WORKSPACE/$case.log" 2>&1 ||
-    got=$?
-  [ "$got" = 0 ] || {
-    fail "$case: expected exit 0, got $got"
-    sed 's/^/    /' "$WORKSPACE/$case.log" >&2
-  }
-done
-
-# A query or fragment after the extension does not stop it being an image, and does not
-# belong in the path that gets checked for existence either.
-run image-with-query 0 << 'EOF'
-# Title
-
-![pic][ic]
-
-[ic]: icon.png?raw=1
-EOF
-has image-with-query "[ic]: $RAW/icon.png?raw=1"
-
-run image-with-fragment 0 << 'EOF'
-# Title
-
-![pic][ic]
-
-[ic]: icon.png#v1
-EOF
-has image-with-fragment "[ic]: $RAW/icon.png#v1"
-
-# ...and it is still checked for existence, which the old shape skipped entirely.
-run titled-definition-missing 1 << 'EOF'
-# Title
-
-See [the plan][id].
-
-[id]: docs/NOPE.md "t"
-EOF
-grep -qF "not in the repository" "$WORKSPACE/titled-definition-missing.log" ||
-  fail "titled-definition-missing: expected the missing-file message"
-
-# Brackets that are not references at all. Each of these once counted as a shortcut link
-# and produced a conflict against the image, refusing to package a correct README --
-# a false positive on the release path, which is the costlier direction to be wrong in.
-run task-list-not-a-link 0 << 'EOF'
-# Title
-
-- [x] shipped
-
-![pic][x]
-
-[x]: icon.png
-EOF
-has task-list-not-a-link "[x]: $RAW/icon.png"
-
-run code-span-not-a-link 0 << 'EOF'
-# Title
-
-Write `[x]` to make a checkbox.
-
-![pic][x]
-
-[x]: icon.png
-EOF
-has code-span-not-a-link "[x]: $RAW/icon.png"
-
-run fenced-block-not-a-link 0 << 'EOF'
-# Title
-
-```md
-[x] and ![x]
-```
-
-![pic][x]
-
-[x]: icon.png
-EOF
-has fenced-block-not-a-link "[x]: $RAW/icon.png"
-
-# Link titles are legal Markdown and used to slip past the rewrite entirely: the
-# destination pattern stopped at the first space, so a titled relative link was neither
-# rewritten nor reported, which is the one outcome this script exists to prevent.
-run titled-link 0 << 'EOF'
-# Title
-
-See [setup](CONTRIBUTING.md "the guide") first.
-EOF
-has titled-link "]($BLOB/CONTRIBUTING.md \"the guide\")"
-
-run titled-image 0 << 'EOF'
-# Title
-
-![icon](icon.png "the icon")
-EOF
-has titled-image "]($RAW/icon.png \"the icon\")"
-
-run single-quoted-title 0 << 'EOF'
-# Title
-
-See [setup](CONTRIBUTING.md 'the guide') first.
-EOF
-has single-quoted-title "]($BLOB/CONTRIBUTING.md 'the guide')"
-
-# A destination shape the rewrite does not handle must fail rather than ship, including
-# shapes nobody has thought to name. Two titles is one such: the rewrite's title pattern
-# matches one and then wants the closing paren, so the link is passed over silently. The
-# leftover scan takes everything up to that paren and inspects the first token, which is
-# why it is deliberately broader than the rewrite -- the gap fails loudly instead of
-# shipping relative.
-run unsupported-destination 1 << 'EOF'
-# Title
-
-See [setup](CONTRIBUTING.md "one" "two").
-EOF
-grep -qF "relative links survived" "$WORKSPACE/unsupported-destination.log" ||
-  fail "unsupported-destination: expected the leftover-scan message"
+has image-not-given-blob-base "]($RAW/icon.png)"
+has image-not-given-blob-base "]($BLOB/CONTRIBUTING.md)"
 
 # A file link carrying an anchor keeps the anchor and is still checked for existence.
 run link-with-anchor 0 << 'EOF'
@@ -401,7 +121,7 @@ See [releases](CONTRIBUTING.md#creating-a-release).
 EOF
 has link-with-anchor "]($BLOB/CONTRIBUTING.md#creating-a-release)"
 
-# --- Absolute targets are left exactly as they are ----------------------------------
+# --- Supported: absolute destinations are left exactly as they are ------------------
 run absolute-untouched 0 << 'EOF'
 # Title
 
@@ -409,6 +129,189 @@ run absolute-untouched 0 << 'EOF'
 EOF
 has absolute-untouched "](https://example.com/page)"
 has absolute-untouched "](https://img.shields.io/badge/a-b-c.svg)"
+
+# A reference definition is never rewritten, so an absolute one has to pass untouched --
+# this is the form the repository's own README uses for its badge target.
+run absolute-definition 0 << 'EOF'
+# Title
+
+[vsmarketplace]: https://marketplace.visualstudio.com/items?itemName=michen00.invisible-squiggles
+
+[![badge](https://img.shields.io/badge/a-b-c.svg)][vsmarketplace]
+EOF
+has absolute-definition "[vsmarketplace]: https://marketplace.visualstudio.com"
+
+# ...at any indent Markdown allows for one.
+run absolute-definition-indented 0 << 'EOF'
+# Title
+
+  [vs]: https://example.com
+
+See the [vs].
+EOF
+has absolute-definition-indented "  [vs]: https://example.com"
+
+# --- Refused: titles ----------------------------------------------------------------
+# A title is legal Markdown. The rewrite's destination pattern stops at whitespace, so a
+# titled destination does not match it and arrives at the scan still relative. Refusing
+# is the whole point: the alternative is a title pattern, and every extension of that
+# pattern in this script's history produced the next defect.
+run titled-link 1 << 'EOF'
+# Title
+
+See [setup](CONTRIBUTING.md "the guide") first.
+EOF
+refused titled-link "CONTRIBUTING.md"
+
+run titled-image 1 << 'EOF'
+# Title
+
+![icon](icon.png "the icon")
+EOF
+refused titled-image "icon.png"
+
+run single-quoted-title 1 << 'EOF'
+# Title
+
+See [setup](CONTRIBUTING.md 'the guide') first.
+EOF
+refused single-quoted-title "CONTRIBUTING.md"
+
+# Two titles is a shape nobody would write on purpose. It is here because the scan has to
+# refuse forms nobody has thought of, not just the ones with names.
+run two-titles 1 << 'EOF'
+# Title
+
+See [setup](CONTRIBUTING.md "one" "two").
+EOF
+refused two-titles "CONTRIBUTING.md"
+
+# --- Refused: angle-bracketed destinations ------------------------------------------
+# Legal Markdown, unsupported here, and refused by the scan rather than by a rule of its
+# own. The scan normalises nothing, which is what makes this work: `<...>` never looks
+# absolute to it, so all three spellings arrive relative regardless of what is inside.
+run angle-bracket-path 1 << 'EOF'
+# Title
+
+See [setup](<CONTRIBUTING.md>).
+EOF
+refused angle-bracket-path "<CONTRIBUTING.md>"
+
+run angle-bracket-url 1 << 'EOF'
+# Title
+
+See [example][id].
+
+[id]: <https://example.com>
+EOF
+refused angle-bracket-url "<https://example.com>"
+
+# The one that shipped once: an anchor into the removed section, in brackets. It reached
+# the listing because a rule taught to strip the bracket made `<#...>` read as an anchor,
+# while the dangling-anchor scan -- which looks for `](#` -- saw no anchor at all.
+run angle-bracket-anchor 1 << 'EOF'
+# Title
+
+Jump to [the index](<#-documentation>).
+
+## 🔹 Documentation
+
+- something
+EOF
+refused angle-bracket-anchor "<#-documentation>"
+
+# --- Refused: reference definitions with relative targets ---------------------------
+# Definitions are not rewritten at all now. A relative one therefore reaches the scan and
+# stops the build, which is the honest outcome: it cannot be resolved without deciding
+# whether the label feeds an image or a link, and making that decision is what grew an
+# extension router and three separate false refusals of correct READMEs.
+run relative-definition 1 << 'EOF'
+# Title
+
+[guide]: CONTRIBUTING.md
+
+Start with the [guide].
+EOF
+refused relative-definition "CONTRIBUTING.md"
+
+run relative-definition-titled 1 << 'EOF'
+# Title
+
+[id]: CONTRIBUTING.md "setup"
+EOF
+refused relative-definition-titled "CONTRIBUTING.md"
+
+run relative-definition-indented 1 << 'EOF'
+# Title
+
+  [guide]: CONTRIBUTING.md
+EOF
+refused relative-definition-indented "CONTRIBUTING.md"
+
+# --- Not definitions, not links: these must not trip anything -----------------------
+# A leading tab is a four-column tab stop, so the line is an indented code block. Reading
+# it as a definition refused a listing over a code example -- a false positive on the
+# release path, which blocks a release over a file that is correct. printf, so the tab is
+# unambiguous in this source file rather than a character an editor may eat.
+printf '# Title\n\nAn example:\n\n\t[foo]: bar.md\n\nDone.\n' \
+  > "$WORKSPACE/tab-indented-code.in"
+got=0
+"$SCRIPT" "$WORKSPACE/tab-indented-code.in" "$WORKSPACE/tab-indented-code.out" \
+  > "$WORKSPACE/tab-indented-code.log" 2>&1 || got=$?
+[ "$got" = 0 ] || {
+  fail "tab-indented-code: expected exit 0, got $got"
+  sed 's/^/    /' "$WORKSPACE/tab-indented-code.log" >&2
+}
+
+# Brackets that are not links at all. An earlier design classified every bracket in the
+# document to decide what a definition fed; task list markers, code spans and fenced
+# examples each got read as a link and refused a correct README. Nothing scans usage now,
+# so the class is gone by construction -- these pin that it stays gone.
+run task-list-not-a-link 0 << 'EOF'
+# Title
+
+- [x] shipped
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+EOF
+has task-list-not-a-link "]($BLOB/CONTRIBUTING.md)"
+
+run code-span-not-a-link 0 << 'EOF'
+# Title
+
+Write `[x]` to make a checkbox.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+EOF
+has code-span-not-a-link "]($BLOB/CONTRIBUTING.md)"
+
+run fenced-block-not-a-link 0 << 'EOF'
+# Title
+
+```md
+[x] and ![x]
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+EOF
+has fenced-block-not-a-link "]($BLOB/CONTRIBUTING.md)"
+
+# --- The stripped section is not held to the contract -------------------------------
+# The scan reads the output, and the output no longer contains the Documentation section,
+# so an unsupported shape below the cut cannot refuse a release over something no reader
+# of the listing could ever reach. This falls out of ordering rather than being arranged,
+# which is why it is worth pinning.
+run unsupported-below-the-cut 0 << 'EOF'
+# Title
+
+Body.
+
+## 🔹 Documentation
+
+See [setup](<CONTRIBUTING.md>) and [guide](CONTRIBUTING.md "titled").
+
+[ref]: CONTRIBUTING.md
+EOF
 
 # --- Anchors: allowed when the heading survives the strip ---------------------------
 # The slug matters more than it looks. GitHub lowercases, drops characters that are not

@@ -436,14 +436,31 @@ awk '
 # A bare heading is written instead, so the section exists for a human to fill and for
 # prep-release.sh to promote into the new version.
 #
-# Guarded on git-cliff having produced something. An empty CLIFF_OUTPUT means it never
-# rendered its template, which is a real failure and still stops here -- the distinction
-# being between "ran and had nothing to report" and "did not run".
+# Two guards, because "the extractor found nothing" has three causes and only one of
+# them is benign. An empty CLIFF_OUTPUT means git-cliff never rendered its template at
+# all. Entries rendered under a heading the extractor does not match means the
+# extraction failed, not that there was nothing to extract -- and writing a bare heading
+# there would drop real changelog content on the floor, silently, which is worse than
+# the error this replaces. Only the third case, genuinely nothing unreleased, is normal.
+#
+# The second guard reads content rather than headings on purpose: it looks at everything
+# git-cliff renders above the first released section, which is the unreleased region
+# whatever heading that region happens to carry. A retitled heading is exactly the case
+# where a heading-based check would agree with the extractor and be wrong with it.
 if [ ! -s "$TEMP_FILE" ]; then
   if [ ! -s "$CLIFF_OUTPUT" ]; then
     echo "Error: git cliff produced no output at all" >&2
     exit 1
   fi
+
+  if awk '/^## \[[0-9]/ { exit } /^### |^- / { found = 1 } END { exit !found }' \
+    "$CLIFF_OUTPUT"; then
+    echo "Error: git cliff rendered unreleased entries that could not be extracted." >&2
+    echo "  The extractor matches a literal '## [Unreleased]' heading; if cliff.toml" >&2
+    echo "  now renders that section differently, update the extractor to match." >&2
+    exit 1
+  fi
+
   echo "No unreleased entries: every commit since the last tag is a type cliff.toml skips."
   printf '## [Unreleased]\n' > "$TEMP_FILE"
 fi

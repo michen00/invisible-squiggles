@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com) and this p
 
 ## [Unreleased]
 
+## [0.4.2](https://github.com/michen00/invisible-squiggles/compare/v0.4.1..v0.4.2) - 2026-08-06
+
+No functional changes. The extension behaves exactly as it did in 0.4.1. This release exists to correct the marketplace listings, which can only be updated by publishing a version.
+
+### 📝 Documentation
+
+- Correct the status bar description: the **Squiggles:** entry sits at the bottom right, and the eye beside it is open while squiggles are visible and closed while they are hidden - ([#256](https://github.com/michen00/invisible-squiggles/pull/256))
+- Every link in the marketplace listings now points at GitHub, so none resolves against the marketplace or lands on a file a reader of the listing cannot reach - ([#256](https://github.com/michen00/invisible-squiggles/pull/256))
+
 ## [0.4.1](https://github.com/michen00/invisible-squiggles/compare/v0.4.0..v0.4.1) - 2026-08-04
 
 No functional changes. The extension behaves exactly as it did in 0.4.0.

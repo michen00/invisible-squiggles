@@ -70,7 +70,9 @@ help: ## Show this help message
 ## Build and install ##
 #######################
 
-# Common logic for preparing README for marketplace (strip untrusted SVG badges and Documentation section)
+# Common logic for preparing README for marketplace: strip untrusted SVG badges and the
+# repository-only Documentation section, make every remaining link absolute, and refuse
+# to package a listing that points at anything its reader could not reach.
 define PREPARE_DOCS
 	set -e; \
     trap 'for f in README.md CHANGELOG.md; do [ -f "$$f.bak" ] && mv "$$f.bak" "$$f"; done' EXIT; \

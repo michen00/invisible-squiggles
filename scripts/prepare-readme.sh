@@ -8,16 +8,34 @@
 #      does not trust, and the Documentation section goes along with everything after
 #      it, because that section is a repository index -- nobody reading a marketplace
 #      page can follow it.
-#   2. Every remaining relative link is rewritten to an absolute GitHub URL. vsce does
-#      this too, inferring a base from package.json's `repository` field, but a listing
-#      that leans on that inference breaks quietly when the field changes shape: a
-#      relative link on a marketplace page resolves against the marketplace, not
-#      against GitHub. Doing it here makes the result explicit, testable, and the same
-#      on Open VSX.
-#   3. The output is then checked for anything unreachable -- a relative link that
-#      survived, a link to a file that is not in the repository, or an anchor pointing
+#   2. Relative destinations are rewritten to absolute GitHub URLs. vsce does this too,
+#      inferring a base from package.json's `repository` field, but a listing that leans
+#      on that inference breaks quietly when the field changes shape: a relative link on
+#      a marketplace page resolves against the marketplace, not against GitHub. Doing it
+#      here makes the result explicit, testable, and the same on Open VSX.
+#   3. The output is then checked for anything unreachable -- a destination that is still
+#      relative, a link to a file that is not in the repository, or an anchor pointing
 #      into the section step 1 just removed. That last one is damage this transform
 #      causes rather than finds, which is the reason it checks.
+#
+# THE CONTRACT, which is deliberately small:
+#
+#   Rewritten:  [text](path) and ![alt](path), destination only, no title.
+#   Untouched:  any destination that is already absolute.
+#   Refused:    everything else -- titles, angle brackets, reference definitions with
+#               relative targets, anchors into the removed section.
+#
+# The refusal list is not a list of gaps. An earlier version of this script tried to
+# handle those forms and grew a title pattern, a bracket-stripping rule, an extension
+# router for definitions and an indent allowance; each addition produced the next defect,
+# three of them regressions from the fix before. None of that grammar made the listing
+# safer, because the guarantee -- nothing relative ships -- is enforced by the leftover
+# scan at the bottom, which reads the output and is indifferent to how it was produced.
+#
+# So the rewrite handles what this README uses and the scan refuses the rest. The input
+# is one file, in this repository, written by the people who get the error, and checked
+# by CI: "make it absolute or write it plainly" costs an author seconds. That reasoning
+# is what makes narrowness right here and would not transfer to a general Markdown tool.
 
 set -euo pipefail
 
@@ -29,8 +47,12 @@ usage() {
 Usage: $SCRIPT_NAME <input-file> <output-file>
 
 Strips the zenodo badge and the Documentation section from a README, rewrites relative
-links to absolute GitHub URLs, and refuses to write a listing that points at anything a
-reader of that listing could not reach.
+destinations to absolute GitHub URLs, and refuses to write a listing that points at
+anything a reader of that listing could not reach.
+
+Rewrites [text](path) and ![alt](path) when the destination is a plain relative path.
+Any other shape -- a title, angle brackets, a reference definition pointing somewhere
+relative -- is refused rather than rewritten; write those as absolute URLs.
 
 Arguments:
   <input-file>   Path to the input README.md
@@ -99,29 +121,19 @@ trap cleanup EXIT
 sed -e '/zenodo\.org.*\.svg/d' -e '/## .*Documentation/,$d' "$in" |
   perl -0777 -pe 's/\s+$/\n/' > "$stripped"
 
-# Markdown allows a destination to be wrapped in angle brackets, and nothing below reads
-# that shape. Refusing it by name is the contract in one rule: a form the rewrite does not
-# understand stops the build with an instruction, rather than being taught to the rewrite
-# one shape at a time. Teaching it was tried -- the bracket then had to be stripped in
-# every place that inspects a destination, and the place that was missed let an anchor
-# into the removed section ship. Checked against the stripped text so brackets in the part
-# that never reaches the listing do not refuse a README that is fine.
-# [[:blank:]] rather than [ \t]: POSIX drops the special meaning of a backslash inside a
-# bracket expression, so [ \t] is space, backslash and the letter t. BSD grep reads it that
-# way -- it misses a tab and matches a stray t -- while the ugrep some machines alias to
-# grep honours the escape, so a local run agrees with the intent and CI does not.
-# The indent allowance is spaces only, for the reason given at the leftover scan below:
-# a leading tab makes the line an indented code block rather than a definition.
-bracketed=$(grep -E '\]\([[:blank:]]*<|^ {0,3}\[[^]]+\]:[[:blank:]]*<' "$stripped" || true)
-if [ -n "$bracketed" ]; then
-  echo "Error: $SCRIPT_NAME: angle-bracketed link destinations are not supported:" >&2
-  printf '%s\n' "$bracketed" | sed 's/^/  /' >&2
-  die "write the destination plainly, without < >"
-fi
-
 # Images resolve through /raw/ and links through /blob/ -- the same split vsce draws
 # between baseImagesUrl and baseContentUrl. A blob URL serves an HTML page, so an image
 # pointed at one renders as a broken image rather than a picture.
+#
+# Only two forms, and the destination is a plain token in both: no whitespace, no angle
+# brackets, no quotes. That character class is the contract. A titled destination has a
+# space in it and an angle-bracketed one starts with `<`, so neither matches, and both
+# fall through unrewritten to the scan at the bottom, which names them.
+#
+# Excluding `<` matters more than it looks. Without it the rewrite happily treats
+# `<CONTRIBUTING.md>` as a path, bolts a GitHub base onto it, and the failure surfaces
+# from the existence check as "links '<CONTRIBUTING.md>', which is not in the
+# repository" -- true, useless, and pointing at the wrong repair.
 LINK_BASE="$repo_url/blob/$REPO_REF/" \
   IMG_BASE="$repo_url/raw/$REPO_REF/" \
   TARGETS="$targets" \
@@ -133,36 +145,15 @@ LINK_BASE="$repo_url/blob/$REPO_REF/" \
       my ($target) = @_;
       return $target =~ m{^(?:\w+:|//|\#)};
     }
-    # An optional link title after the destination. \x27 is a single quote, spelled that
-    # way because this whole program is inside a single-quoted shell string.
-    my $title = qr{(?:[ \t]+(?:"[^"]*"|\x27[^\x27]*\x27|\([^()]*\)))?};
-    # ![alt](path) and ![alt](path "title")
-    s{(!\[[^\]]*\]\([ \t]*)([^)\s]+)($title[ \t]*\))}{
+    # Images first: ![alt](path) also contains the ](path) the link rule matches, so the
+    # generic rule would otherwise give an image the /blob/ base and render it broken.
+    my $dest = qr{[^)\s<>"\x27]+};
+    s{(!\[[^\]]*\]\()($dest)(\))}{
       absolute($2) ? "$1$2$3" : do { print $fh "$2\n"; "$1$ENV{IMG_BASE}$2$3" }
     }ge;
-    # [text](path) and [text](path "title")
-    s{(\]\([ \t]*)([^)\s]+)($title[ \t]*\))}{
+    s{(\]\()($dest)(\))}{
       absolute($2) ? "$1$2$3" : do { print $fh "$2\n"; "$1$ENV{LINK_BASE}$2$3" }
     }ge;
-    # [label]: path -- a definition carries no `!` to say whether it feeds an image or a
-    # link, so the base comes from what the target *is* rather than from how the label is
-    # used. Reading usage means classifying every bracket in the document, and brackets
-    # appear in task lists, code spans and fenced examples; three separate false
-    # conflicts came out of trying, each one refusing to package a correct README. The
-    # file extension is a property of the target alone and needs no document scan.
-    # A definition may carry a title too, exactly as an inline link may.
-    s{^(\[[^\]]+\]:[ \t]*)(\S+)($title[ \t]*)$}{
-      my ($prefix, $target, $suffix) = ($1, $2, $3);
-      if (absolute($target)) {
-        "$prefix$target$suffix";
-      } else {
-        print $fh "$target\n";
-        # A query or fragment may follow the extension -- icon.png?raw=1 is still a png.
-        my $is_image =
-          $target =~ /\.(?:png|jpe?g|gif|svg|webp|avif|bmp|ico)(?:[?\#]\S*)?$/i;
-        "$prefix" . ($is_image ? $ENV{IMG_BASE} : $ENV{LINK_BASE}) . "$target$suffix";
-      }
-    }gme;
     END { close($fh) }
   ' "$stripped" > "$out"
 
@@ -213,15 +204,19 @@ if [ -n "$dangling" ]; then
   die "the Documentation section and everything below it is stripped, so an anchor into it cannot resolve"
 fi
 
-# Belt and braces: whatever the rules above did or skipped, nothing relative may ship.
-# This scan is deliberately broader than the rewrite: it takes everything up to the
-# closing paren and inspects the first token, so a form the rewrite cannot handle -- a
-# title shape it does not know, for instance -- fails the build loudly instead of slipping
-# through as a relative link. Wider here, narrower there, on purpose.
+# This is the guarantee. Everything above is convenience; this is the part that makes the
+# listing safe, and it holds whatever the rewrite did or skipped, because it reads the
+# output rather than trusting the transform.
 #
-# It normalises nothing, deliberately. Stripping angle brackets here would make `<#x>`
-# read as an anchor and pass, which is the same assumption the check above already makes;
-# a second barrier that shares the first one's blind spot is not a second barrier.
+# It is deliberately wider than the rewrite. The rewrite matches a bare destination token;
+# this takes everything up to the closing paren and inspects the first token, so every
+# shape the rewrite declines -- a title, angle brackets, something nobody has thought of
+# -- arrives here still relative and stops the build. Wider here, narrower there, on
+# purpose: that gap is where the contract lives.
+#
+# It normalises nothing, also deliberately. Stripping angle brackets would make `<#x>`
+# read as an anchor and pass; a barrier that shares the rewrite's blind spots is not a
+# barrier.
 leftover=$(
   perl -0777 -ne '
     while (/\]\(([^)]*)\)/g) {
@@ -231,24 +226,19 @@ leftover=$(
       next unless defined $target;
       print "$target\n" unless $target =~ m{^(?:\w+:|//|\#)};
     }
-    # Only the destination token is inspected, whatever follows it, so this stays broader
-    # than the rewrite for definitions the way it already is for inline links. It also
-    # allows the indent Markdown allows -- up to three spaces, four being a code block --
-    # which the rewrite above deliberately does not. Growing what is refused is safe;
-    # growing what is rewritten is what produced the regressions in this branch. So an
-    # indented relative definition stops the build rather than being rewritten, and an
-    # indented absolute one passes untouched, which is every case this repository has.
-    #
-    # Spaces only, not [ \t]. A leading tab is a four-column tab stop, so a line starting
-    # with one is an indented code block and not a definition at all; counting it as one
-    # unit of indent made a tab-indented code example refuse the whole listing.
+    # Reference definitions are never rewritten, so this is the only thing that reads
+    # them: an absolute one passes, a relative one stops the build. The indent allowance
+    # is the three spaces Markdown allows, spaces only -- a leading tab is a four-column
+    # tab stop, which makes the line an indented code block rather than a definition.
     while (/^ {0,3}\[[^\]]+\]:[ \t]*(\S+)/gm) {
       print "$1\n" unless $1 =~ m{^(?:\w+:|//|\#)};
     }
   ' "$out" | sort -u
 )
 if [ -n "$leftover" ]; then
-  echo "Error: $SCRIPT_NAME: relative links survived into the listing:" >&2
+  echo "Error: $SCRIPT_NAME: these destinations would not resolve on a listing page:" >&2
   printf '%s\n' "$leftover" | sed 's/^/  /' >&2
-  die "a relative link on a marketplace page resolves against the marketplace"
+  die "the listing rewrites [text](path) and ![alt](path) with a plain destination.
+Anything else -- a title, angle brackets, a reference definition -- has to be written as
+an absolute URL, because a relative one resolves against the marketplace, not GitHub."
 fi

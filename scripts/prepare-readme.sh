@@ -111,6 +111,9 @@ LINK_BASE="$repo_url/blob/$REPO_REF/" \
     }
     sub absolute {
       my ($target) = @_;
+      # <https://example.com> is a legal destination and is absolute; without stripping
+      # the bracket it reads as relative and gets a GitHub base bolted onto a full URL.
+      $target =~ s/^<//;
       return $target =~ m{^(?:\w+:|//|\#)};
     }
     # An optional link title after the destination. \x27 is a single quote, spelled that
@@ -137,7 +140,9 @@ LINK_BASE="$repo_url/blob/$REPO_REF/" \
         "$prefix$target$suffix";
       } else {
         print $fh "$target\n";
-        my $is_image = $target =~ /\.(?:png|jpe?g|gif|svg|webp|avif|bmp|ico)$/i;
+        # A query or fragment may follow the extension -- icon.png?raw=1 is still a png.
+        my $is_image =
+          $target =~ /\.(?:png|jpe?g|gif|svg|webp|avif|bmp|ico)(?:[?\#]\S*)?$/i;
         "$prefix" . ($is_image ? $ENV{IMG_BASE} : $ENV{LINK_BASE}) . "$target$suffix";
       }
     }gme;
@@ -149,7 +154,8 @@ LINK_BASE="$repo_url/blob/$REPO_REF/" \
 missing=0
 while IFS= read -r target; do
   [ -n "$target" ] || continue
-  path="${target%%\#*}"
+  # A fragment or a query is addressing, not path: icon.png?raw=1 is the file icon.png.
+  path="${target%%[?#]*}"
   [ -n "$path" ] || continue
   if [ ! -e "$REPO_ROOT/$path" ]; then
     echo "Error: $SCRIPT_NAME: links '$path', which is not in the repository" >&2
@@ -209,7 +215,10 @@ leftover=$(
     # Only the destination token is inspected, whatever follows it, so this stays broader
     # than the rewrite for definitions the way it already is for inline links.
     while (/^\[[^\]]+\]:[ \t]*(\S+)/gm) {
-      print "$1\n" unless $1 =~ m{^(?:\w+:|//|\#)};
+      my $target = $1;
+      $target =~ s/^<//;
+      $target =~ s/>$//;
+      print "$target\n" unless $target =~ m{^(?:\w+:|//|\#)};
     }
   ' "$out" | sort -u
 )

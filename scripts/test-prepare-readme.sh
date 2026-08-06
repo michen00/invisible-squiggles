@@ -50,6 +50,14 @@ has() {
   grep -qF "$2" "$WORKSPACE/$1.out" || fail "$1: expected to find $2"
 }
 
+# The missing-target cases need a path that genuinely is not in the repository. Checking
+# that here means adding the file later produces this message rather than an unexplained
+# failure in two fixtures that look like they are about something else.
+MISSING="docs/NOPE.md"
+if [ -e "$REPO_ROOT/$MISSING" ]; then
+  fail "the missing-target fixtures assume $MISSING does not exist, but it does now; point them at another path"
+fi
+
 # --- The original job, pinned to a golden file --------------------------------------
 "$SCRIPT" "$INPUT" "$WORKSPACE/golden.out"
 if ! diff -u "$EXPECTED" "$WORKSPACE/golden.out"; then
@@ -156,6 +164,37 @@ run titled-definition-image 0 << 'EOF'
 [ic]: icon.png "the icon"
 EOF
 has titled-definition-image "[ic]: $RAW/icon.png \"the icon\""
+
+# An absolute destination in angle brackets is absolute; without stripping them it read
+# as relative and the listing was refused over a URL that was already fine.
+run angle-bracket-absolute 0 << 'EOF'
+# Title
+
+See [example][id].
+
+[id]: <https://example.com>
+EOF
+has angle-bracket-absolute "[id]: <https://example.com>"
+
+# A query or fragment after the extension does not stop it being an image, and does not
+# belong in the path that gets checked for existence either.
+run image-with-query 0 << 'EOF'
+# Title
+
+![pic][ic]
+
+[ic]: icon.png?raw=1
+EOF
+has image-with-query "[ic]: $RAW/icon.png?raw=1"
+
+run image-with-fragment 0 << 'EOF'
+# Title
+
+![pic][ic]
+
+[ic]: icon.png#v1
+EOF
+has image-with-fragment "[ic]: $RAW/icon.png#v1"
 
 # ...and it is still checked for existence, which the old shape skipped entirely.
 run titled-definition-missing 1 << 'EOF'

@@ -36,7 +36,7 @@ repos:
 
   # git commit policy
   - repo: https://github.com/michen00/custom-commit-hooks
-    rev: v0.0.4
+    rev: v0.1.1
     hooks:
       - id: enhance-scope # commit-msg
       - id: conventional-merge-commit # prepare-commit-msg
@@ -92,7 +92,7 @@ repos:
       - id: yamllint
         args: [--strict]
   - repo: https://github.com/adhtruong/mirrors-typos
-    rev: v1.48.0
+    rev: v1.49.0
     hooks:
       - id: typos
   - repo: https://github.com/codespell-project/codespell
@@ -110,7 +110,7 @@ repos:
 
   # configuration validation
   - repo: https://github.com/python-jsonschema/check-jsonschema
-    rev: 0.37.4
+    rev: 0.38.0
     hooks:
       - id: check-dependabot
       - id: check-github-workflows

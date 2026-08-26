@@ -9,10 +9,11 @@
  * rule keeps the markdownlint workflow while enforcing the repository's chosen
  * table style safely.
  *
- * Vendored from aicadium-lab/ai4inputs-specs and reformatted by this repo's
- * prettier, which sets experimentalTernaries and a different trailingComma.
- * Fixes belong upstream: change it there and re-copy, so the two do not drift
- * on anything that matters. Diff across the two ignoring whitespace.
+ * Adopted from aicadium-lab/ai4inputs-specs, which is archived and takes no
+ * further changes. There is no upstream to send fixes to and no re-sync to keep
+ * clean, so this copy is the maintained one and it is the only live copy left --
+ * change it here. It was reformatted by this repository's prettier on the way in,
+ * and it already carries a fix the archived copy never got.
  */
 
 const ALIGN_NONE = 'none';
@@ -135,6 +136,19 @@ function getRowPrefix(rawLine) {
   return match ? match[1] : '';
 }
 
+/**
+ * True when the character at `index` is escaped, i.e. preceded by an odd number of
+ * backslashes. `\\|` is a literal backslash followed by a delimiter; `\|` is an
+ * escaped pipe and part of the cell.
+ */
+function isEscapedAt(line, index) {
+  let backslashes = 0;
+  for (let cursor = index - 1; cursor >= 0 && line[cursor] === '\\'; cursor -= 1) {
+    backslashes += 1;
+  }
+  return backslashes % 2 === 1;
+}
+
 function parseRow(rawLine, prefix) {
   let line = rawLine;
   if (prefix && line.startsWith(prefix)) {
@@ -145,7 +159,10 @@ function parseRow(rawLine, prefix) {
   if (line.startsWith('|')) {
     line = line.slice(1);
   }
-  if (line.endsWith('|')) {
+  // Only an unescaped pipe is the optional closing delimiter. A row ending in `\|`
+  // with no delimiter after it -- `| a | value \|` -- would otherwise lose the pipe
+  // here, and the row would then be rewritten from the damaged parse.
+  if (line.endsWith('|') && !isEscapedAt(line, line.length - 1)) {
     line = line.slice(0, -1);
   }
 

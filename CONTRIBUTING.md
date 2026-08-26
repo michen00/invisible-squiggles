@@ -190,10 +190,14 @@ Editing a merged PR's description is fine and worth doing when it turns out to b
 6. Get the latest main: `git switch main && git pull`
 7. Tag it: `make tag VERSION=vX.Y.Z`
    - Signs with SSH, verifies the signature against `.github/allowed_signers`, and
-     pushes that one tag. It refuses if the version disagrees with `package.json`,
-     if you are not on an up-to-date `main`, if the tree is dirty, or if the tag
-     already exists; and it deletes the local tag if verification fails, so an
-     unverifiable tag never reaches the remote.
+     pushes that one tag. It refuses if the version disagrees with `package.json` or
+     with either version field in `package-lock.json`, if you are not on an
+     up-to-date `main`, if the tree is dirty, or if the tag already exists; and it
+     deletes the local tag if verification fails, so an unverifiable tag never
+     reaches the remote.
+   - `SIGNERS_FILE` adds a second allowed-signers file to verify against. It cannot
+     replace `.github/allowed_signers`, which is checked either way, because that is
+     the file users have when they follow [SECURITY.md](SECURITY.md).
    - Use the target rather than tagging by hand. `tag.gpgsign` is deliberately unset
      here, so a hand-typed `git tag -a` without `-s` produces an unsigned tag that
      looks identical in `git tag -l`. `git push --follow-tags` is also wider than it

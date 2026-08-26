@@ -16,7 +16,7 @@ Fixes go into the next release. Older versions are not patched, because both reg
 
 Worth stating plainly, since the extension's whole job is editing your settings.
 
-It writes to your **global** `settings.json`, and only two namespaces within it: `workbench.colorCustomizations`, where it sets diagnostic squiggle colours to transparent and restores them, and `invisibleSquiggles.*`, its own configuration. It reads the rest of `workbench.colorCustomizations` solely to preserve customizations that aren't its own.
+It writes to your **global** `settings.json`, and only one key within it: `workbench.colorCustomizations`, where it sets diagnostic squiggle colours to transparent and restores them. It reads two: the rest of that same key, solely to preserve customizations that aren't its own, and `invisibleSquiggles.*`, its own configuration, which it never writes.
 
 It makes no network requests, spawns no processes, and reads no files. It has no runtime dependencies at all — `dependencies` in [package.json](package.json) is empty, and the packaged extension contains only a bundled `dist/`, so nothing from `node_modules` reaches your machine.
 

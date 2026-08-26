@@ -194,6 +194,25 @@ if git ls-remote --exit-code --tags origin "refs/tags/$VERSION" > /dev/null 2>&1
     "That version has been cut. Release forward instead."
 fi
 
+# Last, because it is the only expensive check here and everything above is nearly free.
+#
+# The tag push is what makes CI build the VSIX, and until now nothing had confirmed the
+# tagged tree can be packaged at all -- `make check` runs neither packaging nor
+# reproducibility, and prep-release.sh only ever saw the pre-merge tree, which a rider can
+# move out from under. A break in icon.png, the LFS pointer check, README preparation or
+# vsce therefore surfaced only after a remote tag existed.
+#
+# What this proves is narrow and worth stating: that THIS tree packages, and that two
+# builds of it agree, which is what makes the publish workflow's per-registry retry safe.
+# It does not prove the bytes match CI's, because both builds here share one node_modules
+# -- CONTRIBUTING.md calls that the weaker, always-true property, and it is.
+echo "Verifying the tree packages reproducibly..."
+if ! make verify-reproducible; then
+  die "the tagged tree does not package reproducibly." \
+    "Nothing has been tagged. Fix it on main first -- a build: commit is a rider this" \
+    "script accepts, because cliff.toml skips it."
+fi
+
 # -s rather than relying on configuration, which is the entire point of this script.
 #
 # gpg.format is pinned to ssh for the same reason, and it is the more important half.

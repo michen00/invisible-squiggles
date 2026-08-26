@@ -195,6 +195,12 @@ Editing a merged PR's description is fine and worth doing when it turns out to b
      up-to-date `main`, if the tree is dirty, or if the tag already exists; and it
      deletes the local tag if verification fails, so an unverifiable tag never
      reaches the remote.
+   - Runs `make verify-reproducible` on the tagged tree before creating the tag, so a
+     packaging break — a missing or LFS-pointer `icon.png`, README preparation, vsce —
+     is caught while nothing has been pushed. `make check` covers none of that, and
+     `prep-release.sh` only ever sees the pre-merge tree. It proves this tree packages
+     and that two builds of it agree; it does not prove the bytes match CI's, since
+     both builds share one `node_modules`.
    - Commits that landed after the release commit are allowed only when `cliff.toml`
      skips every one of them; git-cliff decides, so there is no second copy of its
      filtering to drift. A rider that would have earned a changelog entry is refused,

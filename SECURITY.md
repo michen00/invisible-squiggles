@@ -33,7 +33,7 @@ git config gpg.ssh.allowedSignersFile .github/allowed_signers
 git verify-tag vX.Y.Z
 ```
 
-**The artifact.** Every release is built once in GitHub Actions and attested with [`actions/attest-build-provenance`](https://github.com/actions/attest-build-provenance) — GitHub OIDC plus sigstore, no signing secret anywhere. Run this against a `.vsix` taken from either registry or from the release page:
+**The artifact.** Releases from v0.4.0 onward are built once in GitHub Actions and attested with [`actions/attest-build-provenance`](https://github.com/actions/attest-build-provenance) — GitHub OIDC plus sigstore, no signing secret anywhere. Earlier tags predate that workflow and have no attestation to check. Run this against a `.vsix` taken from either registry, or from the release page for v0.4.1 and later, where the workflow attaches the attested file to the draft before publishing freezes it:
 
 ```sh
 gh attestation verify invisible-squiggles-<version>.vsix --repo michen00/invisible-squiggles

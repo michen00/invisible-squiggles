@@ -195,6 +195,12 @@ Editing a merged PR's description is fine and worth doing when it turns out to b
      up-to-date `main`, if the tree is dirty, or if the tag already exists; and it
      deletes the local tag if verification fails, so an unverifiable tag never
      reaches the remote.
+   - Commits that landed after the release commit are allowed only when `cliff.toml`
+     skips every one of them; git-cliff decides, so there is no second copy of its
+     filtering to drift. A rider that would have earned a changelog entry is refused,
+     because it would ship under notes written before it existed and no later release
+     covers it — v0.2.1 shipped two that way. This check needs git-cliff on `PATH`,
+     and only runs when the tag is not on the commit that bumped the manifest.
    - `SIGNERS_FILE` adds a second allowed-signers file to verify against. It cannot
      replace `.github/allowed_signers`, which is checked either way, because that is
      the file users have when they follow [SECURITY.md](SECURITY.md).

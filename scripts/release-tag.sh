@@ -138,6 +138,52 @@ if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
     "on origin/main would build something other than what you tested."
 fi
 
+# A rider is a commit that reached main after the release commit but before the tag.
+# Riders are not forbidden, because most are harmless: the only one this repository has
+# actually seen was #238, build(deps-dev), which cliff.toml skips and which touched no
+# shipped byte -- `dependencies` is empty, so dev-tree changes never reach the VSIX.
+# Refusing that tag would have cost a revert or a burnt version for no gain.
+#
+# What is forbidden is a rider that would have earned a changelog entry. It ships under a
+# version whose notes were written before it existed, and the entry is lost permanently:
+# the next release's range starts at this tag, so nothing ever prints it. v0.2.1 shipped
+# two feat: riders that way.
+#
+# git-cliff decides, rather than a regex over subjects here. Reimplementing its filtering
+# is the drift this repository already refuses elsewhere -- check-pr-title.mjs parses
+# cliff.toml for the same reason. `--context` reports the commits that survive filtering,
+# so an empty list means nothing would have printed.
+# HEAD's manifest already had to equal $VERSION to get this far, so the parent alone
+# says whether HEAD is the commit that bumped it.
+parent_version="v$(git show HEAD^:package.json 2> /dev/null |
+  node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).version" 2> /dev/null || echo '')"
+
+if [ "$parent_version" = "$VERSION" ]; then
+  if ! command -v git-cliff > /dev/null 2>&1; then
+    die "HEAD is not the release commit, and git-cliff is not installed to judge" \
+      "whether the commits since it would reach the changelog." \
+      "Install git-cliff, or tag the commit that bumped the manifest."
+  fi
+
+  bump=$(git log --format=%H -S"\"version\": \"$BARE\"" -- package.json | tail -1)
+  if [ -z "$bump" ]; then
+    die "cannot find the commit that set the version to $BARE." \
+      "Tag the release commit directly."
+  fi
+
+  riders=$(git cliff "$bump..HEAD" --context | node -p \
+    "JSON.parse(require('fs').readFileSync(0, 'utf8')).reduce((n, r) => n + (r.commits || []).length, 0)")
+
+  if [ "$riders" != "0" ]; then
+    die "$riders commit(s) since the release commit would appear in the changelog," \
+      "but the $BARE notes were written before they existed and no later release" \
+      "will print them." \
+      "  $(git log --format='%h %s' "$bump..HEAD" | head -5)" \
+      "Fold them into a new release, or tag the release commit."
+  fi
+  echo "Commits since the release commit are all types cliff.toml skips."
+fi
+
 if git rev-parse --verify "refs/tags/$VERSION" > /dev/null 2>&1; then
   die "tag $VERSION already exists locally." \
     "Delete it first if you meant to re-cut it: git tag -d $VERSION"

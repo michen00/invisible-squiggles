@@ -39,6 +39,6 @@ git verify-tag vX.Y.Z
 gh attestation verify invisible-squiggles-<version>.vsix --repo michen00/invisible-squiggles
 ```
 
-Neither substitutes for the other. The VSIX ships a minified bundle and no source, so provenance proves _this bundle was built by this repository's CI at this commit_, while the signed tag proves _this is the source the maintainer released_. Bridging them is the build being reproducible: `make verify-reproducible` packages twice under different umasks and fails if the bytes differ, so the same tag rebuilt elsewhere yields the artifact that was attested.
+Neither substitutes for the other. The VSIX ships a minified bundle and no source, so provenance proves _this bundle was built by this repository's CI at this commit_, while the signed tag proves _this is the source the maintainer released_. Bridging them is the build being reproducible — for a given toolchain, not universally. `make verify-reproducible` packages twice on one machine under different umasks, which establishes only that two builds of one tree agree. Reproducing the attested bytes elsewhere also means matching the Node version the release was built with and installing with `npm ci`, since the deflate streams come from Node's bundled zlib. [CONTRIBUTING.md](CONTRIBUTING.md#verifying-a-release) carries the comparison procedure and says what a mismatch does and does not imply.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md#creating-a-release) for how releases are cut.

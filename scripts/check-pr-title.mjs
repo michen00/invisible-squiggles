@@ -110,10 +110,26 @@ const DEFAULT_TYPES = [
  * type is `docs:`, and cliff.toml skips that -- so including them could only ever
  * manufacture a pass for something like `feat: reword the README`.
  *
- * Everything else in the repository -- workflows, scripts, the Makefile, docs,
- * tooling configuration -- can be rewritten wholesale without altering the installed
- * extension, which is exactly why a `feat:` covering only those files is a mislabel.
- * `src/test/` is excluded for the same reason: tests are `test:`, which cliff skips.
+ * Most of the rest of the repository -- workflows, scripts, the Makefile, docs, tooling
+ * configuration -- can be rewritten wholesale without altering the installed extension,
+ * which is exactly why a `feat:` covering only those files is a mislabel. `src/test/` is
+ * excluded for the same reason: tests are `test:`, which cliff skips.
+ *
+ * `esbuild.js` is the exception to that sentence, and is still deliberately absent. It
+ * does decide the installed bytes -- it writes `dist/extension.js`, the entrypoint the
+ * VSIX ships -- so `entryPoints`, `outfile`, `external`, `format`, `minify` and
+ * `sourcemap` are as user-facing as anything under `src/`. What keeps it out is that the
+ * file mixes those with the build-time problem-matcher plugin, and whole-file
+ * granularity cannot tell the two apart. The history says which way to err: no commit
+ * has ever changed any of those keys, while the one substantive change to the file was a
+ * null check in the plugin (42cd7be), which predates this checker and sits in
+ * CHANGELOG.md as noise. Admitting the file would re-permit that entry to buy a `fix:`
+ * this repository has never needed.
+ *
+ * The cost is accepted rather than overlooked: a change to those keys alone has to take
+ * `build:` and have its changelog line written by hand. The nearest real precedent went
+ * the other way -- 7292222 fixed minification by correcting the `--production` flag in
+ * package.json's script, which this predicate already admits.
  *
  * Known limitation, whole-file granularity: a `package.json` diff touching only npm
  * scripts or devDependency ranges counts as user-facing here. Narrowing it to the

@@ -160,6 +160,33 @@ function parseCommitParsers(toml) {
 }
 
 /**
+ * Strip TOML line comments.
+ *
+ * Only used for presence tests, where a key named inside a comment must not read as
+ * configuration. Quote tracking is deliberately shallow: it handles basic strings,
+ * which is what this file uses, and anything it gets wrong leaves a `#` in place --
+ * making the scan see more text, not less, which is the safe direction for a test
+ * whose only effect is to halt the run.
+ */
+function stripTomlComments(toml) {
+  return toml
+    .split('\n')
+    .map((line) => {
+      let inString = false;
+      for (let index = 0; index < line.length; index += 1) {
+        const char = line[index];
+        if (char === '"' && line[index - 1] !== '\\') {
+          inString = !inString;
+        } else if (char === '#' && !inString) {
+          return line.slice(0, index);
+        }
+      }
+      return line;
+    })
+    .join('\n');
+}
+
+/**
  * Read `protect_breaking_commits` out of cliff.toml.
  *
  * When it is on, git-cliff exempts breaking changes from a parser that would skip
@@ -170,13 +197,17 @@ function parseCommitParsers(toml) {
  * or the key is present in a form this scan does not understand. That last case used
  * to fall in with "absent" and quietly disagree with git-cliff about every breaking
  * title, so it now stops the run instead -- the same reasoning as `selfCheck`.
+ *
+ * The presence test runs on comment-stripped text, because commenting the line out is
+ * how a config turns the option off and git-cliff reads that as absent. Testing the
+ * raw file made every title exit 2 over a line git-cliff never sees.
  */
 function parseProtectBreaking(toml) {
   const setting =
     /^[ \t]*protect_breaking_commits[ \t]*=[ \t]*(true|false)[ \t]*(#.*)?$/m;
   const match = setting.exec(toml);
   if (match) return match[1] === 'true';
-  if (/protect_breaking_commits/.test(toml)) return UNPARSABLE;
+  if (/protect_breaking_commits/.test(stripTomlComments(toml))) return UNPARSABLE;
   return false;
 }
 

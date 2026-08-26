@@ -153,6 +153,18 @@ mv weird.toml cliff.toml
 expect 2 'ci!: drop the release workflow' .github/workflows/publish.yml
 expect 2 'feat: add a startHidden setting' src/extension.ts
 
+# Commenting the line out is how a config turns the option off, and git-cliff reads
+# that as absent. Before this was handled the presence test saw the commented line and
+# every title exited 2 over a line git-cliff never looks at.
+sed 's/^protect_breaking_commits = "yes"$/# protect_breaking_commits = true/' \
+  cliff.toml > commented-out.toml
+mv commented-out.toml cliff.toml
+if ! grep -q '^# protect_breaking_commits = true$' cliff.toml; then
+  echo "FAIL: the commented-out form was not written to the copy" >&2
+  FAILURES=$((FAILURES + 1))
+fi
+expect 0 'ci!: drop the release workflow' .github/workflows/publish.yml
+
 cp "$REPO_ROOT/cliff.toml" cliff.toml
 
 # --- Degradation: a cliff.toml the checker cannot read must fail, not pass ---------

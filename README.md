@@ -67,16 +67,16 @@ Or add it to `keybindings.json` yourself:
 
 ## 🔹 Settings
 
-Everything lives under `invisibleSquiggles` and applies globally.
+These apply globally. The Settings UI lists them under **Invisible Squiggles** without the prefix; the keys below are what `settings.json` needs.
 
-| Setting                | Default | Effect                                           |
-| ---------------------- | ------- | ------------------------------------------------ |
-| `hideErrors`           | `true`  | Hide error squiggles when toggling.              |
-| `hideWarnings`         | `true`  | Hide warning squiggles when toggling.            |
-| `hideInfo`             | `true`  | Hide info squiggles when toggling.               |
-| `hideHint`             | `true`  | Hide hint squiggles when toggling.               |
-| `showStatusBarMessage` | `false` | Show a brief status bar message on each toggle.  |
-| `startHidden`          | `false` | Hide squiggles automatically when VSCode starts. |
+| Setting                                   | Default | Effect                                           |
+| ----------------------------------------- | ------- | ------------------------------------------------ |
+| `invisibleSquiggles.hideErrors`           | `true`  | Hide error squiggles when toggling.              |
+| `invisibleSquiggles.hideWarnings`         | `true`  | Hide warning squiggles when toggling.            |
+| `invisibleSquiggles.hideInfo`             | `true`  | Hide info squiggles when toggling.               |
+| `invisibleSquiggles.hideHint`             | `true`  | Hide hint squiggles when toggling.               |
+| `invisibleSquiggles.showStatusBarMessage` | `false` | Show a brief status bar message on each toggle.  |
+| `invisibleSquiggles.startHidden`          | `false` | Hide squiggles automatically when VSCode starts. |
 
 The four `hide*` settings choose which squiggle types the toggle acts on — this is the "independently control" part. Set `hideErrors` to `false` and errors stay visible while warnings, info, and hints disappear. Turn all four off and the toggle has nothing to act on.
 

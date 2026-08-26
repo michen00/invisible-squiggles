@@ -16,7 +16,7 @@ Fixes go into the next release. Older versions are not patched, because both reg
 
 Worth stating plainly, since the extension's whole job is editing your settings.
 
-It writes to your **global** `settings.json`, and only two namespaces within it: `workbench.colorCustomizations`, where it sets diagnostic squiggle colours to transparent and restores them, and `invisibleSquiggles.*`, its own configuration. It reads the rest of `workbench.colorCustomizations` solely to preserve customizations that aren't its own.
+It writes to your **global** `settings.json`, and only one key within it: `workbench.colorCustomizations`, where it sets diagnostic squiggle colours to transparent and restores them. It reads two: the rest of that same key, solely to preserve customizations that aren't its own, and `invisibleSquiggles.*`, its own configuration, which it never writes.
 
 It makes no network requests, spawns no processes, and reads no files. It has no runtime dependencies at all — `dependencies` in [package.json](package.json) is empty, and the packaged extension contains only a bundled `dist/`, so nothing from `node_modules` reaches your machine.
 
@@ -33,12 +33,12 @@ git config gpg.ssh.allowedSignersFile .github/allowed_signers
 git verify-tag vX.Y.Z
 ```
 
-**The artifact.** Every release is built once in GitHub Actions and attested with [`actions/attest-build-provenance`](https://github.com/actions/attest-build-provenance) — GitHub OIDC plus sigstore, no signing secret anywhere. Run this against a `.vsix` taken from either registry or from the release page:
+**The artifact.** Releases from v0.4.0 onward are built once in GitHub Actions and attested with [`actions/attest-build-provenance`](https://github.com/actions/attest-build-provenance) — GitHub OIDC plus sigstore, no signing secret anywhere. Earlier tags predate that workflow and have no attestation to check. Run this against a `.vsix` taken from either registry, or from the release page for v0.4.1 and later, where the workflow attaches the attested file to the draft before publishing freezes it:
 
 ```sh
 gh attestation verify invisible-squiggles-<version>.vsix --repo michen00/invisible-squiggles
 ```
 
-Neither substitutes for the other. The VSIX ships a minified bundle and no source, so provenance proves _this bundle was built by this repository's CI at this commit_, while the signed tag proves _this is the source the maintainer released_. Bridging them is the build being reproducible: `make verify-reproducible` packages twice under different umasks and fails if the bytes differ, so the same tag rebuilt elsewhere yields the artifact that was attested.
+Neither substitutes for the other. The VSIX ships a minified bundle and no source, so provenance proves _this bundle was built by this repository's CI at this commit_, while the signed tag proves _this is the source the maintainer released_. Bridging them is the build being reproducible — for a given toolchain, not universally. `make verify-reproducible` packages twice on one machine under different umasks, which establishes only that two builds of one tree agree. Reproducing the attested bytes elsewhere also means matching the Node version the release was built with and installing with `npm ci`, since the deflate streams come from Node's bundled zlib. [CONTRIBUTING.md](CONTRIBUTING.md#verifying-a-release) carries the comparison procedure and says what a mismatch does and does not imply.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md#creating-a-release) for how releases are cut.

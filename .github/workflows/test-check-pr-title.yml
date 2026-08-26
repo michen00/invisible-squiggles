@@ -1,14 +1,18 @@
 ---
 name: Test check-pr-title.mjs
 
-# cliff.toml is in the path filter because the checker reads it and asserts what it
-# finds there. A change to which commit types reach the changelog is exactly the change
-# that makes the checker's expectations stale, and the test is what says so.
+# cliff.toml and .gitlint are in the path filter because the checker reads both and
+# asserts what it finds there. A change to which commit types reach the changelog, or
+# to which types this repository accepts, is exactly the change that makes the
+# checker's expectations stale, and the test is what says so. Without .gitlint here, a
+# PR editing only that file could narrow the accepted vocabulary, merge under a
+# skipped ci: title, and start failing later titles with this suite never having run.
 on:
   pull_request:
     branches: [main]
     paths:
       - .github/workflows/test-check-pr-title.yml
+      - .gitlint
       - cliff.toml
       - scripts/check-pr-title.mjs
       - scripts/test-check-pr-title.sh
@@ -16,6 +20,7 @@ on:
     branches: [main]
     paths:
       - .github/workflows/test-check-pr-title.yml
+      - .gitlint
       - cliff.toml
       - scripts/check-pr-title.mjs
       - scripts/test-check-pr-title.sh

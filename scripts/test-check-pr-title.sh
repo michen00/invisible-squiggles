@@ -28,6 +28,17 @@ trap cleanup EXIT
 
 WORKSPACE="$(mktemp -d)"
 cp "$REPO_ROOT/cliff.toml" "$WORKSPACE/cliff.toml"
+# The checker reads .gitlint from the working directory too, and without a copy it
+# falls back to gitlint's default vocabulary. Every case below would then assert the
+# defaults while CI enforced whatever .gitlint actually says. No case fails today if
+# this copy is dropped, because .gitlint declares no override and the fallback is the
+# same list -- the copy is what makes the coupling real the moment one is added.
+cp "$REPO_ROOT/.gitlint" "$WORKSPACE/.gitlint"
+if ! cmp -s "$REPO_ROOT/.gitlint" "$WORKSPACE/.gitlint"; then
+  echo "FAIL: the workspace has no copy of .gitlint, so every case below is" >&2
+  echo "      asserting gitlint's defaults rather than this repository's policy" >&2
+  FAILURES=$((FAILURES + 1))
+fi
 cd "$WORKSPACE"
 
 # expect <want-rc> <title> [changed files...]
@@ -166,6 +177,21 @@ fi
 expect 0 'ci!: drop the release workflow' .github/workflows/publish.yml
 
 cp "$REPO_ROOT/cliff.toml" cliff.toml
+
+# --- The accepted vocabulary is read from .gitlint, not assumed --------------------
+# Narrowing .gitlint has to narrow the checker with it. Without the workspace copy this
+# case cannot fail, because the checker never sees the file the repository enforces.
+cat > .gitlint << 'GITLINT'
+[general]
+contrib=contrib-title-conventional-commits
+
+[contrib-title-conventional-commits]
+types = feat
+GITLINT
+expect 0 'feat: add a startHidden setting' src/extension.ts
+expect 1 'fix: restore colors on toggle' src/extension.ts
+
+cp "$REPO_ROOT/.gitlint" .gitlint
 
 # --- Degradation: a cliff.toml the checker cannot read must fail, not pass ---------
 # Without the self-check the checker asserts, removing commit_parsers would classify

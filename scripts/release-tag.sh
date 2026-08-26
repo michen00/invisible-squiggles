@@ -21,7 +21,8 @@
 set -euo pipefail
 
 SCRIPT_NAME=$(basename "$0")
-SIGNERS_FILE="${SIGNERS_FILE:-.github/allowed_signers}"
+COMMITTED_SIGNERS='.github/allowed_signers'
+SIGNERS_FILE="${SIGNERS_FILE:-$COMMITTED_SIGNERS}"
 
 usage() {
   cat << EOF
@@ -35,7 +36,9 @@ Arguments:
   <version>   Release tag of the form vX.Y.Z (e.g. v0.4.2)
 
 Environment:
-  SIGNERS_FILE   Allowed-signers file (default: .github/allowed_signers)
+  SIGNERS_FILE   Additional allowed-signers file to verify against.
+                 .github/allowed_signers is always checked regardless,
+                 because that is the file users verify with.
 
 Example:
   $SCRIPT_NAME v0.4.2
@@ -160,11 +163,32 @@ echo "Created SSH-signed tag $VERSION."
 
 # Verified rather than assumed: a signing key that has gone missing, or one absent
 # from the allowed-signers file, fails here while the tag exists only locally.
-if ! git -c gpg.format=ssh -c "gpg.ssh.allowedSignersFile=$SIGNERS_FILE" \
-  verify-tag "$VERSION"; then
+#
+# The committed file is checked whatever SIGNERS_FILE says, because it is the file
+# users actually have. SECURITY.md documents verifying a release tag against
+# .github/allowed_signers from a clone, so a tag that verifies only against a local
+# override would push and then be unverifiable to everyone following the published
+# procedure -- the same class of gap as signing with the wrong format, which the
+# `gpg.format=ssh` pin above closes.
+verify_with() {
+  git -c gpg.format=ssh -c "gpg.ssh.allowedSignersFile=$1" verify-tag "$VERSION"
+}
+
+if ! verify_with "$COMMITTED_SIGNERS"; then
   git tag -d "$VERSION"
-  die "signature verification failed; the local tag has been deleted." \
-    "Check that your signing key is present and listed in $SIGNERS_FILE."
+  die "signature verification failed against $COMMITTED_SIGNERS." \
+    "The local tag has been deleted. That file is the trust root SECURITY.md sends" \
+    "users to, so a tag it cannot verify is one nobody else can verify either." \
+    "Add your signing key to it before releasing."
+fi
+
+# The override checks against some other list as well. It cannot stand in for the
+# check above, only add to it.
+if [ "$SIGNERS_FILE" != "$COMMITTED_SIGNERS" ] && ! verify_with "$SIGNERS_FILE"; then
+  git tag -d "$VERSION"
+  die "signature verification failed against $SIGNERS_FILE;" \
+    "the local tag has been deleted." \
+    "Check that your signing key is present and listed there."
 fi
 
 # An explicit refspec rather than --follow-tags, which pushes more than it looks

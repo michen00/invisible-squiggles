@@ -78,6 +78,20 @@ if [ "$manifest" != "$VERSION" ]; then
     "Bump the manifest first, or tag the version it already declares."
 fi
 
+# The lockfile carries the version twice and `npm version` writes both. A release
+# commit prepared by hand, or a conflict resolution that took the wrong side, can leave
+# either behind while package.json still reads correctly -- and the publish workflow
+# repeats only the package.json check, so nothing downstream catches it. The tag would
+# then name a tree whose lockfile still claims the previous release, which is the
+# footgun the prep helper exists to remove.
+lock_root="v$(node -p "require('./package-lock.json').version ?? ''")"
+lock_self="v$(node -p "require('./package-lock.json').packages?.['']?.version ?? ''")"
+if [ "$lock_root" != "$VERSION" ] || [ "$lock_self" != "$VERSION" ]; then
+  die "package-lock.json does not name $VERSION (found $lock_root and $lock_self)." \
+    "Both version fields have to match the manifest. Run" \
+    "'npm install --package-lock-only' on the release commit and amend it in."
+fi
+
 # The changelog's date for this version is written when the release branch is
 # prepared, which can be days before the tag, and it is what users read as the release
 # date. v0.4.1 was prepared on one day and tagged the next, shipping a date that had to

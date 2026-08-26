@@ -77,7 +77,17 @@ repos:
     rev: v0.49.1
     hooks:
       - id: markdownlint
-        args: ['--fix']
+        # --rules loads the repo-local MD060 fixer. The built-in rule reports a
+        # stale delimiter row but will not repair one, so --fix alone leaves
+        # every retabulated table failing its own check.
+        args:
+          [
+            '--config',
+            '.markdownlint.yml',
+            '--rules',
+            './scripts/markdownlint-table-format.cjs',
+            '--fix',
+          ]
 
   # linting
   - repo: https://github.com/pre-commit/pre-commit-hooks

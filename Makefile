@@ -311,7 +311,8 @@ test: install ## Run tests
     npm run test; \
     scripts/test-prepare-readme.sh; \
     scripts/test-normalize-vsix.sh; \
-    scripts/test-check-pr-title.sh
+    scripts/test-check-pr-title.sh; \
+    scripts/test-markdownlint-table-format.cjs
 
 .PHONY: lint
 lint: install ## Run linters

@@ -1,0 +1,42 @@
+---
+name: Test markdownlint-table-format.cjs
+
+# The rule is an auto-fixer that rewrites Markdown in place, and it has already been
+# caught changing rendered cell content, so it gets a suite of its own.
+#
+# It came from aicadium-lab/ai4inputs-specs, which is archived, so no upstream CI will
+# ever run against it. This workflow is the only thing watching it.
+#
+# One runner, unlike test-normalize-vsix.yml and test-check-pr-title.yml: the suite is
+# pure Node with no shell tooling, no sed, and nothing installed, so there is no
+# GNU-versus-BSD divergence for a second runner to catch.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/test-markdownlint-table-format.yml
+      - Makefile
+      - scripts/markdownlint-table-format.cjs
+      - scripts/test-markdownlint-table-format.cjs
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/test-markdownlint-table-format.yml
+      - Makefile
+      - scripts/markdownlint-table-format.cjs
+      - scripts/test-markdownlint-table-format.cjs
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-markdownlint-table-format:
+    name: Test markdownlint-table-format.cjs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Test markdownlint-table-format.cjs
+        run: |
+          scripts/test-markdownlint-table-format.cjs

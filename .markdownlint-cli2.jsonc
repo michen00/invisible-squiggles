@@ -1,0 +1,13 @@
+{
+  "$schema": "https://raw.githubusercontent.com/DavidAnson/markdownlint-cli2/main/schema/markdownlint-cli2-config-schema.json",
+  // Two tools read the Markdown policy and each needs the custom rule declared its own
+  // way. The pre-commit hook runs markdownlint-cli, which takes it as `--rules` and
+  // never reads this file. changelog-autoupdate.yml runs markdownlint-cli2, which reads
+  // this file and has no equivalent flag -- markdownlint-cli2-action exposes only
+  // config, configPointer, fix, globs and separator. Without this, that workflow lints
+  // CHANGELOG.md under a policy naming a rule it cannot load: the unknown `table-format`
+  // key is ignored silently, while the built-in `table-column-style` still fires, so the
+  // job reports a table it has no fixer for.
+  "customRules": ["./scripts/markdownlint-table-format.cjs"],
+  "config": { "extends": ".markdownlint.yml" }
+}

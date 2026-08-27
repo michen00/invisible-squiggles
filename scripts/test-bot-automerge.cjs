@@ -92,47 +92,74 @@ const HELD_REASONS = new Set([
 // looked exercised, while the mint step is gated on credentials this repository does not
 // have and has never once executed.
 //
-//   runs     the condition is true on a Dependabot pull request
-//   skipped  it is not, so this workflow is not evidence for that action
+//   verdict  `runs` if the condition is true on a Dependabot pull request, `skipped` if
+//            it is not, in which case this workflow is no evidence for that action
+//   when     the condition the verdict was formed about, pinned verbatim
 //
-// What the suite can check is the shape: that the named step still exists and is still
-// conditional. Whether the condition can be true is a judgement, and it is recorded here
-// so that it is at least written down somewhere a reviewer can find it.
+// `when` is what makes the verdict hold up. Whether an expression can be true is not
+// decidable here -- it reads runtime context this file cannot see -- so the judgement is
+// human, and pinning the expression is what stops it silently outliving the thing it was
+// about. Checking only that an `if:` is still present does not: a `runs` condition edited
+// until it no longer fires would keep its step conditional, keep its workflow classified
+// as exercised, and arm an action nothing ran. Any edit to the expression, in either
+// direction, fails until somebody judges it again.
 const CONDITIONAL_STEPS = {
   'bot-automerge.yml': {
-    // Gated on vars.APP_ID and secrets.APP_PRIVATE_KEY, neither of which is set here.
-    'actions/create-github-app-token': 'skipped',
-    // Gated on the author being dependabot[bot], which is true on the pull requests
-    // whose merge this decides.
-    'dependabot/fetch-metadata': 'runs',
+    'actions/create-github-app-token': {
+      verdict: 'skipped',
+      when: "steps.creds.outputs.available == 'true'",
+    },
+    'dependabot/fetch-metadata': {
+      verdict: 'runs',
+      when: "github.event.pull_request.user.login == 'dependabot[bot]'",
+    },
   },
   'ci.yml': {
-    // Gated on the 22.x matrix leg, which is one of the two that run.
-    'codecov/codecov-action': 'runs',
+    'codecov/codecov-action': { verdict: 'runs', when: "matrix.node == '22.x'" },
   },
   'greet-new-contributors.yml': {
-    // Gated on the author not being a bot.
-    'actions/first-interaction': 'skipped',
+    'actions/first-interaction': {
+      verdict: 'skipped',
+      when:
+        "steps.bot-author-check.outputs.is-bot == 'false' && " +
+        '!contains(fromJSON(\'["OWNER", "MEMBER", "COLLABORATOR", "CONTRIBUTOR"]\'), ' +
+        'github.event.pull_request.author_association || ' +
+        'github.event.issue.author_association)',
+    },
   },
   'lint-github-actions.yml': {
-    // Every step here is conditional. The filter runs on any same-repo pull request, and
-    // the other two run when it reports a changed workflow file -- which is precisely
-    // what a github-actions major is, so all three execute on the pull requests this
-    // list is about. (On an npm major none of them do, which costs nothing: the hold
-    // list is consulted only for actions.)
-    'dorny/paths-filter': 'runs',
-    'actions/checkout': 'runs',
-    'docker://rhysd/actionlint:latest': 'runs',
+    'dorny/paths-filter': {
+      verdict: 'runs',
+      when:
+        "github.event_name == 'pull_request' && " +
+        'github.event.pull_request.head.repo.full_name == github.repository',
+    },
+    'actions/checkout': {
+      verdict: 'runs',
+      when:
+        "github.event_name == 'push' || github.event_name == 'workflow_dispatch' || " +
+        "steps.filter.outputs.addedOrModifiedWorkflows == 'true'",
+    },
+    'docker://rhysd/actionlint:latest': {
+      verdict: 'runs',
+      when:
+        "github.event_name == 'push' || github.event_name == 'workflow_dispatch' || " +
+        "steps.filter.outputs.addedOrModifiedWorkflows == 'true'",
+    },
   },
   'pre-commit-autoupdate.yml': {
-    // Gated on the autoupdate step having found updates. Held anyway: no pull_request
-    // trigger.
-    'iarekylew00t/verified-bot-commit': 'skipped',
+    'iarekylew00t/verified-bot-commit': {
+      verdict: 'skipped',
+      when: "steps.autoupdate-pre-commit.outputs.has_updates == 'true'",
+    },
   },
   'publish.yml': {
-    // Gated on vars.AZURE_CLIENT_ID and the chosen registries. Held anyway: no
-    // pull_request trigger.
-    'azure/login': 'skipped',
+    'azure/login': {
+      verdict: 'skipped',
+      when:
+        "vars.AZURE_CLIENT_ID != '' && " +
+        'contains(fromJSON(\'["both", "vscode"]\'), steps.metadata.outputs.targets)',
+    },
   },
 };
 
@@ -242,6 +269,25 @@ function pathMatches(pattern, file) {
 }
 
 /**
+ * The step's own `if:` expression as one normalised line, or null when it has none.
+ * Folded scalars are joined and runs of whitespace collapsed, so a rewrap is not read as
+ * a change while an edit to the expression is.
+ */
+function conditionOf(block) {
+  const lines = block.split('\n');
+  const at = lines.findIndex((line) => /^ {8}if:|^ {6}- if:/.test(line));
+  if (at === -1) return null;
+  const head = lines[at].replace(/^ {8}if:|^ {6}- if:/, '').trim();
+  const parts = /^[>|][-+]?$/.test(head) ? [] : [head];
+  for (let i = at + 1; i < lines.length; i += 1) {
+    if (/^\s*$/.test(lines[i])) continue;
+    if (lines[i].length - lines[i].trimStart().length <= 8) break;
+    parts.push(lines[i].trim());
+  }
+  return parts.join(' ').replace(/\s+/g, ' ').trim();
+}
+
+/**
  * Third-party actions used by `text`, as { action, conditional }. A step is conditional
  * when it carries its own `if:`; the workflow-level and job-level `if:` are somebody
  * else's question and are not read here.
@@ -274,10 +320,7 @@ function actionSteps(text, errors, file) {
     }
     const uses = /^\s*(?:- )?uses:\s*([^\s#]+)/m.exec(block)[1];
     if (uses.startsWith('./')) continue; // a local composite action, not Dependabot's
-    found.push({
-      action: uses.split('@')[0],
-      conditional: /^ {8}if:/m.test(block) || /^ {6}- if:/m.test(block),
-    });
+    found.push({ action: uses.split('@')[0], condition: conditionOf(block) });
   }
   return found;
 }
@@ -371,7 +414,8 @@ function analyze({
       if (trigger === null) add('claimed-pr-types-but-no-trigger', file);
       else if (opens) add('pr-types-do-include-open', file);
     } else if (reason === 'skipped-step') {
-      if (!Object.values(conditionalSteps[file] || {}).includes('skipped')) {
+      const held = Object.values(conditionalSteps[file] || {});
+      if (!held.some((entry) => entry && entry.verdict === 'skipped')) {
         add('no-skipped-step', file);
       }
     } else if (reason === 'pr-runs-it') {
@@ -400,21 +444,36 @@ function analyze({
     // invisible at file level -- which is exactly how a workflow can look exercised while
     // holding an action nothing has ever run.
     const declared = conditionalSteps[file] || {};
-    const conditional = new Set(
+    const conditional = new Map(
       actionSteps(text, errors, file)
-        .filter((step) => step.conditional)
-        .map((step) => step.action)
+        .filter((step) => step.condition !== null)
+        .map((step) => [step.action, step.condition])
     );
-    for (const action of conditional) {
+    for (const action of conditional.keys()) {
       if (!declared[action]) add('unaccounted-conditional-step', `${file}: ${action}`);
     }
-    for (const [action, verdict] of Object.entries(declared)) {
+    for (const [action, entry] of Object.entries(declared)) {
+      const { verdict, when } = entry;
       // A step that lost its `if:` -- or was deleted -- leaves a judgement standing over
       // nothing. Both directions matter: unconditional means the hold may no longer be
       // needed, and absent means the table is describing a step that is gone.
-      if (!conditional.has(action)) add('stale-conditional-step', `${file}: ${action}`);
+      if (!conditional.has(action)) {
+        add('stale-conditional-step', `${file}: ${action}`);
+      } else if (conditional.get(action) !== when) {
+        // The verdict is a judgement about this expression, not about the step merely
+        // having one. An edited condition invalidates it in either direction: a `runs`
+        // narrowed until it no longer fires would arm an action nothing exercised, and
+        // that is not caught by observing that an `if:` is still present.
+        add(
+          'condition-changed',
+          `${file}: ${action}\n      pinned: ${when}\n      actual: ${conditional.get(action)}`
+        );
+      }
       if (!['runs', 'skipped'].includes(verdict)) {
         add('unknown-verdict', `${file}: ${action} -> ${verdict}`);
+      }
+      if (typeof when !== 'string' || when === '') {
+        add('no-condition-pinned', `${file}: ${action}`);
       }
       if (verdict === 'skipped' && reason === 'pr-runs-it') {
         add('skipped-action-in-exercised-workflow', `${file}: ${action}`);
@@ -597,8 +656,34 @@ expectError(
   }
 );
 expectError('a verdict this file does not understand', 'unknown-verdict', (c) => {
-  c.conditionalSteps['ci.yml'] = { 'codecov/codecov-action': 'probably' };
+  c.conditionalSteps['ci.yml'] = {
+    'codecov/codecov-action': { verdict: 'probably', when: "matrix.node == '22.x'" },
+  };
 });
+expectError('a verdict pinned to no condition at all', 'no-condition-pinned', (c) => {
+  c.conditionalSteps['ci.yml'] = { 'codecov/codecov-action': { verdict: 'runs' } };
+});
+// The two directions review asked about, and the reason the pin exists.
+expectError('a guard inverted to admit bots', 'condition-changed', (c) => {
+  c.workflows.set(
+    'greet-new-contributors.yml',
+    c.workflows
+      .get('greet-new-contributors.yml')
+      .replace("is-bot == 'false'", "is-bot == 'true'")
+  );
+});
+expectError(
+  'a runs condition narrowed until it never fires',
+  'condition-changed',
+  (c) => {
+    c.workflows.set(
+      'ci.yml',
+      c.workflows
+        .get('ci.yml')
+        .replace("if: matrix.node == '22.x'", "if: matrix.node == '99.x'")
+    );
+  }
+);
 expectError('a uses: line outside any step', 'unparsable-step', (c) => {
   c.workflows.set(
     'pr-title.yml',

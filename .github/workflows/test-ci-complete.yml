@@ -1,0 +1,38 @@
+---
+name: Test ci-complete
+
+# ci.yml is in the path filter because the suite's subject is that file, not just the
+# script: the gate's `needs` list is what decides which jobs sit inside the merge gate,
+# so the change that makes it stale is a job added to ci.yml. Editing ci.yml is exactly
+# when this has to run.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/ci.yml
+      - .github/workflows/test-ci-complete.yml
+      - scripts/test-ci-complete.cjs
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/ci.yml
+      - .github/workflows/test-ci-complete.yml
+      - scripts/test-ci-complete.cjs
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-ci-complete:
+    name: Test ci-complete
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      # No OS matrix and no `npm ci`: the suite is string parsing over a file in the
+      # tree, with no dependency and nothing platform-dependent to disagree about.
+      - name: Test ci-complete
+        run: |
+          scripts/test-ci-complete.cjs

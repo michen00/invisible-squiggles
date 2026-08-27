@@ -188,3 +188,53 @@ jobs:
             BASE_CMD="xvfb-run -a $BASE_CMD"
           fi
           $BASE_CMD
+
+  # The single check branch protection requires. Everything above reports under a name
+  # this file computes -- `Unit tests (Node ${{ matrix.node }})` and `E2E tests (VSCode
+  # ${{ matrix.vscode }}, ...)`, where that VSCode value is read out of package.json's
+  # engines floor. Naming those directly in the ruleset couples repository settings to a
+  # matrix axis: dropping Node 20 or raising the engines floor renames a required check
+  # out of existence, and every pull request then waits forever on a context that will
+  # never report. Nothing in the repository can catch that, because the required list
+  # lives in settings no test here can read.
+  #
+  # So the ruleset names this job and nothing else. Its name is a literal, and the set of
+  # jobs it covers moves into this file, where scripts/test-ci-complete.cjs asserts that
+  # `needs` lists every other job -- a new job that forgets to register here fails that
+  # suite instead of quietly falling outside the merge gate.
+  #
+  # `if: always()` is load-bearing rather than defensive. Without it a failed dependency
+  # leaves this job skipped, and GitHub counts a skipped required check as satisfied --
+  # the gate would pass by not running, which is the one outcome it exists to prevent.
+  ci-complete:
+    name: CI complete
+    needs: [pre-commit, unit-tests, package, get-vscode-version, e2e-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Query and test are separate statements for the same reason they are in
+      # bot-automerge.yml: as one pipeline, a jq that failed to parse the context would
+      # yield an empty failure list and read as success. Split under `set -e`, a broken
+      # query kills the step, and the length check refuses a context that arrived empty
+      # -- a renamed job would otherwise drop out of `needs` and be counted as nothing
+      # rather than as a failure.
+      - name: Assert every job succeeded
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          set -euo pipefail
+          count=$(printf '%s' "$RESULTS" | jq -r 'to_entries | length')
+          if [ "$count" -eq 0 ]; then
+            echo "::error::needs context is empty; this gate covered nothing."
+            exit 1
+          fi
+          failed=$(printf '%s' "$RESULTS" \
+            | jq -r 'to_entries[] | select(.value.result != "success")
+                     | "\(.key): \(.value.result)"')
+          if [ -n "$failed" ]; then
+            echo "::error::CI is not complete; $count jobs checked:"
+            printf '%s\n' "$failed"
+            exit 1
+          fi
+          echo "All $count jobs succeeded."

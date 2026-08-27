@@ -251,12 +251,15 @@ jobs:
             # and so drives vsce itself. All of it is required to merge -- those jobs are
             # the `needs` of the CI complete job, the single context branch protection
             # names -- so green here means every one of them ran. For github-actions it
-            # is not: six of the actions used here never execute on a Dependabot pull
-            # request at all. actions/first-interaction is skipped by its own step guard;
-            # peter-evans/create-pull-request and DavidAnson/markdownlint-cli2-action run
-            # on a schedule and iarekylew00t/verified-bot-commit only by hand; and
-            # azure/login and actions/attest-build-provenance exist solely in publish.yml,
-            # where a break is invisible until a release.
+            # is not: seven of the seventeen actions used here never execute on a
+            # Dependabot pull request at all. peter-evans/create-pull-request and
+            # DavidAnson/markdownlint-cli2-action run on a schedule and
+            # iarekylew00t/verified-bot-commit only by hand; azure/login and
+            # actions/attest-build-provenance exist solely in publish.yml, where a break
+            # is invisible until a release; and two are skipped by their own step
+            # conditions -- actions/first-interaction because the author is a bot, and
+            # this file's own actions/create-github-app-token because the credentials it
+            # needs are not configured here.
             #
             # The names below are Dependabot's internal ecosystem slugs, not the keys
             # .github/dependabot.yml is written in. fetch-metadata takes this value from
@@ -291,11 +294,21 @@ jobs:
               # (publish.yml, changelog-autoupdate.yml, pre-commit-autoupdate.yml). Some
               # have one whose types exclude `opened`, so opening this pull request never
               # starts them -- bot-automerge-disarm.yml fires on `labeled`,
-              # delete-bot-branches-for-closed-prs.yml on `closed`. And
-              # greet-new-contributors.yml does run, but the step holding
-              # actions/first-interaction is gated on the author not being a bot, so the
-              # one third-party action it exists to run is skipped on exactly the pull
-              # requests that bump it.
+              # delete-bot-branches-for-closed-prs.yml on `closed`. And two do run, yet
+              # hold an action behind a step condition that is false here: this file's own
+              # actions/create-github-app-token wants App credentials the repository does
+              # not have, and greet-new-contributors.yml gates actions/first-interaction
+              # on the author not being a bot -- skipping it on exactly the pull requests
+              # that bump it. A workflow running is not evidence for a step inside it that
+              # did not.
+              #
+              # The list is per file while the real blast radius is per `uses:` line, so
+              # this over-holds: dependabot/fetch-metadata does run on every Dependabot
+              # pull request and is held anyway, because it appears only in this file.
+              # That is the direction to err -- a false hold is a merge somebody does by
+              # hand and can see, a false arm is a merge on evidence nothing produced --
+              # and it is the only one, which scripts/test-bot-automerge.cjs is what
+              # keeps true by naming every conditional step and judging it.
               #
               # Note the repository floats major tags (@v7, not @v7.0.1), so Dependabot
               # raises an actions PR only when a major moves -- which made a blanket
@@ -309,6 +322,7 @@ jobs:
                 --jq '.[] | .filename, (.previous_filename // empty)')
               held=$(printf '%s\n' "$changed" \
                 | grep -cFx -e '.github/workflows/bot-automerge-disarm.yml' \
+                             -e '.github/workflows/bot-automerge.yml' \
                              -e '.github/workflows/changelog-autoupdate.yml' \
                              -e '.github/workflows/delete-bot-branches-for-closed-prs.yml' \
                              -e '.github/workflows/greet-new-contributors.yml' \

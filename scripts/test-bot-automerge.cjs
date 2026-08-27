@@ -48,23 +48,23 @@ const ECOSYSTEM_SLUGS = {
 
 // Why each workflow is or is not evidence for an actions major, and the property that
 // makes the answer checkable. `reason` is not a comment: each value names a test below,
-// so a trigger edited out from under a classification fails rather than drifts.
+// so a workflow edited out from under its classification fails rather than drifts.
 //
-//   pr-runs-it            a Dependabot pull request executes it, so a bump to an action
-//                         it uses is exercised before the merge
+//   pr-runs-it            a Dependabot pull request executes it, and every third-party
+//                         action in it actually runs
 //   no-pr-trigger         it has no pull_request trigger at all
 //   pr-types-exclude-open its pull_request types do not include `opened`, so opening a
 //                         Dependabot pull request does not start it
-//   step-if-excludes-bots it runs, but the step holding the third-party action is
-//                         gated on the author not being a bot, so that action never
-//                         executes on the pull request bumping it
+//   skipped-step          it runs, but at least one third-party action in it sits behind
+//                         a step condition that is false on a Dependabot pull request,
+//                         so a green run is no evidence for that action
 const CLASSIFICATION = {
   'bot-automerge-disarm.yml': 'pr-types-exclude-open',
-  'bot-automerge.yml': 'pr-runs-it',
+  'bot-automerge.yml': 'skipped-step',
   'changelog-autoupdate.yml': 'no-pr-trigger',
   'ci.yml': 'pr-runs-it',
   'delete-bot-branches-for-closed-prs.yml': 'pr-types-exclude-open',
-  'greet-new-contributors.yml': 'step-if-excludes-bots',
+  'greet-new-contributors.yml': 'skipped-step',
   'lint-github-actions.yml': 'pr-runs-it',
   'pr-title.yml': 'pr-runs-it',
   'pre-commit-autoupdate.yml': 'no-pr-trigger',
@@ -81,8 +81,60 @@ const CLASSIFICATION = {
 const HELD_REASONS = new Set([
   'no-pr-trigger',
   'pr-types-exclude-open',
-  'step-if-excludes-bots',
+  'skipped-step',
 ]);
+
+// Every third-party action whose step carries an `if:`. A workflow running is not
+// evidence that a conditional step inside it ran, so each of these is judged here rather
+// than assumed, and a conditional step this table does not name is an error -- that is
+// the case a file-level hold list gets wrong, and it is how actions/create-github-app-token
+// went unnoticed: bot-automerge.yml runs on every Dependabot pull request, so the file
+// looked exercised, while the mint step is gated on credentials this repository does not
+// have and has never once executed.
+//
+//   runs     the condition is true on a Dependabot pull request
+//   skipped  it is not, so this workflow is not evidence for that action
+//
+// What the suite can check is the shape: that the named step still exists and is still
+// conditional. Whether the condition can be true is a judgement, and it is recorded here
+// so that it is at least written down somewhere a reviewer can find it.
+const CONDITIONAL_STEPS = {
+  'bot-automerge.yml': {
+    // Gated on vars.APP_ID and secrets.APP_PRIVATE_KEY, neither of which is set here.
+    'actions/create-github-app-token': 'skipped',
+    // Gated on the author being dependabot[bot], which is true on the pull requests
+    // whose merge this decides.
+    'dependabot/fetch-metadata': 'runs',
+  },
+  'ci.yml': {
+    // Gated on the 22.x matrix leg, which is one of the two that run.
+    'codecov/codecov-action': 'runs',
+  },
+  'greet-new-contributors.yml': {
+    // Gated on the author not being a bot.
+    'actions/first-interaction': 'skipped',
+  },
+  'lint-github-actions.yml': {
+    // Every step here is conditional. The filter runs on any same-repo pull request, and
+    // the other two run when it reports a changed workflow file -- which is precisely
+    // what a github-actions major is, so all three execute on the pull requests this
+    // list is about. (On an npm major none of them do, which costs nothing: the hold
+    // list is consulted only for actions.)
+    'dorny/paths-filter': 'runs',
+    'actions/checkout': 'runs',
+    'docker://rhysd/actionlint:latest': 'runs',
+  },
+  'pre-commit-autoupdate.yml': {
+    // Gated on the autoupdate step having found updates. Held anyway: no pull_request
+    // trigger.
+    'iarekylew00t/verified-bot-commit': 'skipped',
+  },
+  'publish.yml': {
+    // Gated on vars.AZURE_CLIENT_ID and the chosen registries. Held anyway: no
+    // pull_request trigger.
+    'azure/login': 'skipped',
+  },
+};
 
 /** Lines of a top-level YAML block, comments and blanks included, key line excluded. */
 function blockUnder(lines, startIndex, indent) {
@@ -148,6 +200,13 @@ function pullRequestTrigger(text, errors, file) {
         .filter(Boolean);
       continue;
     }
+    if (/^ {4}paths-ignore:/.test(prBlock[i])) {
+      // Never read as "no filter", which is the permissive answer: a workflow whose
+      // paths-ignore covers its own file is not started by a bump to that file, and
+      // would classify as exercised on evidence it never produced.
+      errors.push({ code: 'paths-ignore-unsupported', detail: file });
+      continue;
+    }
     if (/^ {4}paths:\s*(#.*)?$/.test(prBlock[i])) {
       paths = [];
       for (let j = i + 1; j < prBlock.length; j += 1) {
@@ -183,10 +242,57 @@ function pathMatches(pattern, file) {
 }
 
 /**
+ * Third-party actions used by `text`, as { action, conditional }. A step is conditional
+ * when it carries its own `if:`; the workflow-level and job-level `if:` are somebody
+ * else's question and are not read here.
+ *
+ * Every `uses:` line has to land inside a recognised step, because an action this cannot
+ * see is an action nothing judges. One that does not is reported rather than skipped.
+ */
+function actionSteps(text, errors, file) {
+  const found = [];
+  const blocks = text.split(/^(?= {6}- )/m);
+  const preamble = blocks.shift();
+  const stray = (preamble.match(/^\s*(?:- )?uses:/gm) || []).length;
+  if (stray !== 0) {
+    errors.push({
+      code: 'unparsable-step',
+      detail: `${file}: ${stray} outside any step`,
+    });
+  }
+  for (const block of blocks) {
+    const all = block.match(/^\s*(?:- )?uses:\s*[^\s#]+/gm) || [];
+    if (all.length === 0) continue;
+    if (all.length > 1) {
+      // Two in one block means the split did not find a boundary it should have, so the
+      // second action is invisible to every check below. Refuse rather than judge one.
+      errors.push({
+        code: 'unparsable-step',
+        detail: `${file}: ${all.length} in one step`,
+      });
+      continue;
+    }
+    const uses = /^\s*(?:- )?uses:\s*([^\s#]+)/m.exec(block)[1];
+    if (uses.startsWith('./')) continue; // a local composite action, not Dependabot's
+    found.push({
+      action: uses.split('@')[0],
+      conditional: /^ {8}if:/m.test(block) || /^ {6}- if:/m.test(block),
+    });
+  }
+  return found;
+}
+
+/**
  * Every complaint about the current tables, as { code, detail }. Returning them rather
  * than printing keeps the negative cases below able to assert on a specific failure.
  */
-function analyze({ bot, dependabot, workflows }) {
+function analyze({
+  bot,
+  dependabot,
+  workflows,
+  classification = CLASSIFICATION,
+  conditionalSteps = CONDITIONAL_STEPS,
+}) {
   const errors = [];
   const add = (code, detail) => errors.push({ code, detail });
 
@@ -233,15 +339,15 @@ function analyze({ bot, dependabot, workflows }) {
   if (!bot.includes('previous_filename')) add('rename-not-covered', 'files query');
 
   const classifiedHeld = new Set(
-    Object.entries(CLASSIFICATION)
+    Object.entries(classification)
       .filter(([, reason]) => HELD_REASONS.has(reason))
       .map(([file]) => `.github/workflows/${file}`)
   );
 
   for (const file of workflows.keys()) {
-    if (!CLASSIFICATION[file]) add('unclassified', file);
+    if (!classification[file]) add('unclassified', file);
   }
-  for (const file of Object.keys(CLASSIFICATION)) {
+  for (const file of Object.keys(classification)) {
     if (!workflows.has(file)) add('stale-classification', file);
   }
   for (const entry of held) {
@@ -252,7 +358,7 @@ function analyze({ bot, dependabot, workflows }) {
   }
 
   // --- Each classification still matches its workflow ----------------------------
-  for (const [file, reason] of Object.entries(CLASSIFICATION)) {
+  for (const [file, reason] of Object.entries(classification)) {
     const text = workflows.get(file);
     if (text === undefined) continue;
     const trigger = pullRequestTrigger(text, errors, file);
@@ -264,8 +370,10 @@ function analyze({ bot, dependabot, workflows }) {
     } else if (reason === 'pr-types-exclude-open') {
       if (trigger === null) add('claimed-pr-types-but-no-trigger', file);
       else if (opens) add('pr-types-do-include-open', file);
-    } else if (reason === 'step-if-excludes-bots') {
-      if (!/is-bot/.test(text)) add('no-bot-guard', file);
+    } else if (reason === 'skipped-step') {
+      if (!Object.values(conditionalSteps[file] || {}).includes('skipped')) {
+        add('no-skipped-step', file);
+      }
     } else if (reason === 'pr-runs-it') {
       if (!opens) {
         add('not-run-by-a-pr', file);
@@ -285,6 +393,32 @@ function analyze({ bot, dependabot, workflows }) {
       }
     } else {
       add('unknown-reason', `${file}: ${reason}`);
+    }
+
+    // Conditional steps, whatever the classification. A workflow every pull request runs
+    // is still not evidence for an action inside it that never executes, and that gap is
+    // invisible at file level -- which is exactly how a workflow can look exercised while
+    // holding an action nothing has ever run.
+    const declared = conditionalSteps[file] || {};
+    const conditional = new Set(
+      actionSteps(text, errors, file)
+        .filter((step) => step.conditional)
+        .map((step) => step.action)
+    );
+    for (const action of conditional) {
+      if (!declared[action]) add('unaccounted-conditional-step', `${file}: ${action}`);
+    }
+    for (const [action, verdict] of Object.entries(declared)) {
+      // A step that lost its `if:` -- or was deleted -- leaves a judgement standing over
+      // nothing. Both directions matter: unconditional means the hold may no longer be
+      // needed, and absent means the table is describing a step that is gone.
+      if (!conditional.has(action)) add('stale-conditional-step', `${file}: ${action}`);
+      if (!['runs', 'skipped'].includes(verdict)) {
+        add('unknown-verdict', `${file}: ${action} -> ${verdict}`);
+      }
+      if (verdict === 'skipped' && reason === 'pr-runs-it') {
+        add('skipped-action-in-exercised-workflow', `${file}: ${action}`);
+      }
     }
   }
 
@@ -320,19 +454,26 @@ if (actual.length !== 0) {
 // and asserts the specific complaint, so a rewrite that stops checking something fails
 // here instead of going quiet.
 
+let cases = 0;
+
 /** Apply `mutate` to a copy of the live inputs and require `code` among the errors. */
 function expectError(name, code, mutate) {
+  cases += 1;
   const copy = {
     bot: live.bot,
     dependabot: live.dependabot,
     workflows: new Map(live.workflows),
+    classification: { ...CLASSIFICATION },
+    conditionalSteps: { ...CONDITIONAL_STEPS },
   };
   mutate(copy);
   if (
     copy.bot === live.bot &&
     copy.dependabot === live.dependabot &&
     copy.workflows.size === live.workflows.size &&
-    [...copy.workflows].every(([file, text]) => live.workflows.get(file) === text)
+    [...copy.workflows].every(([file, text]) => live.workflows.get(file) === text) &&
+    JSON.stringify(copy.classification) === JSON.stringify(CLASSIFICATION) &&
+    JSON.stringify(copy.conditionalSteps) === JSON.stringify(CONDITIONAL_STEPS)
   ) {
     failures += 1;
     console.error(`FAIL: ${name}: the mutation changed nothing, so the case is stale`);
@@ -419,10 +560,57 @@ expectError(
     );
   }
 );
-expectError('the bot guard removed from the greeting', 'no-bot-guard', (c) => {
+expectError('the greeting guard removed outright', 'stale-conditional-step', (c) => {
   c.workflows.set(
     'greet-new-contributors.yml',
-    c.workflows.get('greet-new-contributors.yml').replace(/is-bot/g, 'is-human')
+    c.workflows
+      .get('greet-new-contributors.yml')
+      .replace(/^ {8}if: >-\n(?: {10}.*\n)+/m, '')
+  );
+});
+expectError('a conditional step nobody judged', 'unaccounted-conditional-step', (c) => {
+  c.workflows.set(
+    'pr-title.yml',
+    c.workflows
+      .get('pr-title.yml')
+      .replace(
+        /^ {8}uses: (\S+)$/m,
+        "        if: github.event_name == 'push'\n        uses: $1"
+      )
+  );
+});
+expectError(
+  'a workflow holding a skipped action called exercised',
+  'skipped-action-in-exercised-workflow',
+  (c) => {
+    c.classification['greet-new-contributors.yml'] = 'pr-runs-it';
+  }
+);
+expectError(
+  'a judged step that is no longer conditional',
+  'stale-conditional-step',
+  (c) => {
+    c.workflows.set(
+      'ci.yml',
+      c.workflows.get('ci.yml').replace(/^ {8}if: matrix\.node == '22\.x'\n/m, '')
+    );
+  }
+);
+expectError('a verdict this file does not understand', 'unknown-verdict', (c) => {
+  c.conditionalSteps['ci.yml'] = { 'codecov/codecov-action': 'probably' };
+});
+expectError('a uses: line outside any step', 'unparsable-step', (c) => {
+  c.workflows.set(
+    'pr-title.yml',
+    c.workflows.get('pr-title.yml').replace(/^jobs:$/m, 'jobs:\n  uses: not/a-step@v1')
+  );
+});
+expectError('a paths-ignore filter is refused', 'paths-ignore-unsupported', (c) => {
+  c.workflows.set(
+    'test-ci-complete.yml',
+    c.workflows
+      .get('test-ci-complete.yml')
+      .replace('    paths:\n', '    paths-ignore:\n')
   );
 });
 expectError(
@@ -483,4 +671,4 @@ if (failures !== 0) {
   process.exit(1);
 }
 
-console.log('bot-automerge test passed (22 negative cases)');
+console.log(`bot-automerge test passed (${cases} negative cases)`);

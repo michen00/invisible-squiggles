@@ -213,17 +213,29 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      # The contract check runs here, inside the gate, and not only in its own workflow.
-      # `needs` is hand-written, and this job can evaluate only the jobs already named in
-      # it: a job added to ci.yml and left out of `needs` makes the separate suite red
-      # while this gate stays green, and once this is the only required context, that
-      # pull request merges anyway. Running it here is what makes the omission fail the
-      # thing branch protection actually reads.
+      # Contract checks run here, inside the gate, and not only in their own workflows.
+      # Those workflows are not required contexts, so a suite that goes red in one of them
+      # does not stop the merge it is about -- which is precisely wrong for a check whose
+      # subject is what may merge unattended. Anything needing no toolchain and having to
+      # block a merge belongs in this job; anything else belongs in a job of its own,
+      # named in `needs` above.
+      #
+      # For the first of them that argument is also self-referential: `needs` is
+      # hand-written, and this job can evaluate only the jobs already named in it, so a
+      # job added to ci.yml and left out of `needs` would make a separate suite red while
+      # this gate stayed green. Running it here is what makes the omission fail the thing
+      # branch protection actually reads.
       - name: Checkout
         uses: actions/checkout@v7
       - name: Assert the gate covers every job
         run: |
           scripts/test-ci-complete.cjs
+      # bot-automerge.yml decides unattended merges from two hand-written tables --
+      # Dependabot's ecosystem slugs, and the list of workflows a pull request does not
+      # run -- and both fail open when they fall behind. Both were wrong and silent.
+      - name: Assert bot auto-merge matches its configuration
+        run: |
+          scripts/test-bot-automerge.cjs
       # Query and test are separate statements for the same reason they are in
       # bot-automerge.yml: as one pipeline, a jq that failed to parse the context would
       # yield an empty failure list and read as success. Split under `set -e`, a broken

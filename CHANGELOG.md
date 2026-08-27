@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com) and this p
 
 ## [Unreleased]
 
+## [0.4.3](https://github.com/michen00/invisible-squiggles/compare/v0.4.2..v0.4.3) - 2026-08-26
+
+No functional changes. The extension behaves exactly as it did in 0.4.2. This release exists to correct the marketplace listings, which can only be updated by publishing a version.
+
+### 📝 Documentation
+
+- The settings table now names each key in full, `invisibleSquiggles.hideErrors` rather than `hideErrors`. The short forms are what the Settings UI displays; pasted into `settings.json` they are keys the extension never reads - ([#268](https://github.com/michen00/invisible-squiggles/pull/268))
+
 ## [0.4.2](https://github.com/michen00/invisible-squiggles/compare/v0.4.1..v0.4.2) - 2026-08-06
 
 No functional changes. The extension behaves exactly as it did in 0.4.1. This release exists to correct the marketplace listings, which can only be updated by publishing a version.

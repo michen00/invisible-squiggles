@@ -8,6 +8,8 @@
 - Command: `invisible-squiggles.toggle`, status bar eye (👁️), global settings only.
 - Runtime: Node 20.x/22.x; VSCode (min version from package.json)/stable; ESBuild bundles to `dist/`.
 - Main code: `src/extension.ts`. Tests: `src/test/{unit,integration,e2e,helpers}/`.
+- Repository tooling has its own suites at `scripts/test-*`, run by `make test`. They are not extension
+  tests and do not belong under `src/test/`.
 
 ## Core Commands (preferred order)
 

@@ -51,11 +51,22 @@ function analyze(text) {
     }
   }
 
+  // Recognised job keys, and nothing at this indent gets to be unrecognised. A key
+  // carrying a trailing comment -- `security-scan: # dependency audit` -- is a valid
+  // declaration, and an earlier version of this regex skipped it: the job vanished from
+  // `expected`, so leaving it out of `needs` raised nothing and it sat outside the merge
+  // gate. A checker whose purpose is to fail closed cannot quietly ignore a line it does
+  // not understand, so anything else at two spaces is a parse error rather than a skip.
   const jobs = [];
   for (let i = start + 1; i < end; i += 1) {
-    const match = /^ {2}([A-Za-z0-9_-]+):\s*$/.exec(lines[i]);
+    const line = lines[i];
+    if (/^\s*$/.test(line) || /^ {2}#/.test(line)) continue;
+    if (!/^ {2}\S/.test(line)) continue;
+    const match = /^ {2}([A-Za-z0-9_-]+):\s*(#.*)?$/.exec(line);
     if (match) jobs.push({ id: match[1], line: i });
+    else add('unparsable-job-line', line.trim());
   }
+  if (errors.some((error) => error.code === 'unparsable-job-line')) return errors;
 
   // Vacuity guard. Everything below compares against this list, so a parse that returned
   // nothing would report a gate covering nothing as a gate covering everything.
@@ -175,6 +186,16 @@ const CASES = [
     (t) => t.replace('    if: always()', '    if: success()'),
   ],
   ['no condition at all', 'no-if', (t) => t.replace('    if: always()\n', '')],
+  [
+    'a job declared with a trailing comment, left out of needs',
+    'missing',
+    (t) => `${t}\n  audit-job: # dependency audit\n    runs-on: ubuntu-latest\n`,
+  ],
+  [
+    'a line under jobs the parser cannot read',
+    'unparsable-job-line',
+    (t) => `${t}\n  not a job key at all\n`,
+  ],
   [
     'a name the ruleset does not know',
     'renamed',

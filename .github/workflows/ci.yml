@@ -213,6 +213,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      # The contract check runs here, inside the gate, and not only in its own workflow.
+      # `needs` is hand-written, and this job can evaluate only the jobs already named in
+      # it: a job added to ci.yml and left out of `needs` makes the separate suite red
+      # while this gate stays green, and once this is the only required context, that
+      # pull request merges anyway. Running it here is what makes the omission fail the
+      # thing branch protection actually reads.
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Assert the gate covers every job
+        run: |
+          scripts/test-ci-complete.cjs
       # Query and test are separate statements for the same reason they are in
       # bot-automerge.yml: as one pipeline, a jq that failed to parse the context would
       # yield an empty failure list and read as success. Split under `set -e`, a broken

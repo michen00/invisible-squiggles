@@ -1,0 +1,55 @@
+---
+name: Test changelog-riders.sh
+
+# The rider guard decides whether `make tag` refuses. Getting it wrong either blocks a
+# legitimate release or lets a commit ship under notes written before it existed, so it
+# gets a suite of its own rather than riding on the release actually being cut.
+#
+# fetch-depth: 0 because the cases are this repository's own tags, and the default
+# shallow checkout has neither the tags nor the history behind them. A shallow clone
+# would make every case fail to resolve rather than fail to hold, which is a worse
+# signal than no suite at all.
+#
+# git-cliff because the guard delegates to it rather than reimplementing its filtering,
+# and the suite refuses to run without it for the same reason it exists: a check that
+# quietly stops checking is worse than no check.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/test-release-tag.yml
+      - Makefile
+      - cliff.toml
+      - scripts/changelog-riders.sh
+      - scripts/release-tag.sh
+      - scripts/test-release-tag.sh
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/test-release-tag.yml
+      - Makefile
+      - cliff.toml
+      - scripts/changelog-riders.sh
+      - scripts/release-tag.sh
+      - scripts/test-release-tag.sh
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-release-tag:
+    name: Test changelog-riders.sh
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Install git-cliff
+        uses: taiki-e/install-action@v2.85.4
+        with:
+          tool: git-cliff
+      - name: Test changelog-riders.sh
+        run: |
+          scripts/test-release-tag.sh

@@ -21,7 +21,8 @@
 set -euo pipefail
 
 SCRIPT_NAME=$(basename "$0")
-SIGNERS_FILE="${SIGNERS_FILE:-.github/allowed_signers}"
+COMMITTED_SIGNERS='.github/allowed_signers'
+SIGNERS_FILE="${SIGNERS_FILE:-$COMMITTED_SIGNERS}"
 
 usage() {
   cat << EOF
@@ -35,7 +36,9 @@ Arguments:
   <version>   Release tag of the form vX.Y.Z (e.g. v0.4.2)
 
 Environment:
-  SIGNERS_FILE   Allowed-signers file (default: .github/allowed_signers)
+  SIGNERS_FILE   Additional allowed-signers file to verify against.
+                 .github/allowed_signers is always checked regardless,
+                 because that is the file users verify with.
 
 Example:
   $SCRIPT_NAME v0.4.2
@@ -76,6 +79,20 @@ manifest="v$(node -p "require('./package.json').version")"
 if [ "$manifest" != "$VERSION" ]; then
   die "$VERSION does not match package.json ($manifest)." \
     "Bump the manifest first, or tag the version it already declares."
+fi
+
+# The lockfile carries the version twice and `npm version` writes both. A release
+# commit prepared by hand, or a conflict resolution that took the wrong side, can leave
+# either behind while package.json still reads correctly -- and the publish workflow
+# repeats only the package.json check, so nothing downstream catches it. The tag would
+# then name a tree whose lockfile still claims the previous release, which is the
+# footgun the prep helper exists to remove.
+lock_root="v$(node -p "require('./package-lock.json').version ?? ''")"
+lock_self="v$(node -p "require('./package-lock.json').packages?.['']?.version ?? ''")"
+if [ "$lock_root" != "$VERSION" ] || [ "$lock_self" != "$VERSION" ]; then
+  die "package-lock.json does not name $VERSION (found $lock_root and $lock_self)." \
+    "Both version fields have to match the manifest. Run" \
+    "'npm install --package-lock-only' on the release commit and amend it in."
 fi
 
 # The changelog's date for this version is written when the release branch is
@@ -121,14 +138,41 @@ if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
     "on origin/main would build something other than what you tested."
 fi
 
-if git rev-parse --verify "refs/tags/$VERSION" > /dev/null 2>&1; then
-  die "tag $VERSION already exists locally." \
-    "Delete it first if you meant to re-cut it: git tag -d $VERSION"
+# Riders -- commits that reached main after the release commit but before the tag -- are
+# judged by scripts/changelog-riders.sh. That lives apart from this script so it can be
+# tested against every historical tag; this one fetches, signs and pushes, and cannot be
+# exercised that way. It prints 0 when HEAD is itself the release commit, and reports the
+# offending commits on stderr when it does not.
+if ! riders=$(scripts/changelog-riders.sh HEAD); then
+  die "could not judge whether the commits since the release commit reach the" \
+    "changelog; the error above says why." \
+    "Nothing has been tagged."
 fi
 
-if git ls-remote --exit-code --tags origin "refs/tags/$VERSION" > /dev/null 2>&1; then
-  die "tag $VERSION already exists on origin." \
-    "That version has been cut. Release forward instead."
+if [ "$riders" != "0" ]; then
+  die "$riders commit(s) since the release commit would appear in the changelog," \
+    "but the $BARE notes were written before they existed and no later release will" \
+    "print them -- the next range starts at this tag." \
+    "They are listed above. Fold them into a new release, or tag the release commit."
+fi
+
+# Last, because it is the only expensive check here and everything above is nearly free.
+#
+# The tag push is what makes CI build the VSIX, and until now nothing had confirmed the
+# tagged tree can be packaged at all -- `make check` runs neither packaging nor
+# reproducibility, and prep-release.sh only ever saw the pre-merge tree, which a rider can
+# move out from under. A break in icon.png, the LFS pointer check, README preparation or
+# vsce therefore surfaced only after a remote tag existed.
+#
+# What this proves is narrow and worth stating: that THIS tree packages, and that two
+# builds of it agree, which is what makes the publish workflow's per-registry retry safe.
+# It does not prove the bytes match CI's, because both builds here share one node_modules
+# -- CONTRIBUTING.md calls that the weaker, always-true property, and it is.
+echo "Verifying the tree packages reproducibly..."
+if ! make verify-reproducible; then
+  die "the tagged tree does not package reproducibly." \
+    "Nothing has been tagged. Fix it on main first -- a build: commit is a rider this" \
+    "script accepts, because cliff.toml skips it."
 fi
 
 # -s rather than relying on configuration, which is the entire point of this script.
@@ -146,11 +190,32 @@ echo "Created SSH-signed tag $VERSION."
 
 # Verified rather than assumed: a signing key that has gone missing, or one absent
 # from the allowed-signers file, fails here while the tag exists only locally.
-if ! git -c gpg.format=ssh -c "gpg.ssh.allowedSignersFile=$SIGNERS_FILE" \
-  verify-tag "$VERSION"; then
+#
+# The committed file is checked whatever SIGNERS_FILE says, because it is the file
+# users actually have. SECURITY.md documents verifying a release tag against
+# .github/allowed_signers from a clone, so a tag that verifies only against a local
+# override would push and then be unverifiable to everyone following the published
+# procedure -- the same class of gap as signing with the wrong format, which the
+# `gpg.format=ssh` pin above closes.
+verify_with() {
+  git -c gpg.format=ssh -c "gpg.ssh.allowedSignersFile=$1" verify-tag "$VERSION"
+}
+
+if ! verify_with "$COMMITTED_SIGNERS"; then
   git tag -d "$VERSION"
-  die "signature verification failed; the local tag has been deleted." \
-    "Check that your signing key is present and listed in $SIGNERS_FILE."
+  die "signature verification failed against $COMMITTED_SIGNERS." \
+    "The local tag has been deleted. That file is the trust root SECURITY.md sends" \
+    "users to, so a tag it cannot verify is one nobody else can verify either." \
+    "Add your signing key to it before releasing."
+fi
+
+# The override checks against some other list as well. It cannot stand in for the
+# check above, only add to it.
+if [ "$SIGNERS_FILE" != "$COMMITTED_SIGNERS" ] && ! verify_with "$SIGNERS_FILE"; then
+  git tag -d "$VERSION"
+  die "signature verification failed against $SIGNERS_FILE;" \
+    "the local tag has been deleted." \
+    "Check that your signing key is present and listed there."
 fi
 
 # An explicit refspec rather than --follow-tags, which pushes more than it looks

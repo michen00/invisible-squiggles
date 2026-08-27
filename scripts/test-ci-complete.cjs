@@ -23,6 +23,12 @@ const path = require('path');
 
 const WORKFLOW = path.join(__dirname, '..', '.github', 'workflows', 'ci.yml');
 const GATE = 'ci-complete';
+// The one string this repository shares with settings it cannot read. Branch protection
+// requires a context by this exact name, so renaming the job here -- however tidy the
+// new name -- leaves every pull request waiting on a context that will never report.
+// Changing it means changing the ruleset in the same breath, and this line is the only
+// place that says so.
+const REQUIRED_NAME = 'CI complete';
 
 // Every problem gets a stable code so the negative cases below can assert which one
 // fired, not merely that something did.
@@ -83,10 +89,11 @@ function analyze(text) {
 
   // A computed name is the bug this gate exists to avoid: the checks it replaced reported
   // under names ci.yml interpolated, so a matrix edit rewrote branch protection. The
-  // ruleset names this job as a literal string, and it has to stay one.
+  // ruleset names this job as a literal string, and it has to stay that exact one.
   const name = valueOf('name');
   if (name === null) add('no-name');
   else if (name.includes('${{')) add('computed-name', name);
+  else if (name !== REQUIRED_NAME) add('renamed', name);
 
   // Without `always()` a failed dependency leaves this job skipped, and GitHub treats a
   // skipped required check as satisfied -- the gate would pass by not running.
@@ -168,6 +175,11 @@ const CASES = [
     (t) => t.replace('    if: always()', '    if: success()'),
   ],
   ['no condition at all', 'no-if', (t) => t.replace('    if: always()\n', '')],
+  [
+    'a name the ruleset does not know',
+    'renamed',
+    (t) => t.replace(`    name: ${REQUIRED_NAME}`, '    name: CI done'),
+  ],
   [
     'a name the matrix could rename',
     'computed-name',

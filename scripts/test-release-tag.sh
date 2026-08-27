@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-# Tests for scripts/changelog-riders.sh, the rider guard release-tag.sh depends on.
+# Tests for the guards around cutting a release tag: scripts/changelog-riders.sh, which
+# release-tag.sh depends on, and the trust floor `make verify-tag` has to hold.
 #
 # The guard decides whether `make tag` refuses, so getting it wrong either blocks a
 # legitimate release or lets a commit ship under notes written before it existed. It
@@ -152,6 +153,20 @@ rm -rf "$shim_dir"
 # --- Degradation: an unreadable ref must fail rather than default -----------------------
 if "$RIDERS" not-a-real-ref > /dev/null 2>&1; then
   echo "FAIL: expected a failure for an unreadable ref, got success" >&2
+  FAILURES=$((FAILURES + 1))
+fi
+
+# --- make verify-tag must not let SIGNERS_FILE stand alone ---------------------------
+# release-tag.sh refuses to push a tag the committed allowed-signers file cannot verify,
+# and `make verify-tag` has to hold the same floor: it is the command CONTRIBUTING.md
+# points maintainers at, so an override verifying on its own would report success for
+# precisely the tag nobody else can check. Asserted against the resolved recipe rather
+# than the comment above it, which used to claim this and was wrong.
+recipe=$(make -n verify-tag VERSION=v0.4.2 SIGNERS_FILE=/tmp/not-the-committed-one 2> /dev/null || true)
+if ! printf '%s' "$recipe" | grep -q 'allowedSignersFile=\.github/allowed_signers'; then
+  echo "FAIL: make verify-tag does not check .github/allowed_signers when SIGNERS_FILE" >&2
+  echo "      is overridden; the committed trust root is not a floor. Recipe:" >&2
+  printf '%s\n' "$recipe" | sed 's/^/       /' >&2
   FAILURES=$((FAILURES + 1))
 fi
 

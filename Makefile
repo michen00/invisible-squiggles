@@ -18,7 +18,10 @@ endif
 RM_FLAGS := -rf$(if $(or $(DEBUG),$(VERBOSE)),v,)
 RM := rm $(RM_FLAGS)
 PROJECT_NAME ?= invisible-squiggles
-SIGNERS_FILE ?= .github/allowed_signers
+# The committed trust root. Not overridable: SIGNERS_FILE adds a second file to
+# check, it does not replace this one.
+COMMITTED_SIGNERS := .github/allowed_signers
+SIGNERS_FILE ?= $(COMMITTED_SIGNERS)
 
 # Recursively expanded so `node` only runs for the recipes that package a VSIX,
 # not on every make invocation.
@@ -261,12 +264,21 @@ tag: ## Sign, verify, and push a release tag, drafting the release (VERSION=vX.Y
 	@SIGNERS_FILE="$(SIGNERS_FILE)" scripts/release-tag.sh "$(VERSION)"
 
 # Verifies a release tag against the committed public key in
-# .github/allowed_signers. The signed tag is the source-authenticity anchor;
-# built artifacts carry keyless provenance instead (see CONTRIBUTING.md).
+# .github/allowed_signers, and additionally against SIGNERS_FILE when that names
+# something else. The committed file is not optional here: it is what SECURITY.md
+# sends users to, so a tag it cannot verify is one nobody else can verify, and an
+# override that verified alone would report success for exactly that tag. This
+# mirrors scripts/release-tag.sh, which refuses to push on the same basis.
+#
+# The signed tag is the source-authenticity anchor; built artifacts carry keyless
+# provenance instead (see CONTRIBUTING.md).
 .PHONY: verify-tag
 verify-tag: ## Verify a release tag's signature (VERSION=vX.Y.Z)
 	@if [ -z "$(VERSION)" ]; then echo "Usage: make verify-tag VERSION=vX.Y.Z"; exit 1; fi
-	@git -c gpg.ssh.allowedSignersFile=$(SIGNERS_FILE) verify-tag $(VERSION)
+	@git -c gpg.ssh.allowedSignersFile=$(COMMITTED_SIGNERS) verify-tag $(VERSION)
+	@if [ "$(SIGNERS_FILE)" != "$(COMMITTED_SIGNERS)" ]; then \
+	    git -c gpg.ssh.allowedSignersFile=$(SIGNERS_FILE) verify-tag $(VERSION); \
+	fi
 
 # Publishes the draft that pushing the tag already created; it does not create a
 # release. The publish workflow owns the artifact end to end -- it builds the VSIX

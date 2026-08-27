@@ -1,0 +1,40 @@
+---
+name: Test bot-automerge
+
+# The path filter is deliberately the whole workflows directory. This suite's subject is
+# not only bot-automerge.yml: it classifies every workflow in the repository as one a
+# Dependabot pull request executes or one it does not, and the change that invalidates
+# that classification is a workflow being added, renamed, or given a narrower trigger.
+# Filtering on bot-automerge.yml alone would leave the suite silent on exactly those
+# edits, which are the ones the hold list gets wrong.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/**
+      - .github/dependabot.yml
+      - scripts/test-bot-automerge.cjs
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/**
+      - .github/dependabot.yml
+      - scripts/test-bot-automerge.cjs
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-bot-automerge:
+    name: Test bot-automerge
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      # No OS matrix and no `npm ci`: the suite is string parsing over files in the tree,
+      # with no dependency and nothing platform-dependent to disagree about.
+      - name: Test bot-automerge
+        run: |
+          scripts/test-bot-automerge.cjs

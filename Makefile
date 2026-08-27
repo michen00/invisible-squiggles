@@ -326,6 +326,7 @@ test: install ## Run tests
     scripts/test-check-pr-title.sh; \
     scripts/test-markdownlint-table-format.cjs; \
     scripts/test-ci-complete.cjs; \
+    scripts/test-bot-automerge.cjs; \
     scripts/test-release-tag.sh
 
 .PHONY: lint

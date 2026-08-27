@@ -6,14 +6,14 @@ name: Bot auto-merge
 # required checks green, no unresolved review threads -- so leaving a review comment
 # pauses it until that thread is resolved.
 #
-# npm majors ride on green CI; github-actions majors do not. The split is about what a
-# green PR is evidence of. CI drives the extension end to end -- type-check, lint, unit,
-# integration and E2E across two operating systems and two VSCode versions, and Package
-# VSIX, which runs `make verify-reproducible` and so exercises vsce. It drives almost none
-# of the workflows: six of the ten actions here appear only in workflows no pull request
-# runs, and azure/login and actions/attest-build-provenance appear solely in publish.yml,
-# which triggers on `release` and workflow_dispatch alone. A break there surfaces at
-# release time, not review time.
+# Majors ride on green CI where CI is evidence for them. For npm that is all of it: CI
+# drives the extension end to end -- type-check, lint, unit, integration and E2E across two
+# operating systems and two VSCode versions, and Package VSIX, which runs
+# `make verify-reproducible` and so exercises vsce -- and every one of those is required to
+# merge, being a `needs` of the CI complete job that branch protection names. For
+# github-actions it is evidence only per file: an action runs where its `uses:` line is
+# written, so a major reaching a workflow no pull request executes is held instead.
+# scripts/test-bot-automerge.cjs keeps both the ecosystem names and that hold list honest.
 #
 # The guard reads pull_request.user.login, not github.actor. github.actor is whoever
 # triggered *this* event rather than whoever opened the PR, so any later push by another
@@ -248,26 +248,54 @@ jobs:
             # PR is evidence. For npm, CI genuinely exercises the result: type-check,
             # lint, 100 unit tests, integration and E2E across two operating systems and
             # two VSCode versions, and Package VSIX, which runs `make verify-reproducible`
-            # and so drives vsce itself. For github-actions it is not: six of the ten
-            # actions used here appear only in workflows no pull request runs, and two of
-            # those -- azure/login and actions/attest-build-provenance -- exist solely in
-            # publish.yml, where a break is invisible until a release.
+            # and so drives vsce itself. All of it is required to merge -- those jobs are
+            # the `needs` of the CI complete job, the single context branch protection
+            # names -- so green here means every one of them ran. For github-actions it
+            # is not: six of the actions used here never execute on a Dependabot pull
+            # request at all. actions/first-interaction is skipped by its own step guard;
+            # peter-evans/create-pull-request and DavidAnson/markdownlint-cli2-action run
+            # on a schedule and iarekylew00t/verified-bot-commit only by hand; and
+            # azure/login and actions/attest-build-provenance exist solely in publish.yml,
+            # where a break is invisible until a release.
+            #
+            # The names below are Dependabot's internal ecosystem slugs, not the keys
+            # .github/dependabot.yml is written in. fetch-metadata takes this value from
+            # chunks[1] of the branch name -- `dependabot/npm_and_yarn/...` -- so it emits
+            # `npm_and_yarn` and `github_actions`, never `npm` or `github-actions`.
+            # Comparing against the config keys does not fail loudly: both arms simply
+            # never match, every major falls through to the hold below, and the log line
+            # reads exactly like a deliberate hold. It sat that way unnoticed until every
+            # npm major had been merged by hand. scripts/test-bot-automerge.cjs pins the
+            # two spellings against dependabot.yml so it cannot recur.
             #
             # Deliberately not a file-path test. "Does the diff touch publish.yml" reads
             # like the same rule but is not: ovsx appears only in publish.yml and the
             # Makefile publish targets, so an ovsx major changes publishing while the diff
             # touches package.json alone and would sail through. Ecosystem needs no such
             # proxy, and cannot be evaded by a rename or a truncated file list.
-            if [ "$ECOSYSTEM" = "npm" ]; then
+            if [ "$ECOSYSTEM" = "npm_and_yarn" ]; then
               echo "::notice::npm major; CI exercises the extension end to end; eligible."
               echo "should_merge=true" >> "$GITHUB_OUTPUT"
-            elif [ "$ECOSYSTEM" = "github-actions" ]; then
+            elif [ "$ECOSYSTEM" = "github_actions" ]; then
               # For actions the changed file IS the blast radius: an action runs only
               # where its `uses:` line is written. So a per-file test is sound here, where
               # for npm it was not -- ovsx is used by publish.yml while the diff touches
-              # package.json alone. Held only when the diff reaches a workflow no pull
-              # request executes; those are listed rather than inferred, because a
-              # workflow's triggers can change without this file noticing.
+              # package.json alone. Held only when the diff reaches a workflow a Dependabot
+              # pull request does not execute; those are listed rather than inferred,
+              # because a workflow's triggers can change without this file noticing.
+              # scripts/test-bot-automerge.cjs is what notices: it classifies every
+              # workflow in the repository and fails on any this list has not accounted
+              # for, in either direction.
+              #
+              # Three kinds land here. Some have no pull_request trigger at all
+              # (publish.yml, changelog-autoupdate.yml, pre-commit-autoupdate.yml). Some
+              # have one whose types exclude `opened`, so opening this pull request never
+              # starts them -- bot-automerge-disarm.yml fires on `labeled`,
+              # delete-bot-branches-for-closed-prs.yml on `closed`. And
+              # greet-new-contributors.yml does run, but the step holding
+              # actions/first-interaction is gated on the author not being a bot, so the
+              # one third-party action it exists to run is skipped on exactly the pull
+              # requests that bump it.
               #
               # Note the repository floats major tags (@v7, not @v7.0.1), so Dependabot
               # raises an actions PR only when a major moves -- which made a blanket
@@ -280,11 +308,14 @@ jobs:
               changed=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}/files" --paginate \
                 --jq '.[] | .filename, (.previous_filename // empty)')
               held=$(printf '%s\n' "$changed" \
-                | grep -cFx -e '.github/workflows/publish.yml' \
+                | grep -cFx -e '.github/workflows/bot-automerge-disarm.yml' \
                              -e '.github/workflows/changelog-autoupdate.yml' \
-                             -e '.github/workflows/pre-commit-autoupdate.yml' || true)
+                             -e '.github/workflows/delete-bot-branches-for-closed-prs.yml' \
+                             -e '.github/workflows/greet-new-contributors.yml' \
+                             -e '.github/workflows/pre-commit-autoupdate.yml' \
+                             -e '.github/workflows/publish.yml' || true)
               if [ "$held" -ne 0 ]; then
-                echo "::warning::actions major touches a workflow no PR runs; holding."
+                echo "::warning::actions major reaches a workflow no PR runs; holding."
                 echo "should_merge=false" >> "$GITHUB_OUTPUT"
               else
                 echo "::notice::actions major, only in workflows CI runs; eligible."
@@ -304,7 +335,7 @@ jobs:
       # workflow runs in its own concurrency group, so it can finish before this step
       # arms -- leaving the PR armed with the kill switch applied. Checking here closes
       # that ordering gap; the disarm workflow covers the label arriving afterwards.
-      - name: Re-check the kill switch, then approve and arm
+      - name: Re-check the kill switch, then arm
         if: steps.eligible.outputs.should_merge == 'true'
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -325,18 +356,15 @@ jobs:
             echo "::warning::do not auto-merge applied since this run started; not arming."
             exit 0
           fi
-          # Approving here rather than in a step of its own, so the approval and the
-          # arming stand or fall together. Approving first left a standing approval on a
-          # PR this step then declined to arm, and nothing withdraws it: the disarm
+          # No approval is submitted. This workflow used to send one, on the stated
+          # grounds that main-protect required a review; main-protect now requires zero
+          # approving reviews, and GitHub documents
+          # `require_extra_approval_for_unattributed_changes` as having no effect at zero,
+          # so the review gated nothing -- `reviewDecision` came back empty on every pull
+          # request it merged. What it still did was leave the bot's own approval standing
+          # on pull requests a human later took over, which nothing withdraws: the disarm
           # workflow turns auto-merge off but does not dismiss a review.
           #
-          # The approval exists at all because main-protect requires one review, unlike
-          # the upstream copy of this workflow, where auto-merge would otherwise arm and
-          # then wait forever.
-          decision=$(gh pr view "$PR_URL" --json reviewDecision -q .reviewDecision)
-          if [ "$decision" = "APPROVED" ]; then
-            echo "::notice::Already approved."
-          else
-            gh pr review --approve "$PR_URL"
-          fi
+          # The pause a reviewer has is unresolved review threads, which main-protect does
+          # require and which auto-merge respects.
           gh pr merge --auto --squash "$PR_URL"

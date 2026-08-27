@@ -49,6 +49,9 @@ make check           # Run all tests + validation
 - **Integration tests** (`npm run test:integration`): Real APIs, located in `src/test/integration/`
 - **E2E tests** (`npm run test:e2e`): Extension Development Host, located in `src/test/e2e/`
 - **Coverage** (`npm run test:coverage`): Coverage reports with threshold warnings
+- **Tooling suites** (`scripts/test-*.sh`, `scripts/test-*.cjs`, run by `make test`): cover repository
+  tooling -- release guards, the PR-title checker, the CI gate contract -- not the extension. They need
+  no VSCode host and live beside what they test, deliberately outside `src/test/`.
 
 **Example structure**:
 

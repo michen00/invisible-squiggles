@@ -190,10 +190,26 @@ Editing a merged PR's description is fine and worth doing when it turns out to b
 6. Get the latest main: `git switch main && git pull`
 7. Tag it: `make tag VERSION=vX.Y.Z`
    - Signs with SSH, verifies the signature against `.github/allowed_signers`, and
-     pushes that one tag. It refuses if the version disagrees with `package.json`,
-     if you are not on an up-to-date `main`, if the tree is dirty, or if the tag
-     already exists; and it deletes the local tag if verification fails, so an
-     unverifiable tag never reaches the remote.
+     pushes that one tag. It refuses if the version disagrees with `package.json` or
+     with either version field in `package-lock.json`, if you are not on an
+     up-to-date `main`, if the tree is dirty, or if the tag already exists; and it
+     deletes the local tag if verification fails, so an unverifiable tag never
+     reaches the remote.
+   - Runs `make verify-reproducible` on the tagged tree before creating the tag, so a
+     packaging break — a missing or LFS-pointer `icon.png`, README preparation, vsce —
+     is caught while nothing has been pushed. `make check` covers none of that, and
+     `prep-release.sh` only ever sees the pre-merge tree. It proves this tree packages
+     and that two builds of it agree; it does not prove the bytes match CI's, since
+     both builds share one `node_modules`.
+   - Commits that landed after the release commit are allowed only when `cliff.toml`
+     skips every one of them; git-cliff decides, so there is no second copy of its
+     filtering to drift. A rider that would have earned a changelog entry is refused,
+     because it would ship under notes written before it existed and no later release
+     covers it — v0.2.1 shipped two that way. This check needs git-cliff on `PATH`,
+     and only runs when the tag is not on the commit that bumped the manifest.
+   - `SIGNERS_FILE` adds a second allowed-signers file to verify against. It cannot
+     replace `.github/allowed_signers`, which is checked either way, because that is
+     the file users have when they follow [SECURITY.md](SECURITY.md).
    - Use the target rather than tagging by hand. `tag.gpgsign` is deliberately unset
      here, so a hand-typed `git tag -a` without `-s` produces an unsigned tag that
      looks identical in `git tag -l`. `git push --follow-tags` is also wider than it

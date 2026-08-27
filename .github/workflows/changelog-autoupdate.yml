@@ -30,10 +30,22 @@ jobs:
         run: scripts/update-unreleased.sh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # `fix` because the step is named for what it should do and did not: without it the
+      # action only reported, and the name was aspirational. `continue-on-error` because
+      # --fix cannot close every violation -- MD033 has no fixer, so one commit subject
+      # carrying inline HTML exits 1, `create-pull-request` never runs, and the repair is
+      # discarded with the runner. The changelog would then stop updating silently, which
+      # is a worse failure than an unformatted heading.
+      #
+      # Nothing is lost by not blocking here: the pull request this opens is itself linted
+      # by pre-commit.ci, which runs markdownlint --fix, so a violation surfaces where
+      # somebody can act on it rather than suppressing the pull request entirely.
       - name: Format CHANGELOG.md
+        continue-on-error: true
         uses: DavidAnson/markdownlint-cli2-action@v24
         with:
           config: .markdownlint.yml
+          fix: true
           globs: |
             CHANGELOG.md
       - name: Push changes and create PR

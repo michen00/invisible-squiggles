@@ -6,13 +6,13 @@ applyTo: Makefile
 
 ## Key Targets
 
-| Target              | Purpose                                                  |
-| ------------------- | -------------------------------------------------------- |
-| `make build-vsix`   | Package extension (strips SVG badges via `PREPARE_DOCS`) |
-| `make install-vsix` | Build + install locally for testing                      |
-| `make publish`      | Publish to VS Code Marketplace                           |
-| `make develop`      | Setup dev environment (npm install + pre-commit hooks)   |
-| `make check`        | Run all tests + prepare-readme validation                |
+| Target | Purpose |
+| ------ | ------- |
+| `make build-vsix` | Package extension (strips SVG badges via `PREPARE_DOCS`) |
+| `make install-vsix` | Build + install locally for testing |
+| `make publish` | Publish to VS Code Marketplace |
+| `make develop` | Setup dev environment (npm install + pre-commit hooks) |
+| `make check` | Run all tests + prepare-readme validation |
 
 ## PREPARE_DOCS Macro
 

@@ -1,0 +1,10 @@
+# markdownlint owns markdown here -- see `table-column-style` in
+# .markdownlint.yml. prettier can only emit *aligned* tables and offers no
+# option to do otherwise, so letting it near markdown deadlocks the two hooks:
+# prettier pads every cell, `markdownlint --fix` compacts them back, and each
+# run reports "files were modified by this hook" forever.
+#
+# This file rather than the prettier hook's `types_or` is the lever, because
+# prettier's CLI and the VS Code extension both read it. A `types_or` change
+# would leave an editor free to reintroduce aligned tables on save.
+*.md

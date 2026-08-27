@@ -1,3 +1,9 @@
 ---
 default: true
 line-length: false
+table-column-style:
+  style: compact
+  aligned_delimiter: true
+table-format:
+  style: compact
+  aligned_delimiter: true

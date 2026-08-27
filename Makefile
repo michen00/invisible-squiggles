@@ -324,6 +324,7 @@ test: install ## Run tests
     scripts/test-prepare-readme.sh; \
     scripts/test-normalize-vsix.sh; \
     scripts/test-check-pr-title.sh; \
+    scripts/test-markdownlint-table-format.cjs; \
     scripts/test-release-tag.sh
 
 .PHONY: lint

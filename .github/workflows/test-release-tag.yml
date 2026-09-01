@@ -47,7 +47,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Install git-cliff
-        uses: taiki-e/install-action@v2.85.4
+        uses: taiki-e/install-action@v2.85.7
         with:
           tool: git-cliff
       - name: Test changelog-riders.sh

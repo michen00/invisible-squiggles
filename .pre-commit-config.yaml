@@ -73,6 +73,14 @@ repos:
     rev: v3.13.1-1
     hooks:
       - id: shfmt
+  # Joins manual soft-wrap line breaks in Markdown prose. Ordered before
+  # markdownlint below so its --fix sees the final text rather than a shape
+  # about to change under it. Prettier can't fight it: .prettierignore already
+  # excludes *.md. Exclusions live in .unwrapignore, the tool's own mechanism.
+  - repo: https://github.com/michen00/markdown-prose-hooks-py
+    rev: v0.5.0
+    hooks:
+      - id: unwrap-markdown-prose-py
   - repo: https://github.com/igorshubovych/markdownlint-cli
     rev: v0.49.1
     hooks:

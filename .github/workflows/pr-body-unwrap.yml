@@ -1,0 +1,38 @@
+---
+name: PR body unwrap
+
+# The pre-commit hooks job in ci.yml already enforces unwrap-markdown-prose-py
+# on every tracked Markdown file: no manual line breaks inside a paragraph. A
+# pull request body is not a tracked file, so that hook cannot reach it -- an
+# author who hard-wraps a draft in an editor or a shell heredoc publishes the
+# ragged result to every reviewer, with nothing here to catch it.
+#
+# Calls the published reusable workflow rather than reimplementing the
+# transform: michen00/markdown-prose-hooks/.github/workflows/unwrap-pr-body.yml,
+# documented under "On a pull request body" in that project's README. It
+# rewrites, so it accepts only pull_request_target -- a pull_request run would
+# read the workflow from the PR's own tree, and that file is what grants the
+# token.
+#
+# opened, reopened, ready_for_review only, matching the reusable workflow's
+# own guidance: running on every push would overwrite what the author had
+# typed since. pr-body-unwrap-check.yml covers synchronize and edited instead,
+# and this workflow deletes any report that check left once it rewrites the
+# body, since GitHub raises no run for an event its own token caused.
+#
+# A bot-authored or empty body is skipped by the reusable workflow itself, so
+# nothing here repeats that exemption.
+#
+# Pinned to v0.5.0, not v0.4.0: v0.4.0 predates this reusable workflow
+# entirely, so a `uses:` ref to it there cannot resolve. Verified at the tag
+# rather than assumed from it being newest.
+
+on:
+  pull_request_target:
+    types: [opened, reopened, ready_for_review]
+
+jobs:
+  edit:
+    permissions:
+      pull-requests: write
+    uses: michen00/markdown-prose-hooks/.github/workflows/unwrap-pr-body.yml@v0.5.0

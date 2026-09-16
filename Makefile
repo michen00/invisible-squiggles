@@ -271,7 +271,7 @@ tag: ## Sign, verify, and push a release tag, drafting the release (VERSION=vX.Y
 # mirrors scripts/release-tag.sh, which refuses to push on the same basis.
 #
 # The signed tag is the source-authenticity anchor; built artifacts carry keyless
-# provenance instead (see CONTRIBUTING.md).
+# provenance instead (see RELEASING.md).
 .PHONY: verify-tag
 verify-tag: ## Verify a release tag's signature (VERSION=vX.Y.Z)
 	@if [ -z "$(VERSION)" ]; then echo "Usage: make verify-tag VERSION=vX.Y.Z"; exit 1; fi

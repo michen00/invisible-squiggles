@@ -290,17 +290,26 @@ jobs:
               # workflow in the repository and fails on any this list has not accounted
               # for, in either direction.
               #
-              # Three kinds land here. Some have no pull_request trigger at all
+              # Four kinds land here. Some have no pull_request trigger at all
               # (publish.yml, changelog-autoupdate.yml, pre-commit-autoupdate.yml). Some
               # have one whose types exclude `opened`, so opening this pull request never
               # starts them -- bot-automerge-disarm.yml fires on `labeled`,
-              # delete-bot-branches-for-closed-prs.yml on `closed`. And two do run, yet
-              # hold an action behind a step condition that is false here: this file's own
+              # delete-bot-branches-for-closed-prs.yml on `closed`. Two do run, yet hold
+              # an action behind a step condition that is false here: this file's own
               # actions/create-github-app-token wants App credentials the repository does
               # not have, and greet-new-contributors.yml gates actions/first-interaction
               # on the author not being a bot -- skipping it on exactly the pull requests
               # that bump it. A workflow running is not evidence for a step inside it that
               # did not.
+              #
+              # And two -- pr-body-unwrap.yml, pr-body-unwrap-check.yml -- run only on
+              # pull_request_target, which reads its own definition from the BASE branch
+              # rather than the ref that triggered it. pr-body-unwrap.yml's own types
+              # include `opened`, so it does run on every Dependabot pull request, but
+              # what runs is never this pull request's own diff to that file -- a bump to
+              # its `uses:` pin is not exercised by the very pull request that makes it.
+              # That is a stronger reason to hold than "types exclude opened", not a
+              # weaker one: even `opened` would not have been evidence here.
               #
               # The list is per file while the real blast radius is per `uses:` line, so
               # this over-holds: dependabot/fetch-metadata does run on every Dependabot
@@ -326,6 +335,8 @@ jobs:
                              -e '.github/workflows/changelog-autoupdate.yml' \
                              -e '.github/workflows/delete-bot-branches-for-closed-prs.yml' \
                              -e '.github/workflows/greet-new-contributors.yml' \
+                             -e '.github/workflows/pr-body-unwrap-check.yml' \
+                             -e '.github/workflows/pr-body-unwrap.yml' \
                              -e '.github/workflows/pre-commit-autoupdate.yml' \
                              -e '.github/workflows/publish.yml' || true)
               if [ "$held" -ne 0 ]; then

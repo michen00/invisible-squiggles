@@ -58,6 +58,16 @@ const ECOSYSTEM_SLUGS = {
 //   skipped-step          it runs, but at least one third-party action in it sits behind
 //                         a step condition that is false on a Dependabot pull request,
 //                         so a green run is no evidence for that action
+//   pull-request-target-only
+//                         its only pull-request-shaped trigger is pull_request_target,
+//                         which reads the workflow's own definition from the BASE
+//                         branch rather than the ref that triggered it -- so even a
+//                         trigger whose types include `opened` never executes the diff
+//                         a Dependabot pull request itself carries. A bump to a `uses:`
+//                         pin in one of these files is therefore never exercised by the
+//                         very pull request that makes it, whatever its types list; this
+//                         is a stronger reason to hold than pr-types-exclude-open, not a
+//                         weaker one, since even opened would not have been evidence.
 const CLASSIFICATION = {
   'bot-automerge-disarm.yml': 'pr-types-exclude-open',
   'bot-automerge.yml': 'skipped-step',
@@ -66,6 +76,8 @@ const CLASSIFICATION = {
   'delete-bot-branches-for-closed-prs.yml': 'pr-types-exclude-open',
   'greet-new-contributors.yml': 'skipped-step',
   'lint-github-actions.yml': 'pr-runs-it',
+  'pr-body-unwrap-check.yml': 'pull-request-target-only',
+  'pr-body-unwrap.yml': 'pull-request-target-only',
   'pr-title.yml': 'pr-runs-it',
   'pre-commit-autoupdate.yml': 'no-pr-trigger',
   'publish.yml': 'no-pr-trigger',
@@ -82,6 +94,7 @@ const HELD_REASONS = new Set([
   'no-pr-trigger',
   'pr-types-exclude-open',
   'skipped-step',
+  'pull-request-target-only',
 ]);
 
 // Every third-party action whose step carries an `if:`. A workflow running is not
@@ -299,7 +312,14 @@ function actionSteps(text, errors, file) {
   const found = [];
   const blocks = text.split(/^(?= {6}- )/m);
   const preamble = blocks.shift();
-  const stray = (preamble.match(/^\s*(?:- )?uses:/gm) || []).length;
+  // A job that calls a reusable workflow directly (`jobs.<job>.uses:
+  // owner/repo/...@ref`, at 4-space indent with no `- `) has no steps of its own, so
+  // there is no step-level condition that could ever hide it -- the whole job either
+  // runs or it does not, which the trigger-and-classification check above already
+  // judges. Strip it before counting strays, or every such job would misreport as an
+  // unparsable step rather than the different shape it actually is.
+  const withoutJobLevelCalls = preamble.replace(/^ {4}uses:\s*\S+@\S+\s*$/gm, '');
+  const stray = (withoutJobLevelCalls.match(/^\s*(?:- )?uses:/gm) || []).length;
   if (stray !== 0) {
     errors.push({
       code: 'unparsable-step',
@@ -418,6 +438,22 @@ function analyze({
       if (!held.some((entry) => entry && entry.verdict === 'skipped')) {
         add('no-skipped-step', file);
       }
+    } else if (reason === 'pull-request-target-only') {
+      // Must have no literal `pull_request:` key -- if it had one too, `pr-runs-it` or
+      // one of the other pull_request-keyed reasons would be the accurate claim instead.
+      if (trigger !== null) add('has-pr-trigger', file);
+      // And it must actually declare `pull_request_target:`, so this classification
+      // cannot be satisfied vacuously by a workflow with no pull-request-shaped trigger
+      // at all -- that case is `no-pr-trigger`'s to claim, not this one's.
+      const onBlock = blockUnder(
+        text.split('\n'),
+        text.split('\n').findIndex((line) => /^on:\s*(#.*)?$/.test(line)),
+        1
+      );
+      const hasTarget = onBlock.some((line) =>
+        /^ {2}pull_request_target:\s*(#.*)?$/.test(line)
+      );
+      if (!hasTarget) add('claimed-pull-request-target-but-none', file);
     } else if (reason === 'pr-runs-it') {
       if (!opens) {
         add('not-run-by-a-pr', file);

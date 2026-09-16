@@ -9,6 +9,15 @@ name: PR body unwrap check
 #
 # Deterministic detection, so this is allowed to block.
 #
+# Runs on pull_request_target rather than pull_request so a fork-originated
+# push or edit still gets a report: pull_request downgrades GITHUB_TOKEN to
+# read-only for fork-originated runs, silently disabling this job's
+# pull-requests: write grant on exactly the contributions CONTRIBUTING.md
+# documents as the primary path. Safe here because nothing from the pull
+# request is checked out or executed -- only its body text, carried in the
+# event payload -- matching what unwrap-pr-body-check.yml's own SECURITY.md
+# guarantees for this call.
+#
 # Calls michen00/markdown-prose-hooks/.github/workflows/unwrap-pr-body-check.yml,
 # documented under "On a pull request body" in that project's README. A
 # bot-authored or empty body is skipped by the reusable workflow itself.
@@ -17,7 +26,7 @@ name: PR body unwrap check
 # predates this file.
 
 on:
-  pull_request:
+  pull_request_target:
     types: [synchronize, edited]
 
 jobs:

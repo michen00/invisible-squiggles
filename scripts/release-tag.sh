@@ -167,7 +167,7 @@ fi
 # What this proves is narrow and worth stating: that THIS tree packages, and that two
 # builds of it agree, which is what makes the publish workflow's per-registry retry safe.
 # It does not prove the bytes match CI's, because both builds here share one node_modules
-# -- CONTRIBUTING.md calls that the weaker, always-true property, and it is.
+# -- RELEASING.md calls that the weaker, always-true property, and it is.
 echo "Verifying the tree packages reproducibly..."
 if ! make verify-reproducible; then
   die "the tagged tree does not package reproducibly." \

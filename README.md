@@ -88,6 +88,7 @@ The four `hide*` settings choose which squiggle types the toggle acts on — thi
 
 ## 🔹 Documentation [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/michen00/invisible-squiggles)
 
-- [CONTRIBUTING.md](CONTRIBUTING.md) — development setup, the release process, and the dependency-override policy
+- [CONTRIBUTING.md](CONTRIBUTING.md) — development setup and the dependency-override policy
+- [RELEASING.md](RELEASING.md) — how to cut, publish, and verify a release
 - [SECURITY.md](SECURITY.md) — reporting a vulnerability, what the extension can touch, and how to verify a release you installed
 - [CHANGELOG.md](CHANGELOG.md) — release history

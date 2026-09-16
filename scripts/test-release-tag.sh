@@ -158,7 +158,7 @@ fi
 
 # --- make verify-tag must not let SIGNERS_FILE stand alone ---------------------------
 # release-tag.sh refuses to push a tag the committed allowed-signers file cannot verify,
-# and `make verify-tag` has to hold the same floor: it is the command CONTRIBUTING.md
+# and `make verify-tag` has to hold the same floor: it is the command RELEASING.md
 # points maintainers at, so an override verifying on its own would report success for
 # precisely the tag nobody else can check. Asserted against the resolved recipe rather
 # than the comment above it, which used to claim this and was wrong.

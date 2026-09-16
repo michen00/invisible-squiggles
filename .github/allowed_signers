@@ -6,7 +6,7 @@
 #
 # A signed tag commits to the exact source tree through git's hash chain, so
 # this is the source-authenticity anchor. Built artifacts carry separate keyless
-# provenance -- see "Verifying a release" in CONTRIBUTING.md.
+# provenance -- see "Verifying a release" in RELEASING.md.
 #
 # One key, three maintainer identities. Tags through v0.3.1 were made as
 # michael.chen@aicadium.ai; later ones may use michen00.github@gmail.com. All

@@ -1,0 +1,4 @@
+# scripts/test-readme-expected.md is a golden fixture that scripts/test-prepare-readme.sh
+# compares byte-for-byte against prepare-readme.sh's output. Reflowing it here would
+# desync it from that comparison rather than fix anything.
+scripts/fixtures/

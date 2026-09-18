@@ -84,10 +84,25 @@ command -v git-cliff > /dev/null 2>&1 ||
 bump=$(git log --format=%H -S"\"version\": \"$head_version\"" -- package.json | tail -1)
 [ -n "$bump" ] || die "cannot find the commit that set the version to $head_version."
 
-if ! context=$(git cliff "$bump..$REF" --context 2> /dev/null); then
+# --offline because this counts commits and renders nothing. cliff.toml's template
+# reads commit.remote.username and github.contributors, so git-cliff turns its GitHub
+# integration on for --context too -- and when that API call fails it panics rather
+# than degrading. Unauthenticated CI runs hit exactly that, and the guard then refuses
+# a tag for a reason that has nothing to do with the tag. Nothing here reads the
+# fields the API fills in; the surviving commit set is decided by cliff.toml's
+# commit_parsers, which are local.
+cliff_err=$(mktemp)
+if ! context=$(git cliff --offline "$bump..$REF" --context 2> "$cliff_err"); then
+  # git-cliff's own stderr rather than a summary of it. Whatever went wrong it says
+  # so, and this script cannot guess; swallowing it once cost a CI failure that read
+  # as a broken guard and was a rate limit.
+  echo "git-cliff said:" >&2
+  sed 's/^/  /' "$cliff_err" >&2
+  rm -f "$cliff_err"
   die "git-cliff failed to describe $bump..$REF." \
-    "Run 'git cliff $bump..$REF --context' to see why."
+    "Run 'git cliff --offline $bump..$REF --context' to see why."
 fi
+rm -f "$cliff_err"
 
 if ! count=$(printf '%s' "$context" | node -p \
   "JSON.parse(require('fs').readFileSync(0, 'utf8')).reduce((n, r) => n + (r.commits || []).length, 0)" \

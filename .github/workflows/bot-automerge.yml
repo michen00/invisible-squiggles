@@ -381,7 +381,7 @@ jobs:
             echo "::warning::do not auto-merge applied since this run started; not arming."
             exit 0
           fi
-         #
+          #
           # Arming comes before approving, so no approval outlives an arm that did not
           # happen: a declined arm exits above and a failed one ends the step under
           # `set -e`, each before any review exists. Nothing would withdraw such an

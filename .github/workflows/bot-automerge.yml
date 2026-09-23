@@ -381,14 +381,7 @@ jobs:
             echo "::warning::do not auto-merge applied since this run started; not arming."
             exit 0
           fi
-          # An earlier version of this step submitted no approval, on the stated grounds
-          # that main-protect required zero approving reviews. It required one
-          # (required_approving_review_count: 1) the whole time -- this workflow ran,
-          # decided should_merge=true, and armed auto-merge on every pre-commit-ci pull
-          # request, and every one of them then sat waiting on a review requirement
-          # nothing here ever satisfied, until a human noticed and approved by hand
-          # (#287 sat for nineteen hours).
-          #
+         #
           # Arming comes before approving, so no approval outlives an arm that did not
           # happen: a declined arm exits above and a failed one ends the step under
           # `set -e`, each before any review exists. Nothing would withdraw such an

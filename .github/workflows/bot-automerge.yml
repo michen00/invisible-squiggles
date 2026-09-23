@@ -360,7 +360,7 @@ jobs:
       # workflow runs in its own concurrency group, so it can finish before this step
       # arms -- leaving the PR armed with the kill switch applied. Checking here closes
       # that ordering gap; the disarm workflow covers the label arriving afterwards.
-      - name: Re-check the kill switch, then arm and approve
+      - name: Re-check the kill switch, then arm, and approve
         if: steps.eligible.outputs.should_merge == 'true'
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}

@@ -370,7 +370,12 @@ clean: ## Remove build artifacts and temporary files
 # real third-party hooks framework (husky, lefthook, ...).
 .PHONY: enable-pre-commit
 enable-pre-commit: ## Enable pre-commit hooks (along with commit-msg and pre-push hooks)
-	@hookspath="$$(git config --local --get core.hooksPath 2>/dev/null || true)"; \
+	@if ! command -v pre-commit >/dev/null 2>&1; then \
+        echo "$(YELLOW)Warning: pre-commit is not installed. Skipping hook installation.$(_COLOR)"; \
+        echo "Install it with: pip install pre-commit (or brew install pre-commit on macOS)"; \
+        exit 0; \
+    fi; \
+    hookspath="$$(git config --local --get core.hooksPath 2>/dev/null || true)"; \
     common_hooks_dir="$$(git rev-parse --git-common-dir 2>/dev/null)/hooks"; \
     if [ -n "$$hookspath" ]; then \
         case "$$hookspath" in \
@@ -388,12 +393,7 @@ enable-pre-commit: ## Enable pre-commit hooks (along with commit-msg and pre-pus
                 ;; \
         esac; \
     fi; \
-    if command -v pre-commit >/dev/null 2>&1; then \
-        pre-commit install --hook-type commit-msg --hook-type pre-commit --hook-type pre-push --hook-type prepare-commit-msg ; \
-    else \
-        echo "$(YELLOW)Warning: pre-commit is not installed. Skipping hook installation.$(_COLOR)"; \
-        echo "Install it with: pip install pre-commit (or brew install pre-commit on macOS)"; \
-    fi
+    pre-commit install --hook-type commit-msg --hook-type pre-commit --hook-type pre-push --hook-type prepare-commit-msg
 
 .PHONY: run-pre-commit
 run-pre-commit: ## Run the pre-commit checks

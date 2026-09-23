@@ -360,7 +360,7 @@ jobs:
       # workflow runs in its own concurrency group, so it can finish before this step
       # arms -- leaving the PR armed with the kill switch applied. Checking here closes
       # that ordering gap; the disarm workflow covers the label arriving afterwards.
-      - name: Re-check the kill switch, then arm
+      - name: Re-check the kill switch, then approve and arm
         if: steps.eligible.outputs.should_merge == 'true'
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -381,15 +381,27 @@ jobs:
             echo "::warning::do not auto-merge applied since this run started; not arming."
             exit 0
           fi
-          # No approval is submitted. This workflow used to send one, on the stated
-          # grounds that main-protect required a review; main-protect now requires zero
-          # approving reviews, and GitHub documents
-          # `require_extra_approval_for_unattributed_changes` as having no effect at zero,
-          # so the review gated nothing -- `reviewDecision` came back empty on every pull
-          # request it merged. What it still did was leave the bot's own approval standing
-          # on pull requests a human later took over, which nothing withdraws: the disarm
-          # workflow turns auto-merge off but does not dismiss a review.
+          # An earlier version of this step submitted no approval, on the stated grounds
+          # that main-protect required zero approving reviews. It required one
+          # (required_approving_review_count: 1) the whole time -- this workflow ran,
+          # decided should_merge=true, and armed auto-merge on every pre-commit-ci pull
+          # request, and every one of them then sat waiting on a review requirement
+          # nothing here ever satisfied, until a human noticed and approved by hand
+          # (#287 sat for nineteen hours). Approving and arming in one step means the two
+          # stand or fall together: a step of its own would leave a standing approval on
+          # a pull request the next step then declined to arm, and nothing withdraws
+          # that -- the disarm workflow turns auto-merge off and does not dismiss a
+          # review.
           #
-          # The pause a reviewer has is unresolved review threads, which main-protect does
-          # require and which auto-merge respects.
+          # This costs one API call on a pull request already re-approved, which is
+          # precaution rather than necessity, and the failure is tolerated for the same
+          # reason: if Actions approval is ever disallowed, auto-merge waits for a human,
+          # which is the safe direction.
+          decision=$(gh pr view "$PR_NUMBER" --json reviewDecision --jq .reviewDecision)
+          if [ "$decision" = "APPROVED" ]; then
+            echo "::notice::Already approved."
+          else
+            gh pr review --approve "$PR_NUMBER" ||
+              echo "::warning::approval refused; auto-merge will wait for a reviewer."
+          fi
           gh pr merge --auto --squash "$PR_URL"

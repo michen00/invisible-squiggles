@@ -78,6 +78,7 @@ const CLASSIFICATION = {
   'lint-github-actions.yml': 'pr-runs-it',
   'pr-body-unwrap-check.yml': 'pull-request-target-only',
   'pr-body-unwrap.yml': 'pull-request-target-only',
+  'pr-mechanical-checks.yml': 'pr-runs-it',
   'pr-title.yml': 'pr-runs-it',
   'pre-commit-autoupdate.yml': 'no-pr-trigger',
   'publish.yml': 'no-pr-trigger',

@@ -1,0 +1,139 @@
+---
+name: PR mechanical checks
+
+# The deterministic gate on a pull request's title, commit subjects and body.
+# Errors block; warnings print as annotations and do not fail, because a heuristic
+# finding may advise and may not block. All three checks run whatever the others
+# did, so one round reports every class of problem rather than the first.
+#
+# Ported from aicadium-lab/exemplary-prs. `checks/` is a vendored copy, kept
+# byte-identical to its origin so it can be replaced wholesale rather than merged.
+# It adds no dependency to this repository: the package is pure standard library,
+# and ci.yml already provisions Python for pre-commit, so this uses the same
+# actions/setup-python rather than introducing a second toolchain. Nothing here
+# reaches the extension, which stays TypeScript and ships no Python at all.
+#
+# pr-title.yml stays. It asks a different question of the same string -- whether
+# the title's conventional type makes this change visible in CHANGELOG.md, given
+# which files the branch touched -- where this asks whether the title is
+# well-formed and inside the length. Neither subsumes the other, and a title can
+# fail one while passing the other.
+#
+# Left out is the advisory-comment half of the origin, which uploads the warnings
+# as an artifact for a second workflow to post. Annotations carry them here, so
+# this needs no artifact, no second workflow and no write permission.
+#
+# Bot-authored pull requests are exempt from the title and body checks: a
+# generated title keeps its own format. The commit-subject check runs for
+# everyone, because it already skips bot-authored commits from the inside.
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Full depth so the commit-subject range resolves. persist-credentials is
+      # left off: this repository is public, so the fetch below needs no token.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          # Shaped like ci.yml's pre-commit job, minus its pip cache: the checks
+          # import nothing outside the standard library, so there is nothing to
+          # install and no lockfile or requirements file behind this.
+          check-latest: true
+
+      - name: Check the title
+        id: title
+        continue-on-error: true
+        if: ${{ !endsWith(github.event.pull_request.user.login, '[bot]') }}
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_ERRORS_FILE: ${{ runner.temp }}/pr-errors/title.txt
+        run: python -m checks.check_pr_title
+
+      - name: Check commit subjects
+        id: commits
+        continue-on-error: true
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_ERRORS_FILE: ${{ runner.temp }}/pr-errors/commit-subjects.txt
+        run: |
+          git fetch --quiet origin "$BASE_REF"
+          python -m checks.check_commit_messages "origin/${BASE_REF}..HEAD"
+
+      - name: Check the body
+        id: body
+        continue-on-error: true
+        if: ${{ !endsWith(github.event.pull_request.user.login, '[bot]') }}
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_ERRORS_FILE: ${{ runner.temp }}/pr-errors/body.txt
+        # `--require` with no headings after it. The check defaults to the origin
+        # repository's template sections, and this repository ships no pull
+        # request template at all, so a default run would fail every pull request
+        # for sections nobody here is asked to write. What still runs is the noise
+        # half: leftover placeholders, TBD and TODO markers, markdownlint
+        # directives, and untagged fences, all of which only ever advise. Name the
+        # sections here on the day a template lands.
+        run: printf '%s' "$PR_BODY" | python -m checks.check_pr_body --require
+
+      # continue-on-error above lets all three run; this is what makes the job red.
+      # Each outcome is measured against `success` rather than against `failure`,
+      # because a step held back by an earlier hard failure reports `skipped`, and
+      # comparing against `failure` alone would call that a clean gate over nothing.
+      - name: Fail if any check did not pass
+        if: always()
+        env:
+          AUTHOR_IS_HUMAN: ${{ !endsWith(github.event.pull_request.user.login, '[bot]') }}
+          TITLE_OUTCOME: ${{ steps.title.outcome }}
+          COMMITS_OUTCOME: ${{ steps.commits.outcome }}
+          BODY_OUTCOME: ${{ steps.body.outcome }}
+          TITLE_ERRORS_FILE: ${{ runner.temp }}/pr-errors/title.txt
+          COMMITS_ERRORS_FILE: ${{ runner.temp }}/pr-errors/commit-subjects.txt
+          BODY_ERRORS_FILE: ${{ runner.temp }}/pr-errors/body.txt
+        run: |
+          set -eu
+          # A skip passes only where a step is held back on purpose, which is the
+          # title and body checks on a bot's pull request. detail reads a check's
+          # recorded errors back in, so this step names the problem rather than
+          # printing "body=failure" and sending a reader into the log.
+          detail() {
+            if [ -s "$1" ]; then
+              printf ': %s' "$(awk 'NR>1{printf "; "} {printf "%s", $0}' "$1")"
+            fi
+          }
+          bad=""
+          if [ "$TITLE_OUTCOME" != success ]; then
+            if [ "$TITLE_OUTCOME" != skipped ] || [ "$AUTHOR_IS_HUMAN" = true ]; then
+              bad="$bad title=$TITLE_OUTCOME$(detail "$TITLE_ERRORS_FILE")"
+            fi
+          fi
+          if [ "$COMMITS_OUTCOME" != success ]; then
+            bad="$bad commit-subjects=$COMMITS_OUTCOME$(detail "$COMMITS_ERRORS_FILE")"
+          fi
+          if [ "$BODY_OUTCOME" != success ]; then
+            if [ "$BODY_OUTCOME" != skipped ] || [ "$AUTHOR_IS_HUMAN" = true ]; then
+              bad="$bad body=$BODY_OUTCOME$(detail "$BODY_ERRORS_FILE")"
+            fi
+          fi
+          if [ -n "$bad" ]; then
+            echo "::error::these checks did not pass:$bad"
+            exit 1
+          fi
+          echo "every check passed"

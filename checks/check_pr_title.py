@@ -4,14 +4,6 @@ Deterministic problems (a bad Conventional Commit form, exceeding the maximum le
 trailing period) are errors and exit non-zero. Everything else is a warning and does
 not: mood, a capitalized start, and plan identifiers.
 
-The length answers for the title as typed. A squash merge appends `" (#123)"`, and this
-check used to reserve room for it -- a tighter band before the number was known, and a
-projection of the landed subject once it was. Both are gone. Those characters are the
-platform's and an author cannot spend them, and a 50-character title landing at 58 is
-still well inside the 72 where GitHub truncates a subject. What the reservation bought
-was a title budget that moved with the pull request number; what it cost was a rule
-nobody could apply without knowing that number first.
-
 Usage:
     python -m checks.check_pr_title "feat: add config precedence rule"
     PR_TITLE="fix: guard empty body" python -m checks.check_pr_title

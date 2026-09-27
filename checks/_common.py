@@ -1,10 +1,6 @@
 """Shared validation helpers for the deterministic PR checks.
 
-These helpers embody the repository's governing rule: a tool's action may never be
-stronger than its detection is certain. Heuristic or ambiguous problems are therefore
-always warnings, which advise but never block. An exact detection is permitted to block
-but is not obliged to: a plan identifier is matched exactly and still only advises,
-because what a change is called is the author's to settle. See docs/architecture.md.
+Heuristic or ambiguous problems are always warnings, which advise but never block.
 """
 
 from __future__ import annotations
@@ -160,17 +156,7 @@ class Findings:
         self._record_to("PR_WARNINGS_FILE", self.warnings, label="warnings")
 
     def _record_errors(self) -> None:
-        """Append the errors to the file named by ``PR_ERRORS_FILE``, if any.
-
-        A separate variable and file from `_record`, deliberately: the
-        advisory-comment workflow reads only `PR_WARNINGS_FILE`, and folding
-        errors into that stream would present a blocking problem as mere
-        advice. The gate step in pr-mechanical-checks.yml is this file's only
-        reader -- it folds the content into its own failure message, so a red
-        job names the actual problem instead of a bare `body=failure`. Absent
-        the variable -- every local run -- this does nothing, matching
-        `_record`.
-        """
+        """Append the errors to the file named by ``PR_ERRORS_FILE``, if any."""
         self._record_to("PR_ERRORS_FILE", self.errors, label="errors")
 
     def emit(self, ok_message: str) -> int:
@@ -233,15 +219,7 @@ def subject_max_length(
     """The number of characters a subject line may spend, most specific source first.
 
     An argument beats the environment, and the environment beats the default. A value
-    that is not a positive whole number is ignored rather than raised on: this runs as a
-    gate on every pull request, and a typo in a repository variable should not fail all
-    of them with a traceback that names the variable instead of the title.
-
-    The count is of the subject as written. Nothing is held back for the `" (#123)"` a
-    squash merge appends, because those characters are the platform's and an author
-    cannot spend them -- reserving room for them only ever charged an author for what
-    they did not type, and left the number that governs a title different from the one
-    that governs a commit.
+    that is not a positive whole number is ignored.
     """
     if explicit is not None:
         return explicit

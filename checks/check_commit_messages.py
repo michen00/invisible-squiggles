@@ -1,13 +1,9 @@
 """Check that each commit subject on the branch follows the conventions.
 
-Merge commits and bot- or tool-authored commits are skipped, because their subjects
-are exempt from the human-authored title rules. Any human commit whose subject is not
+Merge commits and bot- or tool-authored commits are skipped because their subjects
+are exempt from the title rules. Non-exempt commits whose subject is not in
 valid Conventional Commit form (or exceeds the hard length limit, or ends in a period)
 is an error and exits non-zero; mood preferences are warnings.
-
-The 50-character hard limit is the only length rule applied here. The tighter preferred
-length belongs to titles, which have to leave room for the `" (#123)"` a squash merge
-appends; a commit subject on a branch never grows one.
 
 Usage:
     python -m checks.check_commit_messages            # origin/main..HEAD

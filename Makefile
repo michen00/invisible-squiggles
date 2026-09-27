@@ -336,6 +336,15 @@ test: install ## Run tests
     scripts/test-bot-automerge.cjs; \
     scripts/test-release-tag.sh
 
+.PHONY: test-python
+test-python: ## Run the checks/ package test suite (pip install -r requirements-dev.txt)
+	@if command -v pytest >/dev/null 2>&1; then \
+        pytest checks/tests; \
+    else \
+        echo "$(YELLOW)Warning: pytest is not installed. Skipping Python tests.$(_COLOR)"; \
+        echo "Install it with: pip install -r requirements-dev.txt"; \
+    fi
+
 .PHONY: lint
 lint: install ## Run linters
 	npm run lint
@@ -344,7 +353,7 @@ lint: install ## Run linters
 format: lint run-pre-commit ## Run code formatters
 
 .PHONY: check
-check: format test ## Run checks and tests
+check: format test test-python ## Run checks and tests
 	npm run check-types
 
 .PHONY: clean

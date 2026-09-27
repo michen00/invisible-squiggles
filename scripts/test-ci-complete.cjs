@@ -154,7 +154,7 @@ if (live.length !== 0) {
 // Each case breaks the real workflow in one way and names the code that must fire. This
 // is what separates a suite that checks the gate from one that merely reads it.
 const NEEDS =
-  '    needs: [pre-commit, unit-tests, package, get-vscode-version, e2e-tests]';
+  '    needs: [pre-commit, pytest, unit-tests, package, get-vscode-version, e2e-tests]';
 const CASES = [
   [
     'a job left out of needs',
@@ -162,7 +162,7 @@ const CASES = [
     (t) =>
       t.replace(
         NEEDS,
-        '    needs: [pre-commit, unit-tests, get-vscode-version, e2e-tests]'
+        '    needs: [pre-commit, pytest, unit-tests, get-vscode-version, e2e-tests]'
       ),
   ],
   [
@@ -241,6 +241,7 @@ const asBlock = source.replace(
   [
     '    needs:',
     'pre-commit',
+    'pytest',
     'unit-tests',
     'package',
     'get-vscode-version',

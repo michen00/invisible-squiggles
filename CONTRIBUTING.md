@@ -140,6 +140,8 @@ git commit -am 'feat: add new feature'
 
 Types: `build`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`, `revert`, `style`, `test`, `chore`
 
+- Every non-merge, non-bot commit subject is checked automatically: it must match `type(scope): subject` (scope optional), stay at or under 50 characters, and not end with a period. Run `python3 -m checks.check_commit_messages` to check locally before pushing.
+
 Push your branch:
 
 ```sh
@@ -152,6 +154,7 @@ git push origin <branch name>
 - `npm run test:unit` passes
 - `make run-pre-commit` passes
 - Manual testing in VSCode works
+- The PR title follows the same conventional-commit rules as a commit subject (check locally with `python3 -m checks.check_pr_title "<title>"`). The body has no required sections, but leftover placeholders, TBD or TODO markers, markdownlint directives, and code fences without a language tag draw warnings that do not fail the check (check with `printf '%s' "$BODY" | python3 -m checks.check_pr_body --require`). Bot-authored PRs are exempt from both
 
 Then open a PR.
 

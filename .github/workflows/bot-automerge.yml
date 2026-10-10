@@ -1,19 +1,19 @@
 ---
 name: Bot auto-merge
 
-# Arms GitHub's native auto-merge (squash) on Dependabot patch/minor PRs and on
-# pre-commit-ci hook bumps. GitHub performs the merge only once the PR is mergeable --
+# Arms GitHub's native auto-merge (squash) on Dependabot patch, minor and major PRs and
+# on pre-commit-ci hook bumps. GitHub performs the merge only once the PR is mergeable --
 # required checks green, no unresolved review threads -- so leaving a review comment
 # pauses it until that thread is resolved.
 #
-# Majors ride on green CI where CI is evidence for them. For npm that is all of it: CI
-# drives the extension end to end -- type-check, lint, unit, integration and E2E across two
+# Majors ride on green CI in every ecosystem. For npm that is strong evidence: CI drives
+# the extension end to end -- type-check, lint, unit, integration and E2E across two
 # operating systems and two VSCode versions, and Package VSIX, which runs
 # `make verify-reproducible` and so exercises vsce -- and every one of those is required to
 # merge, being a `needs` of the CI complete job that branch protection names. For
-# github-actions it is evidence only per file: an action runs where its `uses:` line is
-# written, so a major reaching a workflow no pull request executes is held instead.
-# scripts/test-bot-automerge.cjs keeps both the ecosystem names and that hold list honest.
+# github-actions it is evidence only for workflows a pull request runs, and a major that
+# reaches any other workflow merges on it anyway; the eligibility step says what that
+# costs. scripts/test-bot-automerge.cjs pins the policy and the ecosystem names.
 #
 # The guard reads pull_request.user.login, not github.actor. github.actor is whoever
 # triggered *this* event rather than whoever opened the PR, so any later push by another
@@ -244,112 +244,44 @@ jobs:
             echo "::notice::Dependabot ${UPDATE_TYPE}; eligible for auto-merge."
             echo "should_merge=true" >> "$GITHUB_OUTPUT"
           elif [ "$UPDATE_TYPE" = "version-update:semver-major" ]; then
-            # Majors are gated on ecosystem, because that is what decides whether a green
-            # PR is evidence. For npm, CI genuinely exercises the result: type-check,
-            # lint, 100 unit tests, integration and E2E across two operating systems and
-            # two VSCode versions, and Package VSIX, which runs `make verify-reproducible`
-            # and so drives vsce itself. All of it is required to merge -- those jobs are
-            # the `needs` of the CI complete job, the single context branch protection
-            # names -- so green here means every one of them ran. For github-actions it
-            # is not: seven of the seventeen actions used here never execute on a
-            # Dependabot pull request at all. peter-evans/create-pull-request and
-            # DavidAnson/markdownlint-cli2-action run on a schedule and
-            # iarekylew00t/verified-bot-commit only by hand; azure/login and
-            # actions/attest-build-provenance exist solely in publish.yml, where a break
-            # is invisible until a release; and two are skipped by their own step
-            # conditions -- actions/first-interaction because the author is a bot, and
-            # this file's own actions/create-github-app-token because the credentials it
-            # needs are not configured here.
+            # Majors merge on green too, in every ecosystem and with no exceptions. A major
+            # is accepted once every required check passes: the latest version is almost
+            # always the one wanted, and a major held for a person is a merge somebody has
+            # to remember to make.
             #
-            # The names below are Dependabot's internal ecosystem slugs, not the keys
-            # .github/dependabot.yml is written in. fetch-metadata takes this value from
-            # chunks[1] of the branch name -- `dependabot/npm_and_yarn/...` -- so it emits
-            # `npm_and_yarn` and `github_actions`, never `npm` or `github-actions`.
-            # Comparing against the config keys does not fail loudly: both arms simply
-            # never match, every major falls through to the hold below, and the log line
-            # reads exactly like a deliberate hold. It sat that way unnoticed until every
-            # npm major had been merged by hand. scripts/test-bot-automerge.cjs pins the
-            # two spellings against dependabot.yml so it cannot recur.
+            # The trade-off is accepted rather than overlooked. Green CI is evidence only
+            # about code a pull request runs. An actions major whose `uses:` line sits in a
+            # workflow no pull request executes -- a release, publish or scheduled job, or a
+            # step whose condition is false on a bot pull request -- merges with nothing
+            # having exercised it, and so does a dependency major on a path CI does not
+            # cover. A break there surfaces the next time that code runs, and is fixed
+            # forward. Here that includes publish.yml, whose azure/login and
+            # actions/attest-build-provenance steps run only when publishing, and
+            # changelog-autoupdate.yml and pre-commit-autoupdate.yml, which run on a
+            # schedule or when dispatched. An npm major that only the publish path uses,
+            # such as ovsx, is in the same position: package.json changes, CI goes green,
+            # and the first run that exercises it is a release.
             #
-            # Deliberately not a file-path test. "Does the diff touch publish.yml" reads
-            # like the same rule but is not: ovsx appears only in publish.yml and the
-            # Makefile publish targets, so an ovsx major changes publishing while the diff
-            # touches package.json alone and would sail through. Ecosystem needs no such
-            # proxy, and cannot be evaded by a rename or a truncated file list.
-            if [ "$ECOSYSTEM" = "npm_and_yarn" ]; then
-              echo "::notice::npm major; CI exercises the extension end to end; eligible."
-              echo "should_merge=true" >> "$GITHUB_OUTPUT"
-            elif [ "$ECOSYSTEM" = "github_actions" ]; then
-              # For actions the changed file IS the blast radius: an action runs only
-              # where its `uses:` line is written. So a per-file test is sound here, where
-              # for npm it was not -- ovsx is used by publish.yml while the diff touches
-              # package.json alone. Held only when the diff reaches a workflow a Dependabot
-              # pull request does not execute; those are listed rather than inferred,
-              # because a workflow's triggers can change without this file noticing.
-              # scripts/test-bot-automerge.cjs is what notices: it classifies every
-              # workflow in the repository and fails on any this list has not accounted
-              # for, in either direction.
-              #
-              # Four kinds land here. Some have no pull_request trigger at all
-              # (publish.yml, changelog-autoupdate.yml, pre-commit-autoupdate.yml). Some
-              # have one whose types exclude `opened`, so opening this pull request never
-              # starts them -- bot-automerge-disarm.yml fires on `labeled`,
-              # delete-bot-branches-for-closed-prs.yml on `closed`. Two do run, yet hold
-              # an action behind a step condition that is false here: this file's own
-              # actions/create-github-app-token wants App credentials the repository does
-              # not have, and greet-new-contributors.yml gates actions/first-interaction
-              # on the author not being a bot -- skipping it on exactly the pull requests
-              # that bump it. A workflow running is not evidence for a step inside it that
-              # did not.
-              #
-              # And two -- pr-body-unwrap.yml, pr-body-unwrap-check.yml -- run only on
-              # pull_request_target, which reads its own definition from the BASE branch
-              # rather than the ref that triggered it. pr-body-unwrap.yml's own types
-              # include `opened`, so it does run on every Dependabot pull request, but
-              # what runs is never this pull request's own diff to that file -- a bump to
-              # its `uses:` pin is not exercised by the very pull request that makes it.
-              # That is a stronger reason to hold than "types exclude opened", not a
-              # weaker one: even `opened` would not have been evidence here.
-              #
-              # The list is per file while the real blast radius is per `uses:` line, so
-              # this over-holds: dependabot/fetch-metadata does run on every Dependabot
-              # pull request and is held anyway, because it appears only in this file.
-              # That is the direction to err -- a false hold is a merge somebody does by
-              # hand and can see, a false arm is a merge on evidence nothing produced --
-              # and it is the only one, which scripts/test-bot-automerge.cjs is what
-              # keeps true by naming every conditional step and judging it.
-              #
-              # Note the repository floats major tags (@v7, not @v7.0.1), so Dependabot
-              # raises an actions PR only when a major moves -- which made a blanket
-              # semver-major hold a blanket hold on every actions PR there will ever be.
-              # Query and match are separate statements on purpose. As one pipeline the
-              # trailing `|| true` -- needed because grep exits 1 when it matches nothing
-              # -- also swallows the query failing, and an unreadable file list would then
-              # count as zero held files and arm. Split, the query is bare so `set -e`
-              # kills the step if it fails, and `|| true` covers only the honest no-match.
-              changed=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}/files" --paginate \
-                --jq '.[] | .filename, (.previous_filename // empty)')
-              held=$(printf '%s\n' "$changed" \
-                | grep -cFx -e '.github/workflows/bot-automerge-disarm.yml' \
-                             -e '.github/workflows/bot-automerge.yml' \
-                             -e '.github/workflows/changelog-autoupdate.yml' \
-                             -e '.github/workflows/delete-bot-branches-for-closed-prs.yml' \
-                             -e '.github/workflows/greet-new-contributors.yml' \
-                             -e '.github/workflows/pr-body-unwrap-check.yml' \
-                             -e '.github/workflows/pr-body-unwrap.yml' \
-                             -e '.github/workflows/pre-commit-autoupdate.yml' \
-                             -e '.github/workflows/publish.yml' || true)
-              if [ "$held" -ne 0 ]; then
-                echo "::warning::actions major reaches a workflow no PR runs; holding."
-                echo "should_merge=false" >> "$GITHUB_OUTPUT"
-              else
-                echo "::notice::actions major, only in workflows CI runs; eligible."
-                echo "should_merge=true" >> "$GITHUB_OUTPUT"
-              fi
-            else
-              echo "::warning::${ECOSYSTEM:-unknown} major is not exercised by CI; holding."
-              echo "should_merge=false" >> "$GITHUB_OUTPUT"
-            fi
+            # The cooldowns in dependabot.yml are the soak: Dependabot raises no pull
+            # request for a release until its cooldown has passed. Their effective length
+            # is longer than the number suggests for actions, which is worth knowing before
+            # tuning it: that ecosystem is polled on the 1st and 15th, so an update whose
+            # cooldown expires just after a poll waits until the next one. Thirty days of
+            # cooldown therefore lands a pull request roughly thirty to forty-five days
+            # after the release.
+            #
+            # Nothing here reads the ecosystem except the log line. If a test on it ever
+            # returns, compare against fetch-metadata's slugs and not the keys
+            # dependabot.yml is written in: the action takes package-ecosystem from the
+            # branch name, so it reports `npm_and_yarn` and `github_actions`, never `npm` or
+            # `github-actions`. A comparison against a config key does not fail loudly. It
+            # never matches, every major it was meant to arm falls through to a hold, and
+            # the run stays green. That is how every npm major here was once merged by hand.
+            # scripts/test-bot-automerge.cjs pins the slugs against dependabot.yml, and runs
+            # this step to check that a major is eligible in every configured ecosystem,
+            # even on a diff that reaches publish.yml.
+            echo "::notice::${ECOSYSTEM:-unknown} major; eligible on green CI."
+            echo "should_merge=true" >> "$GITHUB_OUTPUT"
           else
             echo "::warning::Holding ${UPDATE_TYPE:-unknown update type} for a human."
             echo "should_merge=false" >> "$GITHUB_OUTPUT"

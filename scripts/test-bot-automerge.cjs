@@ -5,7 +5,8 @@
 //
 //   - a Dependabot patch, minor or major update is eligible to merge, in every ecosystem
 //     dependabot.yml declares;
-//   - an update type the workflow does not recognize is held for a person;
+//   - an update type the workflow does not recognize is held for a person, and the
+//     arming step acts only on the eligibility step's verdict;
 //   - the `do not auto-merge` label still stops arming, and still disarms a pull request
 //     that is already armed;
 //   - the ecosystem names are Dependabot's slugs, not the keys dependabot.yml is written in.
@@ -88,6 +89,20 @@ function stepScript(text, name) {
     }
     const strip = Math.min(...body.filter((line) => !isBlank(line)).map(indentOf));
     return `${body.map((line) => line.slice(strip)).join('\n')}\n`;
+  }
+  return null;
+}
+
+/** The value of a key set directly on the named step (`id`, `if`), or null. */
+function stepKey(text, name, key) {
+  const lines = text.split('\n');
+  const at = lines.findIndex((line) => line.trim() === `- name: ${name}`);
+  if (at === -1) return null;
+  const keyIndent = indentOf(lines[at]) + 2;
+  for (let i = at + 1; i < lines.length; i += 1) {
+    if (!isBlank(lines[i]) && indentOf(lines[i]) < keyIndent) return null;
+    const match = new RegExp(`^ {${keyIndent}}${key}:\\s*(.*)$`).exec(lines[i]);
+    if (match) return match[1].trim();
   }
   return null;
 }
@@ -275,6 +290,19 @@ function analyze({ bot, disarm, dependabot }) {
     }
   }
 
+  // The steps run one at a time above, so what joins them is checked here: the arming
+  // step acts only on the eligibility step's verdict. These are expressions, which this
+  // suite cannot evaluate, so they are pinned as text. Without the condition, a held
+  // update would still be armed, and every case above would go on passing.
+  if (stepKey(bot, ELIGIBILITY_STEP, 'id') !== 'eligible') {
+    add('eligibility-id-changed', stepKey(bot, ELIGIBILITY_STEP, 'id') || '(none)');
+  }
+  if (
+    stepKey(bot, ARM_STEP, 'if') !== "steps.eligible.outputs.should_merge == 'true'"
+  ) {
+    add('arm-not-gated', stepKey(bot, ARM_STEP, 'if') || '(none)');
+  }
+
   // --- The kill switch ------------------------------------------------------------
   // Three parts, each needed: the job does not start on a labeled pull request, the
   // arming step re-reads the label in case it arrived mid-run, and the disarm workflow
@@ -388,6 +416,28 @@ expectError('an ecosystem gate holding actions majors again', 'not-eligible', (c
 expectError('an unknown update type merging', 'unknown-not-held', (c) => {
   c.bot = c.bot.replace(HOLD, HOLD.replace('should_merge=false', 'should_merge=true'));
 });
+expectError('arming no longer waits for the verdict', 'arm-not-gated', (c) => {
+  c.bot = c.bot.replace(
+    `- name: ${ARM_STEP}\n        if: steps.eligible.outputs.should_merge == 'true'\n`,
+    `- name: ${ARM_STEP}\n`
+  );
+});
+expectError('arming gated on something always true', 'arm-not-gated', (c) => {
+  c.bot = c.bot.replace(
+    `- name: ${ARM_STEP}\n        if: steps.eligible.outputs.should_merge == 'true'`,
+    `- name: ${ARM_STEP}\n        if: always()`
+  );
+});
+expectError(
+  'the verdict read from a step that is not there',
+  'eligibility-id-changed',
+  (c) => {
+    c.bot = c.bot.replace(
+      `- name: ${ELIGIBILITY_STEP}\n        id: eligible`,
+      `- name: ${ELIGIBILITY_STEP}\n        id: decide`
+    );
+  }
+);
 expectError('the eligibility step renamed', 'step-missing', (c) => {
   c.bot = c.bot.replace(`- name: ${ELIGIBILITY_STEP}`, '- name: Decide');
 });

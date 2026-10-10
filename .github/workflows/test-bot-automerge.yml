@@ -1,23 +1,28 @@
 ---
 name: Test bot-automerge
 
-# The path filter is deliberately the whole workflows directory. This suite's subject is
-# not only bot-automerge.yml: it classifies every workflow in the repository as one a
-# Dependabot pull request executes or one it does not, and the change that invalidates
-# that classification is a workflow being added, renamed, or given a narrower trigger.
-# Filtering on bot-automerge.yml alone would leave the suite silent on exactly those
-# edits, which are the ones the hold list gets wrong.
+# The path filter names the files the suite reads -- the two workflows whose steps it
+# runs, dependabot.yml for the ecosystem names, and the suite itself -- plus this file,
+# so that an edit to how the suite runs runs it. It used to cover the whole workflows
+# directory, because the suite then classified every workflow for a hold list; the hold
+# list is gone, and with it the reason to run on an unrelated workflow edit. The CI
+# complete job runs the suite on every pull request regardless, and that is the run
+# that gates the merge.
 on:
   pull_request:
     branches: [main]
     paths:
-      - .github/workflows/**
+      - .github/workflows/bot-automerge.yml
+      - .github/workflows/bot-automerge-disarm.yml
+      - .github/workflows/test-bot-automerge.yml
       - .github/dependabot.yml
       - scripts/test-bot-automerge.cjs
   push:
     branches: [main]
     paths:
-      - .github/workflows/**
+      - .github/workflows/bot-automerge.yml
+      - .github/workflows/bot-automerge-disarm.yml
+      - .github/workflows/test-bot-automerge.yml
       - .github/dependabot.yml
       - scripts/test-bot-automerge.cjs
   workflow_dispatch:
@@ -33,8 +38,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-      # No OS matrix and no `npm ci`: the suite is string parsing over files in the tree,
-      # with no dependency and nothing platform-dependent to disagree about.
+      # No OS matrix and no `npm ci`: the suite reads files in the tree and runs their
+      # shell steps under the runner's bash with a stand-in for `gh`, which needs no
+      # dependency and is the shell those workflows run under anyway.
       - name: Test bot-automerge
         run: |
           scripts/test-bot-automerge.cjs

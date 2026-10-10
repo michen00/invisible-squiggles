@@ -1,539 +1,324 @@
 #!/usr/bin/env node
 
-// Tests the two hand-written tables in .github/workflows/bot-automerge.yml that decide
-// whether a Dependabot major merges unattended.
+// Tests what .github/workflows/bot-automerge.yml and bot-automerge-disarm.yml do, by
+// running their shell steps against a stand-in for `gh`:
 //
-// Both tables are strings this repository cannot resolve for itself, and both have
-// already been wrong in a way that failed silently:
+//   - a Dependabot patch, minor or major update is eligible to merge, in every ecosystem
+//     dependabot.yml declares;
+//   - an update type the workflow does not recognize is held for a person;
+//   - the `do not auto-merge` label still stops arming, and still disarms a pull request
+//     that is already armed;
+//   - the ecosystem names are Dependabot's slugs, not the keys dependabot.yml is written in.
 //
-//   - The ecosystem names. dependabot/fetch-metadata derives package-ecosystem from the
-//     branch name, so it emits Dependabot's internal slugs -- `npm_and_yarn` and
-//     `github_actions` -- and never the keys `.github/dependabot.yml` is written in
-//     (`npm`, `github-actions`). The workflow compared against the config keys, so both
-//     arms were unreachable and every major fell through to the hold branch. Nothing was
-//     unsafe and nothing was red; the feature simply did not exist, and the log line
-//     announcing the hold read exactly like a deliberate one.
+// The last is the one that has already failed here. dependabot/fetch-metadata derives
+// package-ecosystem from the branch name, so it emits Dependabot's internal slugs --
+// `npm_and_yarn` and `github_actions` -- and never `npm` or `github-actions`. The
+// workflow once compared against the config keys, so every major fell through to the
+// hold branch with a log line that read exactly like a deliberate hold. No comparison is
+// left in the workflow today; any that returns has to use a slug, and the slug table
+// has to cover every ecosystem dependabot.yml declares, so the right spelling is on
+// record before anybody needs it.
 //
-//   - The hold list. An actions major is armed unless the diff reaches a workflow no
-//     pull request runs, and those workflows are listed rather than inferred. A list
-//     that falls behind fails open: a workflow added, renamed, or given a narrower
-//     trigger drops out of it and its actions start merging on evidence nothing
-//     produced. Three were missing when this file was written.
+// The steps run under bash exactly as written, with `gh` and `sleep` replaced on PATH.
+// The stand-in answers the provenance queries as a single GitHub-signed commit by the
+// pull request's author, so these cases test the decision rather than the provenance
+// guard. Expressions (`${{ }}`) are not evaluated, so the `if:` conditions on the jobs
+// are checked as text, and a step whose script contains one is refused rather than run.
 //
-// So the shape here is the same one scripts/test-ci-complete.cjs uses: the declaration
-// stays in the workflow, where whoever edits the logic can see it, and this asserts the
-// declaration still matches the repository. Anything it cannot classify is an error
-// rather than a pass -- a workflow this file has never heard of is exactly the case the
-// hold list gets wrong.
+// Narrow parsing rather than a YAML library, matching the other scripts/test-*.cjs
+// suites: this runs inside the CI complete gate with nothing installed. Narrow parsing
+// fails open, which is why `analyze` is also run against deliberately broken copies of
+// the real files further down.
 
 'use strict';
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
+const { spawnSync } = require('child_process');
 
 const ROOT = path.join(__dirname, '..');
-const WORKFLOW_DIR = path.join(ROOT, '.github', 'workflows');
-const BOT = path.join(WORKFLOW_DIR, 'bot-automerge.yml');
+const WORKFLOWS = path.join(ROOT, '.github', 'workflows');
+const BOT = path.join(WORKFLOWS, 'bot-automerge.yml');
+const DISARM = path.join(WORKFLOWS, 'bot-automerge-disarm.yml');
 const DEPENDABOT = path.join(ROOT, '.github', 'dependabot.yml');
+
+const ELIGIBILITY_STEP = 'Decide eligibility';
+const ARM_STEP = 'Re-check the kill switch, then arm, and approve';
+const DISARM_STEP = 'Disarm auto-merge';
+const KILL_SWITCH = 'do not auto-merge';
+
+const ELIGIBLE = [
+  'version-update:semver-patch',
+  'version-update:semver-minor',
+  'version-update:semver-major',
+];
+// fetch-metadata leaves update-type empty when it cannot recover one, and anything it
+// might add later is equally unknown to this workflow.
+const UNKNOWN = ['', 'version-update:semver-unknown'];
 
 // package-ecosystem as written in dependabot.yml -> package-ecosystem as emitted by
 // dependabot/fetch-metadata. The action reads chunks[1] of the branch name
 // (`dependabot/npm_and_yarn/...`), which is Dependabot's internal slug for the
-// ecosystem, not the key the config file is written in. The two differ for both
-// ecosystems used here, which is the whole reason this table exists.
+// ecosystem, not the key the config file is written in. Both values are confirmed
+// against the branch names of this repository's own Dependabot pull requests.
 const ECOSYSTEM_SLUGS = {
   npm: 'npm_and_yarn',
   'github-actions': 'github_actions',
 };
 
-// Why each workflow is or is not evidence for an actions major, and the property that
-// makes the answer checkable. `reason` is not a comment: each value names a test below,
-// so a workflow edited out from under its classification fails rather than drifts.
-//
-//   pr-runs-it            a Dependabot pull request executes it, and every third-party
-//                         action in it actually runs
-//   no-pr-trigger         it has no pull_request trigger at all
-//   pr-types-exclude-open its pull_request types do not include `opened`, so opening a
-//                         Dependabot pull request does not start it
-//   skipped-step          it runs, but at least one third-party action in it sits behind
-//                         a step condition that is false on a Dependabot pull request,
-//                         so a green run is no evidence for that action
-//   pull-request-target-only
-//                         its only pull-request-shaped trigger is pull_request_target,
-//                         which reads the workflow's own definition from the BASE
-//                         branch rather than the ref that triggered it -- so even a
-//                         trigger whose types include `opened` never executes the diff
-//                         a Dependabot pull request itself carries. A bump to a `uses:`
-//                         pin in one of these files is therefore never exercised by the
-//                         very pull request that makes it, whatever its types list; this
-//                         is a stronger reason to hold than pr-types-exclude-open, not a
-//                         weaker one, since even opened would not have been evidence.
-const CLASSIFICATION = {
-  'bot-automerge-disarm.yml': 'pr-types-exclude-open',
-  'bot-automerge.yml': 'skipped-step',
-  'changelog-autoupdate.yml': 'no-pr-trigger',
-  'ci.yml': 'pr-runs-it',
-  'delete-bot-branches-for-closed-prs.yml': 'pr-types-exclude-open',
-  'greet-new-contributors.yml': 'skipped-step',
-  'lint-github-actions.yml': 'pr-runs-it',
-  'pr-body-unwrap-check.yml': 'pull-request-target-only',
-  'pr-body-unwrap.yml': 'pull-request-target-only',
-  'pr-mechanical-checks.yml': 'pr-runs-it',
-  'pr-title.yml': 'pr-runs-it',
-  'pre-commit-autoupdate.yml': 'no-pr-trigger',
-  'publish.yml': 'no-pr-trigger',
-  'test-bot-automerge.yml': 'pr-runs-it',
-  'test-check-pr-title.yml': 'pr-runs-it',
-  'test-ci-complete.yml': 'pr-runs-it',
-  'test-markdownlint-table-format.yml': 'pr-runs-it',
-  'test-normalize-vsix.yml': 'pr-runs-it',
-  'test-prepare-readme.yml': 'pr-runs-it',
-  'test-release-tag.yml': 'pr-runs-it',
-};
+const indentOf = (line) => line.length - line.trimStart().length;
+const isBlank = (line) => /^\s*$/.test(line);
+const isComment = (line) => /^\s*#/.test(line);
 
-const HELD_REASONS = new Set([
-  'no-pr-trigger',
-  'pr-types-exclude-open',
-  'skipped-step',
-  'pull-request-target-only',
-]);
-
-// Every third-party action whose step carries an `if:`. A workflow running is not
-// evidence that a conditional step inside it ran, so each of these is judged here rather
-// than assumed, and a conditional step this table does not name is an error -- that is
-// the case a file-level hold list gets wrong, and it is how actions/create-github-app-token
-// went unnoticed: bot-automerge.yml runs on every Dependabot pull request, so the file
-// looked exercised, while the mint step is gated on credentials this repository does not
-// have and has never once executed.
-//
-//   verdict  `runs` if the condition is true on a Dependabot pull request, `skipped` if
-//            it is not, in which case this workflow is no evidence for that action
-//   when     the condition the verdict was formed about, pinned verbatim
-//
-// `when` is what makes the verdict hold up. Whether an expression can be true is not
-// decidable here -- it reads runtime context this file cannot see -- so the judgement is
-// human, and pinning the expression is what stops it silently outliving the thing it was
-// about. Checking only that an `if:` is still present does not: a `runs` condition edited
-// until it no longer fires would keep its step conditional, keep its workflow classified
-// as exercised, and arm an action nothing ran. Any edit to the expression, in either
-// direction, fails until somebody judges it again.
-const CONDITIONAL_STEPS = {
-  'bot-automerge.yml': {
-    'actions/create-github-app-token': {
-      verdict: 'skipped',
-      when: "steps.creds.outputs.available == 'true'",
-    },
-    'dependabot/fetch-metadata': {
-      verdict: 'runs',
-      when: "github.event.pull_request.user.login == 'dependabot[bot]'",
-    },
-  },
-  'ci.yml': {
-    'codecov/codecov-action': { verdict: 'runs', when: "matrix.node == '22.x'" },
-  },
-  'greet-new-contributors.yml': {
-    'actions/first-interaction': {
-      verdict: 'skipped',
-      when:
-        "steps.bot-author-check.outputs.is-bot == 'false' && " +
-        '!contains(fromJSON(\'["OWNER", "MEMBER", "COLLABORATOR", "CONTRIBUTOR"]\'), ' +
-        'github.event.pull_request.author_association || ' +
-        'github.event.issue.author_association)',
-    },
-  },
-  'lint-github-actions.yml': {
-    'dorny/paths-filter': {
-      verdict: 'runs',
-      when:
-        "github.event_name == 'pull_request' && " +
-        'github.event.pull_request.head.repo.full_name == github.repository',
-    },
-    'actions/checkout': {
-      verdict: 'runs',
-      when:
-        "github.event_name == 'push' || github.event_name == 'workflow_dispatch' || " +
-        "steps.filter.outputs.addedOrModifiedWorkflows == 'true'",
-    },
-    'docker://rhysd/actionlint:latest': {
-      verdict: 'runs',
-      when:
-        "github.event_name == 'push' || github.event_name == 'workflow_dispatch' || " +
-        "steps.filter.outputs.addedOrModifiedWorkflows == 'true'",
-    },
-  },
-  'pre-commit-autoupdate.yml': {
-    'iarekylew00t/verified-bot-commit': {
-      verdict: 'skipped',
-      when: "steps.autoupdate-pre-commit.outputs.has_updates == 'true'",
-    },
-  },
-  'publish.yml': {
-    'azure/login': {
-      verdict: 'skipped',
-      when:
-        "vars.AZURE_CLIENT_ID != '' && " +
-        'contains(fromJSON(\'["both", "vscode"]\'), steps.metadata.outputs.targets)',
-    },
-  },
-};
-
-/** Lines of a top-level YAML block, comments and blanks included, key line excluded. */
-function blockUnder(lines, startIndex, indent) {
-  const out = [];
-  for (let i = startIndex + 1; i < lines.length; i += 1) {
-    const line = lines[i];
-    if (/^\s*$/.test(line)) {
-      out.push(line);
-      continue;
-    }
-    // A comment at or beyond the block's indent belongs to it; one further left ends it.
-    const leading = line.length - line.trimStart().length;
-    if (leading < indent) break;
-    out.push(line);
-  }
-  return out;
-}
-
-/**
- * The pull_request trigger of a workflow, or null when it has none.
- * Returns { types, paths } with null standing for "key absent", which is not the same
- * as an empty list: absent types means every default type fires.
- */
-function pullRequestTrigger(text, errors, file) {
+/** The `run: |` script of the named step, dedented, or null when there is none. */
+function stepScript(text, name) {
   const lines = text.split('\n');
-  const onIndex = lines.findIndex((line) => /^on:\s*(#.*)?$/.test(line));
-  if (onIndex === -1) {
-    errors.push({ code: 'no-on-block', detail: file });
-    return null;
-  }
-
-  const onBlock = blockUnder(lines, onIndex, 1);
-  const prIndex = onBlock.findIndex((line) =>
-    /^ {2}pull_request:\s*(#.*)?$/.test(line)
-  );
-  if (prIndex === -1) return null;
-
-  const prBlock = blockUnder(onBlock, prIndex, 3);
-  let types = null;
-  let paths = null;
-
-  for (let i = 0; i < prBlock.length; i += 1) {
-    const flowTypes = /^ {4}types:\s*\[([^\]]*)\]\s*(#.*)?$/.exec(prBlock[i]);
-    if (flowTypes) {
-      types = flowTypes[1]
-        .split(',')
-        .map((entry) => entry.trim().replace(/^['"]|['"]$/g, ''))
-        .filter(Boolean);
-      continue;
-    }
-    if (/^ {4}types:/.test(prBlock[i])) {
-      // Block-style types would need a different reader; refuse rather than read it as
-      // "no types", which is the permissive answer and would classify a `[labeled]`
-      // workflow as one every pull request runs.
-      errors.push({ code: 'types-not-flow', detail: `${file}: ${prBlock[i].trim()}` });
-      continue;
-    }
-    const flowPaths = /^ {4}paths:\s*\[([^\]]*)\]\s*(#.*)?$/.exec(prBlock[i]);
-    if (flowPaths) {
-      paths = flowPaths[1]
-        .split(',')
-        .map((entry) => entry.trim().replace(/^['"]|['"]$/g, ''))
-        .filter(Boolean);
-      continue;
-    }
-    if (/^ {4}paths-ignore:/.test(prBlock[i])) {
-      // Never read as "no filter", which is the permissive answer: a workflow whose
-      // paths-ignore covers its own file is not started by a bump to that file, and
-      // would classify as exercised on evidence it never produced.
-      errors.push({ code: 'paths-ignore-unsupported', detail: file });
-      continue;
-    }
-    if (/^ {4}paths:\s*(#.*)?$/.test(prBlock[i])) {
-      paths = [];
-      for (let j = i + 1; j < prBlock.length; j += 1) {
-        const item = /^ {6}- (.+?)\s*(#.*)?$/.exec(prBlock[j]);
-        if (item) {
-          paths.push(item[1].replace(/^['"]|['"]$/g, ''));
-          continue;
-        }
-        if (/^\s*$/.test(prBlock[j])) continue;
-        break;
-      }
-    }
-  }
-
-  return { types, paths };
-}
-
-/**
- * Whether a GitHub path filter pattern covers `file`. Only `*` and `**` are modelled --
- * `?` means "zero or one of the preceding character" in these filters rather than "any
- * character", and `!` negates, so a pattern using either is refused by the caller rather
- * than read under the wrong semantics.
- */
-function pathMatches(pattern, file) {
-  if (pattern === file) return true;
-  if (!pattern.includes('*')) return false;
-  const rx = pattern
-    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-    .replace(/\*\*/g, '\u0000')
-    .replace(/\*/g, '[^/]*')
-    .replace(/\u0000/g, '.*');
-  return new RegExp(`^${rx}$`).test(file);
-}
-
-/**
- * The step's own `if:` expression as one normalised line, or null when it has none.
- * Folded scalars are joined and runs of whitespace collapsed, so a rewrap is not read as
- * a change while an edit to the expression is.
- */
-function conditionOf(block) {
-  const lines = block.split('\n');
-  const at = lines.findIndex((line) => /^ {8}if:|^ {6}- if:/.test(line));
+  const at = lines.findIndex((line) => line.trim() === `- name: ${name}`);
   if (at === -1) return null;
-  const head = lines[at].replace(/^ {8}if:|^ {6}- if:/, '').trim();
-  const parts = /^[>|][-+]?$/.test(head) ? [] : [head];
+  const stepIndent = indentOf(lines[at]);
   for (let i = at + 1; i < lines.length; i += 1) {
-    if (/^\s*$/.test(lines[i])) continue;
-    if (lines[i].length - lines[i].trimStart().length <= 8) break;
-    parts.push(lines[i].trim());
+    if (!isBlank(lines[i]) && indentOf(lines[i]) <= stepIndent) return null;
+    const run = /^(\s*)run:\s*\|\s*$/.exec(lines[i]);
+    if (!run) continue;
+    const body = [];
+    for (let j = i + 1; j < lines.length; j += 1) {
+      if (!isBlank(lines[j]) && indentOf(lines[j]) <= run[1].length) break;
+      body.push(lines[j]);
+    }
+    const strip = Math.min(...body.filter((line) => !isBlank(line)).map(indentOf));
+    return `${body.map((line) => line.slice(strip)).join('\n')}\n`;
+  }
+  return null;
+}
+
+/** The text of a job's `if:` condition, folded onto one line. */
+function jobCondition(text) {
+  const lines = text.split('\n');
+  const at = lines.findIndex((line) => /^ {4}if:/.test(line));
+  if (at === -1) return null;
+  const parts = [lines[at].replace(/^ {4}if:\s*(>-?)?/, '')];
+  for (let i = at + 1; i < lines.length && indentOf(lines[i]) > 4; i += 1) {
+    parts.push(lines[i]);
   }
   return parts.join(' ').replace(/\s+/g, ' ').trim();
 }
 
+// A stand-in for `gh`, answering only the calls these steps make. Anything else exits
+// non-zero, so a step that starts making a new call fails here rather than being
+// answered with something plausible.
+//
+// The changed-files query is answered even though the workflow no longer makes it. The
+// policy is that a major merges whatever it touches, so the cases below put it in front
+// of a diff reaching publish.yml, a workflow no pull request runs; a per-file hold list
+// brought back would make that query and hold, and fail here as `not-eligible`.
+const GH_STUB = `#!/usr/bin/env bash
+printf '%s\\n' "$*" >>"$STUB_LOG"
+case "$*" in
+  "api repos/"*"/commits "*) printf '%s\\n' "github|plain|$STUB_AUTHOR" ;;
+  "api repos/"*"/files "*) printf '%s\\n' $STUB_FILES ;;
+  "api repos/"*"/pulls/"*) echo 1 ;;
+  *"--json labels"*) printf '%s' "$STUB_LABELS" ;;
+  *"--json reviewDecision"*) echo "$STUB_DECISION" ;;
+  *"--json state"*) echo OPEN ;;
+  *"--json autoMergeRequest"*) cat "$STUB_ARMED" ;;
+  "pr merge --disable-auto"*) echo false >"$STUB_ARMED" ;;
+  "pr merge --auto"*) echo true >"$STUB_ARMED" ;;
+  "pr review --approve"*) ;;
+  *) echo "stub gh: unexpected call: $*" >&2; exit 64 ;;
+esac
+`;
+
+// One scratch directory for the whole run. The stand-ins are written once: a freshly
+// written executable is slow to start the first time on some systems, and every run
+// below would otherwise pay that again.
+const SCRATCH = fs.mkdtempSync(path.join(os.tmpdir(), 'bot-automerge-'));
+process.on('exit', () => fs.rmSync(SCRATCH, { recursive: true, force: true }));
+const STUB_BIN = path.join(SCRATCH, 'bin');
+fs.mkdirSync(STUB_BIN);
+fs.writeFileSync(path.join(STUB_BIN, 'gh'), GH_STUB, { mode: 0o755 });
+fs.writeFileSync(path.join(STUB_BIN, 'sleep'), '#!/bin/sh\n', { mode: 0o755 });
+
 /**
- * Third-party actions used by `text`, as { action, conditional }. A step is conditional
- * when it carries its own `if:`; the workflow-level and job-level `if:` are somebody
- * else's question and are not read here.
- *
- * Every `uses:` line has to land inside a recognised step, because an action this cannot
- * see is an action nothing judges. One that does not is reported rather than skipped.
+ * Run `script` as GitHub runs a `run:` block with no explicit shell (`bash -e`), with the
+ * stand-ins first on PATH. Returns the exit status, every `gh` call, the step's outputs
+ * and whether the pull request ends up armed.
  */
-function actionSteps(text, errors, file) {
-  const found = [];
-  const blocks = text.split(/^(?= {6}- )/m);
-  const preamble = blocks.shift();
-  // A job that calls a reusable workflow directly (`jobs.<job>.uses:
-  // owner/repo/...@ref`, at 4-space indent with no `- `) has no steps of its own, so
-  // there is no step-level condition that could ever hide it -- the whole job either
-  // runs or it does not, which the trigger-and-classification check above already
-  // judges. Strip it before counting strays, or every such job would misreport as an
-  // unparsable step rather than the different shape it actually is.
-  const withoutJobLevelCalls = preamble.replace(/^ {4}uses:\s*\S+@\S+\s*$/gm, '');
-  const stray = (withoutJobLevelCalls.match(/^\s*(?:- )?uses:/gm) || []).length;
-  if (stray !== 0) {
-    errors.push({
-      code: 'unparsable-step',
-      detail: `${file}: ${stray} outside any step`,
+function runStep(script, env, { armed = false, labels = '' } = {}) {
+  const dir = fs.mkdtempSync(path.join(SCRATCH, 'run-'));
+  try {
+    const file = (name, content = '') => {
+      const target = path.join(dir, name);
+      fs.writeFileSync(target, content);
+      return target;
+    };
+    const paths = {
+      script: file('step.sh', script),
+      output: file('output'),
+      log: file('gh.log'),
+      armed: file('armed', `${armed}\n`),
+    };
+    const result = spawnSync('bash', ['--noprofile', '--norc', '-e', paths.script], {
+      encoding: 'utf8',
+      env: {
+        PATH: `${STUB_BIN}${path.delimiter}${process.env.PATH}`,
+        HOME: dir,
+        GITHUB_OUTPUT: paths.output,
+        STUB_LOG: paths.log,
+        STUB_ARMED: paths.armed,
+        STUB_LABELS: labels,
+        STUB_AUTHOR: env.AUTHOR || 'dependabot[bot]',
+        STUB_DECISION: '',
+        STUB_FILES: '.github/workflows/publish.yml package.json',
+        GH_REPO: 'owner/repo',
+        PR_NUMBER: '7',
+        PR_URL: 'https://github.com/owner/repo/pull/7',
+        ...env,
+      },
     });
-  }
-  for (const block of blocks) {
-    const all = block.match(/^\s*(?:- )?uses:\s*[^\s#]+/gm) || [];
-    if (all.length === 0) continue;
-    if (all.length > 1) {
-      // Two in one block means the split did not find a boundary it should have, so the
-      // second action is invisible to every check below. Refuse rather than judge one.
-      errors.push({
-        code: 'unparsable-step',
-        detail: `${file}: ${all.length} in one step`,
-      });
-      continue;
+    const outputs = {};
+    for (const line of fs.readFileSync(paths.output, 'utf8').split('\n')) {
+      const pair = /^([^=]+)=(.*)$/.exec(line);
+      if (pair) outputs[pair[1]] = pair[2];
     }
-    const uses = /^\s*(?:- )?uses:\s*([^\s#]+)/m.exec(block)[1];
-    if (uses.startsWith('./')) continue; // a local composite action, not Dependabot's
-    found.push({ action: uses.split('@')[0], condition: conditionOf(block) });
+    return {
+      status: result.status,
+      stderr: result.stderr,
+      calls: fs.readFileSync(paths.log, 'utf8').split('\n').filter(Boolean),
+      outputs,
+      armed: fs.readFileSync(paths.armed, 'utf8').trim() === 'true',
+    };
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+/** A step's script, or an error recorded and null when it cannot be run faithfully. */
+function runnable(text, name, file, add) {
+  const script = stepScript(text, name);
+  if (script === null) {
+    add('step-missing', `${file}: ${name}`);
+    return null;
+  }
+  if (script.includes('${{')) {
+    add('expression-in-run', `${file}: ${name}`);
+    return null;
+  }
+  return script;
+}
+
+/** Every string compared against $ECOSYSTEM in shell code, whichever operator. */
+function comparisons(text) {
+  const found = [];
+  for (const line of text.split('\n')) {
+    if (isComment(line)) continue;
+    for (const match of line.matchAll(
+      /"\$\{?ECOSYSTEM\}?"\s*(?:==?|!=)\s*"([^"]*)"/g
+    )) {
+      found.push(match[1]);
+    }
   }
   return found;
 }
 
 /**
- * Every complaint about the current tables, as { code, detail }. Returning them rather
+ * Every complaint about the current files, as { code, detail }. Returning them rather
  * than printing keeps the negative cases below able to assert on a specific failure.
  */
-function analyze({
-  bot,
-  dependabot,
-  workflows,
-  classification = CLASSIFICATION,
-  conditionalSteps = CONDITIONAL_STEPS,
-}) {
+function analyze({ bot, disarm, dependabot }) {
   const errors = [];
   const add = (code, detail) => errors.push({ code, detail });
 
-  // --- The ecosystem names -------------------------------------------------------
+  // --- The ecosystem names --------------------------------------------------------
   const configured = [
     ...dependabot.matchAll(/^\s*-?\s*package-ecosystem:\s*(\S+)/gm),
   ].map((match) => match[1].replace(/^['"]|['"]$/g, ''));
   if (configured.length === 0) add('no-ecosystems', 'dependabot.yml declares none');
 
-  const compared = new Set(
-    [...bot.matchAll(/\[\s*"\$ECOSYSTEM"\s*=\s*"([^"]*)"\s*\]/g)].map((m) => m[1])
-  );
-  if (compared.size === 0) add('no-ecosystem-tests', 'bot-automerge.yml compares none');
-
-  const expected = new Set();
+  const slugs = [];
   for (const key of configured) {
-    const slug = ECOSYSTEM_SLUGS[key];
-    if (!slug) {
-      // A new ecosystem in dependabot.yml whose slug this table has never been told.
-      // Guessing it is what produced the original bug.
-      add('unknown-ecosystem', key);
-      continue;
-    }
-    expected.add(slug);
-    if (!compared.has(slug)) add('missing-ecosystem-branch', `${key} -> ${slug}`);
-    if (compared.has(key) && key !== slug) add('config-key-not-slug', key);
+    // A new ecosystem in dependabot.yml whose slug this table has never been told.
+    // Guessing it is what produced the original bug, so it is recorded before it is used.
+    if (ECOSYSTEM_SLUGS[key]) slugs.push(ECOSYSTEM_SLUGS[key]);
+    else add('unknown-ecosystem', key);
   }
-  for (const value of compared) {
-    if (!expected.has(value) && !configured.includes(value)) {
+  for (const value of comparisons(bot)) {
+    if (Object.hasOwn(ECOSYSTEM_SLUGS, value) && ECOSYSTEM_SLUGS[value] !== value) {
+      add('config-key-not-slug', `${value} -> ${ECOSYSTEM_SLUGS[value]}`);
+    } else if (!slugs.includes(value)) {
       add('unknown-comparison', value);
     }
   }
 
-  // --- The hold list -------------------------------------------------------------
-  // Extracted from the `grep -cFx -e '...'` invocation rather than from a data file:
-  // the job deliberately has no checkout step, so the list has to live in the workflow.
-  const held = new Set(
-    [...bot.matchAll(/-e '(\.github\/workflows\/[^']+)'/g)].map((match) => match[1])
-  );
-  if (held.size === 0) add('no-hold-list', 'bot-automerge.yml holds nothing');
-
-  // A rename is the cheapest way out of a hold list keyed on exact paths, and the files
-  // query is what closes it.
-  if (!bot.includes('previous_filename')) add('rename-not-covered', 'files query');
-
-  const classifiedHeld = new Set(
-    Object.entries(classification)
-      .filter(([, reason]) => HELD_REASONS.has(reason))
-      .map(([file]) => `.github/workflows/${file}`)
-  );
-
-  for (const file of workflows.keys()) {
-    if (!classification[file]) add('unclassified', file);
-  }
-  for (const file of Object.keys(classification)) {
-    if (!workflows.has(file)) add('stale-classification', file);
-  }
-  for (const entry of held) {
-    if (!classifiedHeld.has(entry)) add('holds-an-exercised-workflow', entry);
-  }
-  for (const entry of classifiedHeld) {
-    if (!held.has(entry)) add('missing-from-hold-list', entry);
-  }
-
-  // --- Each classification still matches its workflow ----------------------------
-  for (const [file, reason] of Object.entries(classification)) {
-    const text = workflows.get(file);
-    if (text === undefined) continue;
-    const trigger = pullRequestTrigger(text, errors, file);
-    const opens =
-      trigger !== null && (trigger.types === null || trigger.types.includes('opened'));
-
-    if (reason === 'no-pr-trigger') {
-      if (trigger !== null) add('has-pr-trigger', file);
-    } else if (reason === 'pr-types-exclude-open') {
-      if (trigger === null) add('claimed-pr-types-but-no-trigger', file);
-      else if (opens) add('pr-types-do-include-open', file);
-    } else if (reason === 'skipped-step') {
-      const held = Object.values(conditionalSteps[file] || {});
-      if (!held.some((entry) => entry && entry.verdict === 'skipped')) {
-        add('no-skipped-step', file);
-      }
-    } else if (reason === 'pull-request-target-only') {
-      // Must have no literal `pull_request:` key -- if it had one too, `pr-runs-it` or
-      // one of the other pull_request-keyed reasons would be the accurate claim instead.
-      if (trigger !== null) add('has-pr-trigger', file);
-      // And it must actually declare `pull_request_target:`, so this classification
-      // cannot be satisfied vacuously by a workflow with no pull-request-shaped trigger
-      // at all -- that case is `no-pr-trigger`'s to claim, not this one's.
-      const onBlock = blockUnder(
-        text.split('\n'),
-        text.split('\n').findIndex((line) => /^on:\s*(#.*)?$/.test(line)),
-        1
-      );
-      const hasTarget = onBlock.some((line) =>
-        /^ {2}pull_request_target:\s*(#.*)?$/.test(line)
-      );
-      if (!hasTarget) add('claimed-pull-request-target-but-none', file);
-    } else if (reason === 'pr-runs-it') {
-      if (!opens) {
-        add('not-run-by-a-pr', file);
-      } else if (trigger.paths !== null) {
-        // A paths filter that does not cover the workflow's own path means a bump to an
-        // action written in this file never starts it, so the file is not evidence for
-        // its own actions even though every other pull request runs it.
-        const self = `.github/workflows/${file}`;
-        const unsupported = trigger.paths.filter(
-          (pattern) => pattern.includes('?') || pattern.startsWith('!')
-        );
-        if (unsupported.length !== 0) {
-          add('paths-pattern-unsupported', `${file}: ${unsupported.join(', ')}`);
-        } else if (!trigger.paths.some((pattern) => pathMatches(pattern, self))) {
-          add('paths-omit-self', file);
+  // --- What merges ----------------------------------------------------------------
+  const decide = runnable(bot, ELIGIBILITY_STEP, 'bot-automerge.yml', add);
+  if (decide !== null) {
+    const decideFor = (updateType, ecosystem) =>
+      runStep(decide, {
+        AUTHOR: 'dependabot[bot]',
+        UPDATE_TYPE: updateType,
+        ECOSYSTEM: ecosystem,
+      });
+    for (const ecosystem of slugs) {
+      for (const updateType of ELIGIBLE) {
+        const run = decideFor(updateType, ecosystem);
+        if (run.status !== 0 || run.outputs.should_merge !== 'true') {
+          add('not-eligible', `${ecosystem} ${updateType}: ${run.stderr.trim()}`);
         }
       }
-    } else {
-      add('unknown-reason', `${file}: ${reason}`);
     }
+    for (const updateType of UNKNOWN) {
+      const run = decideFor(updateType, slugs[0] || '');
+      if (run.outputs.should_merge === 'true') {
+        add('unknown-not-held', updateType || '(empty)');
+      }
+    }
+  }
 
-    // Conditional steps, whatever the classification. A workflow every pull request runs
-    // is still not evidence for an action inside it that never executes, and that gap is
-    // invisible at file level -- which is exactly how a workflow can look exercised while
-    // holding an action nothing has ever run.
-    const declared = conditionalSteps[file] || {};
-    const conditional = new Map(
-      actionSteps(text, errors, file)
-        .filter((step) => step.condition !== null)
-        .map((step) => [step.action, step.condition])
-    );
-    for (const action of conditional.keys()) {
-      if (!declared[action]) add('unaccounted-conditional-step', `${file}: ${action}`);
+  // --- The kill switch ------------------------------------------------------------
+  // Three parts, each needed: the job does not start on a labeled pull request, the
+  // arming step re-reads the label in case it arrived mid-run, and the disarm workflow
+  // takes back an arm that was already made.
+  const job = jobCondition(bot) || '';
+  if (
+    !job.includes(
+      `!contains(github.event.pull_request.labels.*.name, '${KILL_SWITCH}')`
+    )
+  ) {
+    add('job-ignores-label', job);
+  }
+
+  const arm = runnable(bot, ARM_STEP, 'bot-automerge.yml', add);
+  if (arm !== null) {
+    const armed = (labels) => runStep(arm, {}, { labels }).armed;
+    // The positive control, without which "never arms" would pass the cases below.
+    if (!armed('dependencies')) add('never-arms', 'no label, and still not armed');
+    for (const label of [KILL_SWITCH, 'Do Not Auto-Merge']) {
+      if (armed(`dependencies\n${label}`)) add('kill-switch-ignored', label);
     }
-    for (const [action, entry] of Object.entries(declared)) {
-      const { verdict, when } = entry;
-      // A step that lost its `if:` -- or was deleted -- leaves a judgement standing over
-      // nothing. Both directions matter: unconditional means the hold may no longer be
-      // needed, and absent means the table is describing a step that is gone.
-      if (!conditional.has(action)) {
-        add('stale-conditional-step', `${file}: ${action}`);
-      } else if (conditional.get(action) !== when) {
-        // The verdict is a judgement about this expression, not about the step merely
-        // having one. An edited condition invalidates it in either direction: a `runs`
-        // narrowed until it no longer fires would arm an action nothing exercised, and
-        // that is not caught by observing that an `if:` is still present.
-        add(
-          'condition-changed',
-          `${file}: ${action}\n      pinned: ${when}\n      actual: ${conditional.get(action)}`
-        );
-      }
-      if (!['runs', 'skipped'].includes(verdict)) {
-        add('unknown-verdict', `${file}: ${action} -> ${verdict}`);
-      }
-      if (typeof when !== 'string' || when === '') {
-        add('no-condition-pinned', `${file}: ${action}`);
-      }
-      if (verdict === 'skipped' && reason === 'pr-runs-it') {
-        add('skipped-action-in-exercised-workflow', `${file}: ${action}`);
-      }
+  }
+
+  if (!/^ {4}types: \[labeled\]\s*$/m.test(disarm)) {
+    add('disarm-not-on-labeled', 'bot-automerge-disarm.yml');
+  }
+  if (jobCondition(disarm) !== `github.event.label.name == '${KILL_SWITCH}'`) {
+    add('disarm-wrong-label', jobCondition(disarm) || '(none)');
+  }
+  const unarm = runnable(disarm, DISARM_STEP, 'bot-automerge-disarm.yml', add);
+  if (unarm !== null) {
+    const run = runStep(unarm, {}, { armed: true });
+    if (run.status !== 0 || run.armed) {
+      add('disarm-failed', `exit ${run.status}, armed ${run.armed}`);
     }
   }
 
   return errors;
 }
 
-function readWorkflows(dir) {
-  const workflows = new Map();
-  for (const entry of fs.readdirSync(dir).sort()) {
-    if (!/\.ya?ml$/.test(entry)) continue;
-    workflows.set(entry, fs.readFileSync(path.join(dir, entry), 'utf8'));
-  }
-  return workflows;
-}
-
 const live = {
   bot: fs.readFileSync(BOT, 'utf8'),
+  disarm: fs.readFileSync(DISARM, 'utf8'),
   dependabot: fs.readFileSync(DEPENDABOT, 'utf8'),
-  workflows: readWorkflows(WORKFLOW_DIR),
 };
 
 let failures = 0;
@@ -541,7 +326,7 @@ let failures = 0;
 const actual = analyze(live);
 if (actual.length !== 0) {
   failures += 1;
-  console.error('FAIL: bot-automerge.yml does not match the repository:');
+  console.error('FAIL: the bot auto-merge workflows do not behave as intended:');
   for (const { code, detail } of actual) console.error(`  ${code}: ${detail}`);
 }
 
@@ -555,22 +340,9 @@ let cases = 0;
 /** Apply `mutate` to a copy of the live inputs and require `code` among the errors. */
 function expectError(name, code, mutate) {
   cases += 1;
-  const copy = {
-    bot: live.bot,
-    dependabot: live.dependabot,
-    workflows: new Map(live.workflows),
-    classification: { ...CLASSIFICATION },
-    conditionalSteps: { ...CONDITIONAL_STEPS },
-  };
+  const copy = { ...live };
   mutate(copy);
-  if (
-    copy.bot === live.bot &&
-    copy.dependabot === live.dependabot &&
-    copy.workflows.size === live.workflows.size &&
-    [...copy.workflows].every(([file, text]) => live.workflows.get(file) === text) &&
-    JSON.stringify(copy.classification) === JSON.stringify(CLASSIFICATION) &&
-    JSON.stringify(copy.conditionalSteps) === JSON.stringify(CONDITIONAL_STEPS)
-  ) {
+  if (Object.keys(live).every((key) => copy[key] === live[key])) {
     failures += 1;
     console.error(`FAIL: ${name}: the mutation changed nothing, so the case is stale`);
     return;
@@ -584,24 +356,95 @@ function expectError(name, code, mutate) {
   }
 }
 
-// The original bug, in both directions.
-expectError('npm slug reverted to the config key', 'missing-ecosystem-branch', (c) => {
-  c.bot = c.bot.replace('"npm_and_yarn"', '"npm"');
+const MAJOR_NOTICE =
+  'echo "::notice::${ECOSYSTEM:-unknown} major; eligible on green CI."';
+const HOLD =
+  'echo "::warning::Holding ${UPDATE_TYPE:-unknown update type} for a human."\n' +
+  '            echo "should_merge=false"';
+
+// What merges.
+expectError('majors held outright', 'not-eligible', (c) => {
+  c.bot = c.bot.replace(
+    '"version-update:semver-major"',
+    '"version-update:semver-none"'
+  );
 });
-expectError('npm slug reverted to the config key', 'config-key-not-slug', (c) => {
-  c.bot = c.bot.replace('"npm_and_yarn"', '"npm"');
+expectError('patches held', 'not-eligible', (c) => {
+  c.bot = c.bot.replace(
+    '"version-update:semver-patch"',
+    '"version-update:semver-none"'
+  );
 });
-expectError('actions slug reverted to the config key', 'config-key-not-slug', (c) => {
-  c.bot = c.bot.replace('"github_actions"', '"github-actions"');
+expectError('an ecosystem gate holding actions majors again', 'not-eligible', (c) => {
+  c.bot = c.bot.replace(
+    MAJOR_NOTICE,
+    'if [ "$ECOSYSTEM" = "github_actions" ]; then\n' +
+      '              echo "should_merge=false" >> "$GITHUB_OUTPUT"\n' +
+      '              exit 0\n' +
+      '            fi\n' +
+      `            ${MAJOR_NOTICE}`
+  );
 });
-expectError('an ecosystem arm deleted outright', 'missing-ecosystem-branch', (c) => {
-  c.bot = c.bot.replace('"github_actions"', '"nothing_matches_this"');
+expectError('an unknown update type merging', 'unknown-not-held', (c) => {
+  c.bot = c.bot.replace(HOLD, HOLD.replace('should_merge=false', 'should_merge=true'));
+});
+expectError('the eligibility step renamed', 'step-missing', (c) => {
+  c.bot = c.bot.replace(`- name: ${ELIGIBILITY_STEP}`, '- name: Decide');
+});
+
+// The kill switch.
+expectError('the job no longer reads the label', 'job-ignores-label', (c) => {
+  c.bot = c.bot.replace(
+    ` &&\n      !contains(github.event.pull_request.labels.*.name, '${KILL_SWITCH}')`,
+    ''
+  );
+});
+expectError('the arming step ignores the label', 'kill-switch-ignored', (c) => {
+  c.bot = c.bot.replace(`grep -qixF '${KILL_SWITCH}'`, "grep -qixF 'never applied'");
+});
+expectError('the label check made case-sensitive', 'kill-switch-ignored', (c) => {
+  c.bot = c.bot.replace(`grep -qixF '${KILL_SWITCH}'`, `grep -qxF '${KILL_SWITCH}'`);
+});
+expectError('the arming step never arms', 'never-arms', (c) => {
+  c.bot = c.bot.replace('gh pr merge --auto --squash "$PR_URL"', 'true');
+});
+expectError('disarm no longer disables', 'disarm-failed', (c) => {
+  c.disarm = c.disarm.replace(
+    'gh pr merge --disable-auto "$PR_NUMBER" || true',
+    'true'
+  );
+});
+expectError('disarm listens for another label', 'disarm-wrong-label', (c) => {
+  c.disarm = c.disarm.replace(
+    `if: github.event.label.name == '${KILL_SWITCH}'`,
+    "if: github.event.label.name == 'hold'"
+  );
+});
+expectError('disarm no longer fires on labeled', 'disarm-not-on-labeled', (c) => {
+  c.disarm = c.disarm.replace('types: [labeled]', 'types: [opened]');
+});
+
+// The original bug, in both directions, and a slug nobody recorded.
+expectError('actions compared by its config key', 'config-key-not-slug', (c) => {
+  c.bot = c.bot.replace(
+    MAJOR_NOTICE,
+    `[ "$ECOSYSTEM" = "github-actions" ] || true\n            ${MAJOR_NOTICE}`
+  );
+});
+expectError('npm compared by its config key', 'config-key-not-slug', (c) => {
+  c.bot = c.bot.replace(
+    MAJOR_NOTICE,
+    `[ "$ECOSYSTEM" = "npm" ] || true\n            ${MAJOR_NOTICE}`
+  );
 });
 expectError(
   'a comparison against an ecosystem nobody configured',
   'unknown-comparison',
   (c) => {
-    c.bot = c.bot.replace('"npm_and_yarn"', '"cargo"');
+    c.bot = c.bot.replace(
+      MAJOR_NOTICE,
+      `[ "$ECOSYSTEM" = "cargo" ] || true\n            ${MAJOR_NOTICE}`
+    );
   }
 );
 expectError('a new ecosystem with no known slug', 'unknown-ecosystem', (c) => {
@@ -610,186 +453,12 @@ expectError('a new ecosystem with no known slug', 'unknown-ecosystem', (c) => {
     '  - package-ecosystem: docker\n    directory: /\n  - package-ecosystem: npm'
   );
 });
-expectError('every ecosystem test removed', 'no-ecosystem-tests', (c) => {
-  c.bot = c.bot.replace(/\[\s*"\$ECOSYSTEM"[^\]]*\]/g, '[ -n "$ECOSYSTEM" ]');
+expectError('dependabot.yml read as declaring nothing', 'no-ecosystems', (c) => {
+  c.dependabot = c.dependabot.replace(/package-ecosystem:/g, 'package_ecosystem:');
 });
-
-// The hold list.
-expectError('a held workflow dropped from the list', 'missing-from-hold-list', (c) => {
-  c.bot = c.bot.replace(/^.*-e '\.github\/workflows\/publish\.yml'.*$/m, '');
-});
-expectError('the whole hold list removed', 'no-hold-list', (c) => {
-  c.bot = c.bot.replace(/-e '\.github\/workflows\/[^']+'/g, "-e 'nothing'");
-});
-expectError('rename evasion reopened', 'rename-not-covered', (c) => {
-  c.bot = c.bot.replace('previous_filename', 'filename');
-});
-expectError('a workflow this file has never seen', 'unclassified', (c) => {
-  c.workflows.set('brand-new.yml', 'on:\n  pull_request:\n');
-});
-expectError('a classified workflow deleted or renamed', 'stale-classification', (c) => {
-  c.workflows.delete('publish.yml');
-});
-expectError('holding a workflow every PR runs', 'holds-an-exercised-workflow', (c) => {
-  c.bot = c.bot.replace(
-    "-e '.github/workflows/publish.yml'",
-    "-e '.github/workflows/publish.yml' \\\n             -e '.github/workflows/ci.yml'"
-  );
-});
-
-// A classification that stopped matching its workflow.
-expectError('a held workflow gains a pull_request trigger', 'has-pr-trigger', (c) => {
-  c.workflows.set(
-    'publish.yml',
-    c.workflows.get('publish.yml').replace(/^on:$/m, 'on:\n  pull_request:')
-  );
-});
-expectError(
-  'a labeled-only trigger widened to opened',
-  'pr-types-do-include-open',
-  (c) => {
-    c.workflows.set(
-      'bot-automerge-disarm.yml',
-      c.workflows
-        .get('bot-automerge-disarm.yml')
-        .replace('types: [labeled]', 'types: [opened]')
-    );
-  }
-);
-expectError('the greeting guard removed outright', 'stale-conditional-step', (c) => {
-  c.workflows.set(
-    'greet-new-contributors.yml',
-    c.workflows
-      .get('greet-new-contributors.yml')
-      .replace(/^ {8}if: >-\n(?: {10}.*\n)+/m, '')
-  );
-});
-expectError('a conditional step nobody judged', 'unaccounted-conditional-step', (c) => {
-  c.workflows.set(
-    'pr-title.yml',
-    c.workflows
-      .get('pr-title.yml')
-      .replace(
-        /^ {8}uses: (\S+)$/m,
-        "        if: github.event_name == 'push'\n        uses: $1"
-      )
-  );
-});
-expectError(
-  'a workflow holding a skipped action called exercised',
-  'skipped-action-in-exercised-workflow',
-  (c) => {
-    c.classification['greet-new-contributors.yml'] = 'pr-runs-it';
-  }
-);
-expectError(
-  'a judged step that is no longer conditional',
-  'stale-conditional-step',
-  (c) => {
-    c.workflows.set(
-      'ci.yml',
-      c.workflows.get('ci.yml').replace(/^ {8}if: matrix\.node == '22\.x'\n/m, '')
-    );
-  }
-);
-expectError('a verdict this file does not understand', 'unknown-verdict', (c) => {
-  c.conditionalSteps['ci.yml'] = {
-    'codecov/codecov-action': { verdict: 'probably', when: "matrix.node == '22.x'" },
-  };
-});
-expectError('a verdict pinned to no condition at all', 'no-condition-pinned', (c) => {
-  c.conditionalSteps['ci.yml'] = { 'codecov/codecov-action': { verdict: 'runs' } };
-});
-// The two directions review asked about, and the reason the pin exists.
-expectError('a guard inverted to admit bots', 'condition-changed', (c) => {
-  c.workflows.set(
-    'greet-new-contributors.yml',
-    c.workflows
-      .get('greet-new-contributors.yml')
-      .replace("is-bot == 'false'", "is-bot == 'true'")
-  );
-});
-expectError(
-  'a runs condition narrowed until it never fires',
-  'condition-changed',
-  (c) => {
-    c.workflows.set(
-      'ci.yml',
-      c.workflows
-        .get('ci.yml')
-        .replace("if: matrix.node == '22.x'", "if: matrix.node == '99.x'")
-    );
-  }
-);
-expectError('a uses: line outside any step', 'unparsable-step', (c) => {
-  c.workflows.set(
-    'pr-title.yml',
-    c.workflows.get('pr-title.yml').replace(/^jobs:$/m, 'jobs:\n  uses: not/a-step@v1')
-  );
-});
-expectError('a paths-ignore filter is refused', 'paths-ignore-unsupported', (c) => {
-  c.workflows.set(
-    'test-ci-complete.yml',
-    c.workflows
-      .get('test-ci-complete.yml')
-      .replace('    paths:\n', '    paths-ignore:\n')
-  );
-});
-expectError(
-  'an exercised workflow loses its pull_request trigger',
-  'not-run-by-a-pr',
-  (c) => {
-    c.workflows.set(
-      'pr-title.yml',
-      c.workflows.get('pr-title.yml').replace('  pull_request:', '  issues:')
-    );
-  }
-);
-expectError(
-  'a self-triggering path filter stops listing itself',
-  'paths-omit-self',
-  (c) => {
-    c.workflows.set(
-      'test-ci-complete.yml',
-      c.workflows
-        .get('test-ci-complete.yml')
-        .replace(
-          /^ {6}- \.github\/workflows\/test-ci-complete\.yml$/m,
-          '      - Makefile'
-        )
-    );
-  }
-);
-expectError(
-  'a paths pattern this file cannot model',
-  'paths-pattern-unsupported',
-  (c) => {
-    c.workflows.set(
-      'test-ci-complete.yml',
-      c.workflows
-        .get('test-ci-complete.yml')
-        .replace(
-          '      - .github/workflows/ci.yml\n',
-          '      - .github/workflows/ci.ya?ml\n'
-        )
-    );
-  }
-);
-expectError(
-  'block-style types are refused rather than read as absent',
-  'types-not-flow',
-  (c) => {
-    c.workflows.set(
-      'bot-automerge-disarm.yml',
-      c.workflows
-        .get('bot-automerge-disarm.yml')
-        .replace('types: [labeled]', 'types:\n      - labeled')
-    );
-  }
-);
 
 if (failures !== 0) {
-  console.error(`bot-automerge.yml: ${failures} test(s) failed`);
+  console.error(`bot-automerge: ${failures} test(s) failed`);
   process.exit(1);
 }
 

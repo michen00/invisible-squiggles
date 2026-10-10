@@ -249,9 +249,12 @@ jobs:
       - name: Assert the gate covers every job
         run: |
           scripts/test-ci-complete.cjs
-      # bot-automerge.yml decides unattended merges from two hand-written tables --
-      # Dependabot's ecosystem slugs, and the list of workflows a pull request does not
-      # run -- and both fail open when they fall behind. Both were wrong and silent.
+      # bot-automerge.yml decides unattended merges, and the ways its policy has drifted
+      # before were silent: an ecosystem compared by its config key rather than
+      # Dependabot's slug, and a hold list that fell behind the workflows. The suite runs
+      # the workflow's steps to check that patch, minor and major are eligible, that an
+      # unknown update type is held and that the kill-switch label still disarms, and it
+      # checks that the ecosystem names are Dependabot's slugs.
       - name: Assert bot auto-merge matches its configuration
         run: |
           scripts/test-bot-automerge.cjs

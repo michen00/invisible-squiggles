@@ -22,6 +22,10 @@ jobs:
   checks:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    env:
+      # The maximum for the PR title and every commit subject, counted as typed: a
+      # positive whole number, or 'off' to leave the length unchecked.
+      SUBJECT_MAX_LENGTH: '50'
     steps:
       # Full depth so the commit-subject range resolves.
       - uses: actions/checkout@v7

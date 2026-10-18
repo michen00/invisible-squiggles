@@ -8,6 +8,7 @@ is an error and exits non-zero; mood preferences are warnings.
 Usage:
     python -m checks.check_commit_messages            # origin/main..HEAD
     python -m checks.check_commit_messages main..HEAD
+    SUBJECT_MAX_LENGTH=off python -m checks.check_commit_messages
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ import subprocess
 import sys
 from collections.abc import Iterable
 
-from ._common import Findings, check_subject
+from ._common import Findings, check_subject, max_length_argument, subject_max_length
 
 _UNIT = "\x1f"
 _BOT_AUTHORS = frozenset({"dependabot", "github-actions", "pre-commit-ci"})
@@ -45,7 +46,7 @@ def _is_bot(author: str) -> bool:
 
 
 def check_commits(
-    rows: Iterable[tuple[str, str, str]], *, max_length: int | None = None
+    rows: Iterable[tuple[str, str, str]], *, max_length: int | str | None = None
 ) -> Findings:
     """Validate the subject of every non-bot commit and combine the findings.
 
@@ -74,11 +75,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--max-length",
-        type=int,
+        type=max_length_argument,
         default=None,
         help=(
-            "the maximum length a subject may spend; falls back to SUBJECT_MAX_LENGTH, "
-            "and then to the documented default of 50"
+            "the maximum length a subject may spend, or off to leave it unchecked; "
+            "falls back to SUBJECT_MAX_LENGTH, and then to the default of 50"
         ),
     )
     args = parser.parse_args(argv)
@@ -93,6 +94,8 @@ def main(argv: list[str] | None = None) -> int:
     if found.ok:
         checked = sum(1 for _, author, _ in rows if not _is_bot(author))
         ok_message = f"{checked} commit subject(s) OK"
+        if subject_max_length(args.max_length) is None:
+            ok_message += ", length not checked"
     else:
         ok_message = ""
     return found.emit(ok_message)

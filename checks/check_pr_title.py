@@ -8,6 +8,7 @@ Usage:
     python -m checks.check_pr_title "feat: add config precedence rule"
     PR_TITLE="fix: guard empty body" python -m checks.check_pr_title
     SUBJECT_MAX_LENGTH=72 python -m checks.check_pr_title "fix: guard empty body"
+    python -m checks.check_pr_title --max-length off "fix: guard empty body"
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ from __future__ import annotations
 import argparse
 import os
 
-from ._common import check_subject
+from ._common import check_subject, max_length_argument, subject_max_length
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -29,11 +30,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--max-length",
-        type=int,
+        type=max_length_argument,
         default=None,
         help=(
-            "the maximum length a title may spend; falls back to SUBJECT_MAX_LENGTH, "
-            "and then to the documented default of 50"
+            "the maximum length a title may spend, or off to leave it unchecked; "
+            "falls back to SUBJECT_MAX_LENGTH, and then to the default of 50"
         ),
     )
     args = parser.parse_args(argv)
@@ -41,7 +42,8 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("provide a title argument or set PR_TITLE")
 
     found = check_subject(args.title, label="title", max_length=args.max_length)
-    return found.emit("title OK")
+    unchecked = subject_max_length(args.max_length) is None
+    return found.emit("title OK, length not checked" if unchecked else "title OK")
 
 
 if __name__ == "__main__":

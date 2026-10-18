@@ -10,9 +10,12 @@ __all__ = (
     "SUBJECT_MAX_DEFAULT",
     "Findings",
     "check_subject",
+    "max_length_argument",
+    "parse_max_length",
     "subject_max_length",
 )
 
+import argparse
 import os
 import re
 import sys
@@ -57,6 +60,10 @@ _LOOSE_FORM = re.compile(
 SUBJECT_MAX_DEFAULT = 50
 
 _MAX_LENGTH_VARIABLE = "SUBJECT_MAX_LENGTH"
+
+# The settings that leave the length unchecked, matched in any case. `false` is among
+# them so that a workflow writing the setting as a YAML boolean turns the check off too.
+_UNCHECKED = frozenset({"off", "none", "false"})
 
 # Common non-imperative first words: third-person and past forms we see most often.
 _NON_IMPERATIVE = frozenset(
@@ -213,31 +220,55 @@ def _form_problem(subject_line: str) -> str:
     return f"nothing follows '{head}: '"
 
 
-def subject_max_length(
-    explicit: int | None = None, *, environ: Mapping[str, str] | None = None
-) -> int:
-    """The number of characters a subject line may spend, most specific source first.
+def parse_max_length(setting: int | str) -> int | None:
+    """The maximum a setting names, or None when it leaves the length unchecked.
 
-    An argument beats the environment, and the environment beats the default. A value
-    that is not a positive whole number is ignored.
+    A setting is a positive whole number, or `off`; `none` and `false` mean `off` too,
+    in any case. Anything else raises ValueError.
+    """
+    text = str(setting).strip()
+    if text.lower() in _UNCHECKED:
+        return None
+    if text.isdigit() and int(text) > 0:
+        return int(text)
+    raise ValueError(f"expected a positive whole number or off, not {setting!r}")
+
+
+def max_length_argument(text: str) -> str:
+    """A `--max-length` value, returned unchanged once parse_max_length accepts it."""
+    try:
+        parse_max_length(text)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError(str(error)) from error
+    return text
+
+
+def subject_max_length(
+    explicit: int | str | None = None, *, environ: Mapping[str, str] | None = None
+) -> int | None:
+    """The number of characters a subject line may spend, or None if it is unchecked.
+
+    An argument beats the environment, and the environment beats the default. A bad
+    argument raises ValueError; an unusable variable is ignored.
     """
     if explicit is not None:
-        return explicit
+        return parse_max_length(explicit)
     source = os.environ if environ is None else environ
-    configured = source.get(_MAX_LENGTH_VARIABLE, "").strip()
-    if configured.isdigit() and int(configured) > 0:
-        return int(configured)
-    return SUBJECT_MAX_DEFAULT
+    try:
+        return parse_max_length(source.get(_MAX_LENGTH_VARIABLE, ""))
+    except ValueError:
+        return SUBJECT_MAX_DEFAULT
 
 
 def check_subject(
-    subject_line: str, *, label: str = "subject", max_length: int | None = None
+    subject_line: str, *, label: str = "subject", max_length: int | str | None = None
 ) -> Findings:
     """Validate one Conventional Commit subject line against the conventions.
 
     These are the rules that govern every subject, a commit's as much as a title's, and
     the length is now among them on the same terms: a title and a commit subject answer
-    to one number, resolved by subject_max_length.
+    to one number, resolved by subject_max_length. With the length unchecked, every
+    other rule still applies.
     """
     found = Findings()
     maximum = subject_max_length(max_length)
@@ -252,7 +283,7 @@ def check_subject(
     subject = match.group("subject")
 
     # Deterministic and unambiguous -> errors (block).
-    if len(subject_line) > maximum:
+    if maximum is not None and len(subject_line) > maximum:
         found.errors.append(
             f"{label}: {len(subject_line)} chars exceeds hard max {maximum}"
         )

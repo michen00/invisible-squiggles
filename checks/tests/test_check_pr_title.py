@@ -65,6 +65,25 @@ def test_max_length_flag_raises_the_ceiling() -> None:
     assert code == 0
 
 
+def test_max_length_off_leaves_the_length_unchecked(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code = main(["feat: " + "x" * 60, "--max-length", "off"])
+    assert code == 0
+    assert capsys.readouterr().out == "title OK, length not checked\n"
+
+
+@pytest.mark.parametrize("setting", ["0", "-3", "sixty"])
+def test_rejects_an_unusable_max_length_flag(
+    setting: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with pytest.raises(SystemExit) as stopped:
+        main(["docs: fix a typo", "--max-length", setting])
+    assert stopped.value.code == 2
+    expected = "argument --max-length: expected a positive whole number or off"
+    assert expected in capsys.readouterr().err
+
+
 def test_subject_max_length_env_var_raises_the_ceiling(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

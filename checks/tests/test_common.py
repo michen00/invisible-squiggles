@@ -13,6 +13,7 @@ from checks._common import (
     _form_problem,
     _looks_non_imperative,
     check_subject,
+    parse_max_length,
     subject_max_length,
 )
 
@@ -110,6 +111,11 @@ class TestCheckSubject:
         found = check_subject("fix: " + "x" * 60, max_length=100)
         assert found.ok
 
+    def test_off_skips_the_length_and_keeps_every_other_rule(self) -> None:
+        assert check_subject("fix: " + "x" * 200, max_length="off").ok
+        found = check_subject("fix: guard empty body.", max_length="off")
+        assert found.errors == ["subject: must not end with a period"]
+
     def test_rejects_a_trailing_period(self) -> None:
         found = check_subject("fix: guard empty body.")
         assert not found.ok
@@ -169,3 +175,14 @@ class TestSubjectMaxLength:
     def test_ignores_an_invalid_configured_value(self, configured: str) -> None:
         result = subject_max_length(environ={"SUBJECT_MAX_LENGTH": configured})
         assert result == SUBJECT_MAX_DEFAULT
+
+    @pytest.mark.parametrize("setting", ["off", "OFF", " Off ", "none", "false"])
+    def test_off_leaves_the_length_unchecked(self, setting: str) -> None:
+        assert parse_max_length(setting) is None
+        assert subject_max_length(setting) is None
+        assert subject_max_length(environ={"SUBJECT_MAX_LENGTH": setting}) is None
+
+    @pytest.mark.parametrize("setting", ["", "sixty", "0", "-3", "3.5"])
+    def test_raises_on_an_unusable_argument(self, setting: str) -> None:
+        with pytest.raises(ValueError, match="positive whole number or off"):
+            subject_max_length(setting)

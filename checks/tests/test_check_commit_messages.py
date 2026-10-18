@@ -121,6 +121,7 @@ class TestCheckCommits:
     def test_passes_max_length_through_to_check_subject(self) -> None:
         rows = [("aaa", "Alice", "fix: " + "x" * 60)]
         assert check_commits(rows, max_length=100).ok
+        assert check_commits(rows, max_length="off").ok
         assert not check_commits(rows).ok
 
 

@@ -14,8 +14,8 @@
 // lines, and the markdown-it `table_open` tokens, of which it reads only `map`. Those
 // are synthesised below, so this suite needs nothing installed.
 //
-// The rule came from aicadium-lab/ai4inputs-specs, which is archived, so no upstream
-// suite will ever cover it. This is the only one it gets.
+// The rule came from a repository that is archived, so no upstream suite will ever
+// cover it. This is the only one it gets.
 
 'use strict';
 

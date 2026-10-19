@@ -9,8 +9,7 @@
  * rule keeps the markdownlint workflow while enforcing the repository's chosen
  * table style safely.
  *
- * Adopted from aicadium-lab/ai4inputs-specs, which is archived and takes no
- * further changes. There is no upstream to send fixes to and no re-sync to keep
+ * Adopted from a repository that is archived and takes no further changes. There is no upstream to send fixes to and no re-sync to keep
  * clean, so this copy is the maintained one and it is the only live copy left --
  * change it here. It was reformatted by this repository's prettier on the way in,
  * and it already carries a fix the archived copy never got.

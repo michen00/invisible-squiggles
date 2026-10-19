@@ -283,19 +283,22 @@ def check_subject(
     subject = match.group("subject")
 
     # Deterministic and unambiguous -> errors (block).
+    first_word = subject.split(" ", 1)[0]
     if maximum is not None and len(subject_line) > maximum:
         found.errors.append(
             f"{label}: {len(subject_line)} chars exceeds hard max {maximum}"
         )
     if subject_line.endswith("."):
         found.errors.append(f"{label}: must not end with a period")
+    # The few verbs written with a capital (Americanize, OK, URL-encode) each have a
+    # rewording that opens on another word, so a capital blocks without exception.
+    if first_word[:1].isupper():
+        found.errors.append(
+            f"{label}: subject must start lowercase ('{first_word}'); if that word "
+            "is a name or an acronym, open on another word"
+        )
 
     # Heuristic or ambiguous -> warnings (advise).
-    first_word = subject.split(" ", 1)[0]
-    if first_word[:1].isupper():
-        found.warnings.append(
-            f"{label}: subject should start lowercase ('{first_word}')"
-        )
     if _looks_non_imperative(first_word):
         found.warnings.append(
             f"{label}: subject may not be imperative ('{first_word}')"

@@ -121,10 +121,11 @@ class TestCheckSubject:
         assert not found.ok
         assert "must not end with a period" in found.errors[0]
 
-    def test_warns_on_an_uppercase_first_word(self) -> None:
-        found = check_subject("fix: Guard empty body")
-        assert found.ok
-        assert any("lowercase" in warning for warning in found.warnings)
+    @pytest.mark.parametrize("first_word", ["Guard", "URL-encode"])
+    def test_rejects_an_uppercase_first_word(self, first_word: str) -> None:
+        found = check_subject(f"fix: {first_word} the empty body")
+        assert not found.ok
+        assert f"must start lowercase ('{first_word}')" in found.errors[0]
 
     @pytest.mark.parametrize("first_word", ["added", "fixed", "updating"])
     def test_warns_on_non_imperative_mood(self, first_word: str) -> None:

@@ -1,8 +1,8 @@
 """Check a pull request title against the repository conventions.
 
 Deterministic problems (a bad Conventional Commit form, exceeding the maximum length, a
-trailing period) are errors and exit non-zero. Everything else is a warning and does
-not: mood, a capitalized start, and plan identifiers.
+trailing period, a capitalized start) are errors and exit non-zero. Everything else is
+a warning and does not: mood and plan identifiers.
 
 Usage:
     python -m checks.check_pr_title "feat: add config precedence rule"

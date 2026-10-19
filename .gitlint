@@ -69,11 +69,17 @@ min-length=5
 # will not cause a violation, but "WIP: my title" will.
 # words=wip
 
-# [title-match-regex]
+[title-match-regex]
 # python-style regex that the commit-msg title must match
 # Note that the regex can contradict with other rules if not used correctly
 # (e.g. title-must-not-contain-word).
-# regex=^US[0-9]*
+# The Conventional Commits shape: a known type, an optional scope, an optional
+# `!`, then a subject that starts with a lowercase letter and ends on a
+# non-space. contrib-title-conventional-commits checks the type and nothing
+# after it, so on its own it accepts `feat: Add thing`. enhance-scope runs
+# first (commit-msg hooks run in config order), so a scope it adds is already
+# in the subject when this rule reads it.
+regex=^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([^)]+\))?!?: [a-z].*\S$
 
 [body-max-line-length]
 line-length=72

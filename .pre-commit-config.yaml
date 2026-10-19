@@ -36,7 +36,7 @@ repos:
 
   # git commit policy
   - repo: https://github.com/michen00/custom-commit-hooks
-    rev: v0.1.2
+    rev: v0.1.3
     hooks:
       - id: enhance-scope # commit-msg
       - id: conventional-merge-commit # prepare-commit-msg
@@ -78,7 +78,7 @@ repos:
   # about to change under it. Prettier can't fight it: .prettierignore already
   # excludes *.md. Exclusions live in .unwrapignore, the tool's own mechanism.
   - repo: https://github.com/michen00/markdown-prose-hooks-py
-    rev: v0.5.1
+    rev: v0.5.2
     hooks:
       - id: unwrap-markdown-prose-py
   - repo: https://github.com/igorshubovych/markdownlint-cli

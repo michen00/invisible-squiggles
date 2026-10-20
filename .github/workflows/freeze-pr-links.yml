@@ -1,0 +1,47 @@
+---
+name: Freeze PR links
+
+# A pull request body or comment can link its own head branch --
+# https://github.com/michen00/invisible-squiggles/blob/<branch>/<path> --
+# and that link breaks once the branch is deleted on merge. The action pins
+# every such link to the head commit's SHA at merge; its README says what it
+# rewrites and what it leaves alone.
+#
+# No `issues: write`: `pull-requests` already covers a pull request's
+# conversation comments.
+#
+# `pull_request_target` loads this workflow from `main`, and the action runs
+# from the release the tag below names, which a ruleset there keeps from
+# moving. Nothing from the pull request is checked out or run.
+
+on:
+  pull_request_target:
+    types: [closed]
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Merged pull request whose head-branch links to freeze
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: freeze-pr-links-${{ github.event.pull_request.number || inputs.pr_number }}
+  cancel-in-progress: false
+
+jobs:
+  freeze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || github.event.pull_request.merged == true
+    steps:
+      - uses: michen00/freeze-pr-links@v0.1.0
+        with:
+          pr-number: ${{ github.event.pull_request.number || inputs.pr_number }}

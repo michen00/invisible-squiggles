@@ -155,6 +155,7 @@ git push origin <branch name>
 - `make run-pre-commit` passes
 - Manual testing in VSCode works
 - The PR title follows the same conventional-commit rules as a commit subject (check locally with `python3 -m checks.check_pr_title "<title>"`). The body has no required sections, but leftover placeholders, TBD or TODO markers, markdownlint directives, and code fences without a language tag draw warnings that do not fail the check (check with `printf '%s' "$BODY" | python3 -m checks.check_pr_body --require`). Bot-authored PRs are exempt from both
+- If you link to a file from a PR's description or comments, use the link on your branch (`https://github.com/michen00/invisible-squiggles/blob/<branch>/<path>`) rather than one pinned to a commit. While the PR is open, that link shows the latest version, and when it merges, `freeze-pr-links.yml` points it at the branch's last commit so it keeps working after the branch is deleted
 
 Then open a PR.
 

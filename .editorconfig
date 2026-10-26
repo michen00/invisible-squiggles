@@ -5,8 +5,7 @@ charset = utf-8
 end_of_line = lf
 insert_final_newline = true
 trim_trailing_whitespace = true
-# shfmt reads these three and other tools ignore them; they sit under [*] so they also
-# reach shell scripts without an extension.
+# shfmt-only keys, under [*] so they reach shell scripts without an extension.
 simplify = true
 space_redirects = true
 switch_case_indent = true

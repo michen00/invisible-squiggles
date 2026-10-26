@@ -25,17 +25,9 @@ updates:
       actions:
         patterns: ['*']
     cooldown:
-      # default-days only. GitHub rejects the semver-* keys for this ecosystem --
-      # "not supported for the package ecosystem 'github-actions'" -- and an
-      # invalid key here does not degrade gracefully: it invalidates the file and
-      # drops this whole entry, grouping and ignore rules included. The
-      # check-dependabot schema hook does not catch it, because the rejection is
-      # server-side rather than schematic.
-      #
-      # So one number covers every actions update, and it is long rather than
-      # short because bot-automerge.yml arms actions majors: this is
-      # the only soak period between a release being published and it merging
-      # here unattended. A patch is not safer than a major when the risk is a
-      # compromised publisher rather than a changed interface, and these packages
-      # execute with this repository's own token inside jobs holding write scopes.
+      # default-days only: GitHub rejects the semver-* keys for this ecosystem,
+      # and an invalid key drops this whole entry without any local check
+      # failing. The delay is long because bot-automerge.yml merges actions
+      # majors with no other soak, and a compromised publisher ships a patch as
+      # readily as a major.
       default-days: 30

@@ -1,34 +1,23 @@
 #!/usr/bin/env node
 
-// Tests what .github/workflows/bot-automerge.yml and bot-automerge-disarm.yml do, by
-// running their shell steps against a stand-in for `gh`:
-//
-//   - a Dependabot patch, minor or major update is eligible to merge, in every ecosystem
+// Runs the shell steps of .github/workflows/bot-automerge.yml and
+// bot-automerge-disarm.yml against a stand-in for `gh`, and checks that:
+//   - a Dependabot patch, minor or major update is eligible in every ecosystem
 //     dependabot.yml declares;
-//   - an update type the workflow does not recognize is held for a person, and the
-//     arming step acts only on the eligibility step's verdict;
-//   - the `do not auto-merge` label still stops arming, and still disarms a pull request
-//     that is already armed;
-//   - the ecosystem names are Dependabot's slugs, not the keys dependabot.yml is written in.
+//   - an unrecognized update type is held, and arming acts only on the eligibility
+//     verdict;
+//   - the `do not auto-merge` label stops arming and disarms an armed pull request;
+//   - ecosystem names are Dependabot's slugs, not dependabot.yml keys. A comparison
+//     against a config key never matches, and every major falls through to a hold that
+//     logs like a deliberate one.
 //
-// The last is the one that fails silently. dependabot/fetch-metadata derives
-// package-ecosystem from the branch name, so it emits Dependabot's internal slugs --
-// `npm_and_yarn` and `github_actions` -- and never `npm` or `github-actions`. A
-// comparison against a config key never matches, so every major falls through to the
-// hold branch with a log line that reads exactly like a deliberate hold. Any comparison
-// in the workflow has to use a slug, and the slug table has to cover every ecosystem
-// dependabot.yml declares, so the right spelling is on record before anybody needs it.
+// The stand-in reports one GitHub-signed commit by the pull request's author, so these
+// cases test the decision, not the provenance guard. `${{ }}` expressions are not
+// evaluated: `if:` conditions are checked as text, and a step whose script contains one
+// is refused.
 //
-// The steps run under bash exactly as written, with `gh` and `sleep` replaced on PATH.
-// The stand-in answers the provenance queries as a single GitHub-signed commit by the
-// pull request's author, so these cases test the decision rather than the provenance
-// guard. Expressions (`${{ }}`) are not evaluated, so the `if:` conditions on the jobs
-// are checked as text, and a step whose script contains one is refused rather than run.
-//
-// Narrow parsing rather than a YAML library, matching the other scripts/test-*.cjs
-// suites: this runs inside the CI complete gate with nothing installed. Narrow parsing
-// fails open, which is why `analyze` is also run against deliberately broken copies of
-// the real files further down.
+// Narrow parsing, not a YAML library: this runs with nothing installed. Narrow parsing
+// fails open, so `analyze` also runs against broken copies of the real files below.
 
 'use strict';
 
@@ -53,15 +42,13 @@ const ELIGIBLE = [
   'version-update:semver-minor',
   'version-update:semver-major',
 ];
-// fetch-metadata leaves update-type empty when it cannot recover one, and anything it
-// might add later is equally unknown to this workflow.
+// fetch-metadata leaves update-type empty when it cannot recover one; a type it adds
+// later is equally unknown to the workflow.
 const UNKNOWN = ['', 'version-update:semver-unknown'];
 
-// package-ecosystem as written in dependabot.yml -> package-ecosystem as emitted by
-// dependabot/fetch-metadata. The action reads chunks[1] of the branch name
-// (`dependabot/npm_and_yarn/...`), which is Dependabot's internal slug for the
-// ecosystem, not the key the config file is written in. Both values are confirmed
-// against the branch names of this repository's own Dependabot pull requests.
+// dependabot.yml key -> the slug fetch-metadata reports, which it reads from the branch
+// name (`dependabot/npm_and_yarn/...`). Both values were confirmed against this
+// repository's Dependabot branch names.
 const ECOSYSTEM_SLUGS = {
   npm: 'npm_and_yarn',
   'github-actions': 'github_actions',
@@ -118,14 +105,13 @@ function jobCondition(text) {
   return parts.join(' ').replace(/\s+/g, ' ').trim();
 }
 
-// A stand-in for `gh`, answering only the calls these steps make. Anything else exits
-// non-zero, so a step that starts making a new call fails here rather than being
-// answered with something plausible.
+// A stand-in for `gh` that answers only the calls these steps make; any other call
+// exits non-zero, so a new call fails here instead of getting a plausible answer.
 //
-// The changed-files query is answered although the workflow does not make it. The
-// policy is that a major merges whatever it touches, so the cases below put it in front
-// of a diff reaching publish.yml, a workflow no pull request runs; a per-file hold list
-// added to the workflow would make that query and hold, and fail here as `not-eligible`.
+// A major merges whatever it touches, so the changed-files query, which the workflow
+// does not make, is answered with a diff reaching a workflow no pull request runs: a
+// per-file hold list added to the workflow would make that query, hold, and fail as
+// `not-eligible`.
 const GH_STUB = `#!/usr/bin/env bash
 printf '%s\\n' "$*" >>"$STUB_LOG"
 case "$*" in
@@ -143,9 +129,8 @@ case "$*" in
 esac
 `;
 
-// One scratch directory for the whole run. The stand-ins are written once: a freshly
-// written executable is slow to start the first time on some systems, and every run
-// below would otherwise pay that again.
+// The stand-ins are written once: a freshly written executable is slow to start the
+// first time on some systems.
 const SCRATCH = fs.mkdtempSync(path.join(os.tmpdir(), 'bot-automerge-'));
 process.on('exit', () => fs.rmSync(SCRATCH, { recursive: true, force: true }));
 const STUB_BIN = path.join(SCRATCH, 'bin');
@@ -155,8 +140,7 @@ fs.writeFileSync(path.join(STUB_BIN, 'sleep'), '#!/bin/sh\n', { mode: 0o755 });
 
 /**
  * Run `script` as GitHub runs a `run:` block with no explicit shell (`bash -e`), with the
- * stand-ins first on PATH. Returns the exit status, every `gh` call, the step's outputs
- * and whether the pull request ends up armed.
+ * stand-ins first on PATH.
  */
 function runStep(script, env, { armed = false, labels = '' } = {}) {
   const dir = fs.mkdtempSync(path.join(SCRATCH, 'run-'));
@@ -237,8 +221,8 @@ function comparisons(text) {
 }
 
 /**
- * Every complaint about the current files, as { code, detail }. Returning them rather
- * than printing keeps the negative cases below able to assert on a specific failure.
+ * Every complaint about the files, as { code, detail }, returned rather than printed so
+ * the negative cases can assert on a specific one.
  */
 function analyze({ bot, disarm, dependabot }) {
   const errors = [];
@@ -252,8 +236,7 @@ function analyze({ bot, disarm, dependabot }) {
 
   const slugs = [];
   for (const key of configured) {
-    // A new ecosystem in dependabot.yml whose slug this table has never been told.
-    // Guessing it is what produced the original bug, so it is recorded before it is used.
+    // A configured ecosystem with no slug in the table: record its slug, never guess it.
     if (ECOSYSTEM_SLUGS[key]) slugs.push(ECOSYSTEM_SLUGS[key]);
     else add('unknown-ecosystem', key);
   }
@@ -290,10 +273,9 @@ function analyze({ bot, disarm, dependabot }) {
     }
   }
 
-  // The steps run one at a time above, so what joins them is checked here: the arming
-  // step acts only on the eligibility step's verdict. These are expressions, which this
-  // suite cannot evaluate, so they are pinned as text. Without the condition, a held
-  // update would still be armed, and every case above would go on passing.
+  // The steps run one at a time above, so the arming step's condition on the verdict is
+  // pinned here as text. Without it a held update would be armed, and every case above
+  // would still pass.
   if (stepKey(bot, ELIGIBILITY_STEP, 'id') !== 'eligible') {
     add('eligibility-id-changed', stepKey(bot, ELIGIBILITY_STEP, 'id') || '(none)');
   }
@@ -304,9 +286,8 @@ function analyze({ bot, disarm, dependabot }) {
   }
 
   // --- The kill switch ------------------------------------------------------------
-  // Three parts, each needed: the job does not start on a labeled pull request, the
-  // arming step re-reads the label in case it arrived mid-run, and the disarm workflow
-  // takes back an arm that was already made.
+  // Each part is needed: the job skips a labeled pull request, the arming step re-reads
+  // the label, and the disarm workflow takes back an arm already made.
   const job = jobCondition(bot) || '';
   if (
     !job.includes(
@@ -359,9 +340,8 @@ if (actual.length !== 0) {
 }
 
 // --- Negative cases -------------------------------------------------------------
-// A suite over a passing tree only proves the tree passes. Each case breaks one thing
-// and asserts the specific complaint, so a rewrite that stops checking something fails
-// here instead of going quiet.
+// Each case breaks one thing and requires the specific complaint, so a rewrite that
+// stops checking something fails here.
 
 let cases = 0;
 
@@ -474,7 +454,7 @@ expectError('disarm no longer fires on labeled', 'disarm-not-on-labeled', (c) =>
   c.disarm = c.disarm.replace('types: [labeled]', 'types: [opened]');
 });
 
-// The original bug, in both directions, and a slug nobody recorded.
+// Config keys in place of slugs, and a slug nobody recorded.
 expectError('actions compared by its config key', 'config-key-not-slug', (c) => {
   c.bot = c.bot.replace(
     MAJOR_NOTICE,

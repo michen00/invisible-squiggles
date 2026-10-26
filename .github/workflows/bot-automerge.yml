@@ -1,31 +1,13 @@
 ---
 name: Bot auto-merge
 
-# Arms GitHub's native auto-merge (squash) on Dependabot patch, minor and major PRs and
-# on pre-commit-ci hook bumps. GitHub performs the merge only once the PR satisfies every
-# rule on its base branch -- required checks, reviews, resolved threads -- so where the
-# base branch requires conversation resolution, leaving a review comment pauses it until
-# that thread is resolved.
+# Arms native auto-merge (squash) on eligible Dependabot and pre-commit-ci pull requests
+# and approves them. GitHub merges once every rule on the base branch is met: required
+# checks, reviews and resolved threads. scripts/test-bot-automerge.cjs pins the policy
+# and the ecosystem names.
 #
-# Majors ride on green CI in every ecosystem. For npm that is evidence for whatever CI
-# exercises, and CI builds, tests and packages the extension itself. Every CI job is a
-# `needs` of the CI complete job, which scripts/test-ci-complete.cjs asserts, so where
-# the base branch requires that one check it requires them all. For github-actions it is
-# evidence only for workflows a pull request runs, and a major that reaches any other
-# workflow merges on it anyway; the eligibility step says what that costs.
-# scripts/test-bot-automerge.cjs pins the policy and the ecosystem names.
-#
-# The guard reads pull_request.user.login, not github.actor. github.actor is whoever
-# triggered *this* event rather than whoever opened the PR, so any later push by another
-# identity makes that synchronize event's actor the other identity and the job skips --
-# leaving only the `opened` event as a chance to act, with no retry. user.login stays
-# dependabot[bot] for the life of the PR. It is not spoofable: GitHub records it as the
-# authenticated author, never derived from PR content, and the [bot] suffix cannot occur
-# in a human account name.
-#
-# There is deliberately no in-workflow check polling. `gh pr checks --watch` races check
-# registration and fails with "no required checks reported" before CI has posted;
-# native auto-merge gates on the ruleset server-side instead.
+# No check polling: `gh pr checks --watch` fails when it runs before CI has registered
+# its checks; native auto-merge gates on the ruleset server-side instead.
 
 on:
   pull_request:
@@ -41,12 +23,10 @@ concurrency:
 
 jobs:
   bot-automerge:
-    # `do not auto-merge` is the kill switch, and this is the path that needs one:
-    # arming takes no human action, so without a label there is nothing to withhold.
-    #
-    # This check alone only stops the job from arming again. Auto-merge already enabled
-    # lives server-side, so a label applied afterwards would not turn it off --
-    # bot-automerge-disarm.yml does that, and is the half that makes arming defensible.
+    # The `do not auto-merge` label stops this job from arming; bot-automerge-disarm.yml
+    # turns off auto-merge that is already armed. The guard reads
+    # `pull_request.user.login`, not `github.actor`: the actor is whoever caused this
+    # event, so a later push by anyone else would skip the job.
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       (github.event.pull_request.user.login == 'dependabot[bot]' ||
@@ -59,19 +39,12 @@ jobs:
       GH_REPO: ${{ github.repository }}
       PR_URL: ${{ github.event.pull_request.html_url }}
     steps:
-      # No checkout step: nothing below reads the repository.
+      # No checkout: nothing below reads the repository.
 
-      # Optional: the App path runs only when both settings resolve, and this step logs a
-      # notice when they do not, so a run says which identity armed it. Arming under an App
-      # matters because auto-merge is completed by whoever armed it, and GitHub creates no
-      # workflow run for an event caused by `GITHUB_TOKEN` -- so a `GITHUB_TOKEN` merge
-      # fires no `push` and no pull request `closed` trigger downstream, while an App merge
-      # does. That is all the App buys here; the merge itself works without it.
-      #
-      # A Dependabot-triggered run is handed the *Dependabot* secret store rather than the
-      # Actions one, so the private key has to be in both stores. With it in the Actions
-      # store alone, the App path stays inert on exactly the pull requests it was added for,
-      # and the notice below is the only sign.
+      # Optional App identity for arming. Auto-merge completes as whoever armed it, and a
+      # merge completed under `GITHUB_TOKEN` starts no workflows, while an App's does.
+      # Dependabot-triggered runs read the Dependabot secret store, so the key must be in
+      # both stores; otherwise the notice below is the only sign.
       - name: Detect App credentials
         id: creds
         env:
@@ -87,10 +60,8 @@ jobs:
                  "token. The merge will fire no downstream push or closed event."
           fi
 
-      # `APP_CLIENT_ID` holds the App's client ID (`Iv23li...`). It goes in `app-id`, which
-      # `create-github-app-token` reads as the client ID when `client-id` is unset. It is a
-      # variable rather than a secret because `if:` can read `vars` and cannot read
-      # `secrets`, and that test is what keeps this path optional.
+      # `APP_CLIENT_ID` is the App's client ID, which the action reads from `app-id` when
+      # `client-id` is unset.
       - name: Mint an App token, if one is configured
         id: app-token
         if: steps.creds.outputs.available == 'true'
@@ -99,17 +70,11 @@ jobs:
         with:
           app-id: ${{ vars.APP_CLIENT_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          # Without these the token inherits every permission the installation holds, which
-          # is more than this job declares for itself. Narrowing the borrowed identity to
-          # match the default one keeps the two carrying the same authority.
+          # Narrowed to this job's scopes rather than the installation's.
           permission-contents: write
           permission-pull-requests: write
 
-      # `continue-on-error` above means a failed mint does not stop the job, so it has to be
-      # reported here or it passes unnoticed. Worth knowing while reading a run: a
-      # `continue-on-error` step is recorded as `conclusion: success` by the jobs API even
-      # when its log carries a hard refusal, so this notice is the only honest signal short
-      # of opening the log.
+      # `continue-on-error` records a failed mint as a success, so report it here.
       - name: Report a mint that failed
         if: >-
           steps.creds.outputs.available == 'true' &&
@@ -123,12 +88,9 @@ jobs:
         if: github.event.pull_request.user.login == 'dependabot[bot]'
         uses: dependabot/fetch-metadata@v3
 
-      # Dependabot's metadata trailer omits update-type for some ecosystems. v3 recovers
-      # it by parsing the "Updates X from A to B" line in the commit message; v2 did not.
-      # Keep this at v3 or newer or those ecosystems silently stop merging. When even
-      # that recovery finds no versions there is nothing to gate on, so hold for a human
-      # -- but say so, because a green run that merged nothing is otherwise
-      # indistinguishable from a deliberate hold.
+      # Keep fetch-metadata at v3 or newer: v2 left update-type empty for some ecosystems,
+      # and their pull requests stopped merging without notice. One that still has none is
+      # held, and this says so.
       - name: Report metadata that cannot be gated on
         if: >-
           github.event.pull_request.user.login == 'dependabot[bot]' &&
@@ -146,47 +108,20 @@ jobs:
           ECOSYSTEM: ${{ steps.meta.outputs.package-ecosystem }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          # Every commit must have been created by GitHub itself, and be the bot's own
-          # unless it is a merge.
+          # Every commit must be created by GitHub and, unless it is a merge, authored by
+          # the bot that opened the pull request. The author login alone proves nothing: it
+          # is resolved from the author email, which any pusher can set. The `web-flow`
+          # committer and the signed payload's committer line are both required, so the
+          # check does not rest on either alone.
           #
-          # Author identity alone is not a guard: .author.login is resolved from the
-          # commit's author email, so anyone who can push can set it to dependabot's
-          # noreply address and be read as the bot.
+          # Merges are exempt from the author check so that Update branch and catch-up
+          # merges pass. GitHub also signs commits that an App or `GITHUB_TOKEN` creates
+          # through its API, which accepts any tree and parents, so the exemption trusts any
+          # holder of a write token. Where the base branch requires approval of the most
+          # recent push, the approval below cannot count on a commit github-actions pushed.
           #
-          # `.committer.login == "web-flow"` is the load-bearing half, and it is
-          # deliberately not the payload text. GitHub resolves that field from the signing
-          # key itself, so it is not metadata a pusher can set: measured on real pull
-          # requests across four repositories, both Dependabot and pre-commit-ci commits
-          # report `web-flow` with `verified: true` and `reason: valid`, while a human's
-          # own commits report that human's login.
-          #
-          # The payload test naming `committer GitHub <noreply@github.com>` stays as an
-          # independent second condition rather than as the argument. On its own it would
-          # rest on an unstated premise -- that GitHub declines to mark a commit verified
-          # when its committer email is not a verified email of the signing key's owner --
-          # and a guard should not rest on a premise its reader cannot check. Requiring both
-          # means the guard holds whether or not that premise does. A locally pushed commit
-          # is signed by the pusher's own key, or not at all, and neither comes back as
-          # `web-flow`.
-          #
-          # Merges are exempt from the author check but not from the signature check. A
-          # merge commit's tree is not constrained to be the mechanical merge of its
-          # parents, so a local "evil merge" can carry content present in neither parent
-          # while contributing no non-merge commits to the range; requiring GitHub's
-          # signature rules that one out. It does not rule out every crafted merge: GitHub
-          # also signs commits that an App or `GITHUB_TOKEN` creates through its API, which
-          # accepts any tree and any parents. So the exemption trusts whoever holds a write
-          # token for this repository. Where the base branch requires approval of the most
-          # recent push, the approval below does not count on a commit github-actions
-          # pushed, which bounds what the default token can do; an App's key is trusted as
-          # far as any write credential is. The exemption is what lets Update branch, or a
-          # catch-up merge, through.
-          #
-          # `set -e` does the fail-closed work. Every hand-written error branch here would
-          # be a way to fail open instead, so there is no `2>/dev/null` and no
-          # `|| fallback`: if the query fails the step dies, should_merge is never set, the
-          # steps below skip, and the error is in the log where whoever is debugging can
-          # read it.
+          # Fails closed: nothing is swallowed, so a failed query leaves `should_merge`
+          # unset and every later step skips.
           set -euo pipefail
           jq_rows='.[] | [
             (if (.commit.verification.verified == true)
@@ -198,10 +133,8 @@ jobs:
             (if (.parents | length) >= 2 then "merge" else "plain" end),
             (.author.login // "<none>")
           ] | join("|")'
-          # This endpoint returns at most 250 commits and --paginate still exits 0, so a
-          # longer PR would be inspected only in part and the unseen tail could be
-          # anything. Count first and refuse rather than under-inspect. A bot PR reaching
-          # 250 commits suggests something is wrong regardless.
+          # The endpoint returns at most 250 commits and `--paginate` still exits 0, so
+          # refuse rather than inspect part of the pull request.
           total=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}" --jq '.commits')
           if [ "$total" -gt 250 ]; then
             echo "::warning::${total} commits exceeds the 250 this API returns; holding."
@@ -238,38 +171,14 @@ jobs:
             echo "::notice::Dependabot ${UPDATE_TYPE}; eligible for auto-merge."
             echo "should_merge=true" >> "$GITHUB_OUTPUT"
           elif [ "$UPDATE_TYPE" = "version-update:semver-major" ]; then
-            # Majors merge on green too, in every ecosystem and with no exceptions. A major
-            # is accepted once every required check passes: the latest version is almost
-            # always the one wanted, and a major held for a person is a merge somebody has
-            # to remember to make.
+            # Majors merge on green CI too. CI exercises only code a pull request runs, so
+            # a major used only in a workflow no pull request starts, or only on a path CI
+            # does not cover such as publishing, merges unexercised and is fixed forward;
+            # the cooldowns in dependabot.yml are the only delay.
             #
-            # The trade-off is accepted rather than overlooked. Green CI is evidence only
-            # about code a pull request runs. An actions major whose `uses:` line sits in a
-            # workflow no pull request executes -- a release, publish or scheduled job, or a
-            # step whose condition is false on a bot pull request -- merges with nothing
-            # having exercised it, and so does a dependency major on a path CI does not
-            # cover. A break there surfaces the next time that code runs, and is fixed
-            # forward. An npm major that only the publish path uses is in the same
-            # position: package.json changes, CI goes green, and the first run that
-            # exercises it is a release.
-            #
-            # The cooldowns in dependabot.yml are the soak: Dependabot raises no pull
-            # request for a release until its cooldown has passed. For an ecosystem polled
-            # less often than daily the effective soak is longer than the number, which is
-            # worth knowing before tuning it: an update whose cooldown expires just after a
-            # poll waits for the next one, so the delay is the cooldown plus up to one
-            # polling interval.
-            #
-            # Nothing here reads the ecosystem except the log line. If a test on it ever
-            # returns, compare against fetch-metadata's slugs and not the keys
-            # dependabot.yml is written in: the action takes package-ecosystem from the
-            # branch name, so it reports `npm_and_yarn` and `github_actions`, never `npm` or
-            # `github-actions`. A comparison against a config key does not fail loudly. It
-            # never matches, every major it was meant to arm falls through to a hold, and
-            # the run stays green. scripts/test-bot-automerge.cjs pins the slugs against
-            # dependabot.yml, and runs this step to check that a major is eligible in every
-            # configured ecosystem, even on a diff that reaches a workflow no pull request
-            # runs.
+            # fetch-metadata reports ecosystems as branch-name slugs (`npm_and_yarn`,
+            # `github_actions`), not dependabot.yml keys. A test against a config key never
+            # matches, and every major then falls through to a hold without failing.
             echo "::notice::${ECOSYSTEM:-unknown} major; eligible on green CI."
             echo "should_merge=true" >> "$GITHUB_OUTPUT"
           else
@@ -277,51 +186,34 @@ jobs:
             echo "should_merge=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # The label is re-read live rather than taken from the event payload. A label
-      # applied while this run was in flight is not in that payload, and the disarm
-      # workflow runs in its own concurrency group, so it can finish before this step
-      # arms -- leaving the PR armed with the kill switch applied. Checking here closes
-      # that ordering gap; the disarm workflow covers the label arriving afterwards.
+      # Re-read the label: one applied during this run is not in the event payload, and the
+      # disarm run may already have finished.
       - name: Re-check the kill switch, then arm, and approve
         if: steps.eligible.outputs.should_merge == 'true'
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          # The label read and the approval run under the default token. Only the arming
-          # call takes the App token, when one was minted: auto-merge is completed by
-          # whoever armed it, so that call alone decides the merge event's identity.
+          # Only the arming call takes the App token; the approval must not.
           GH_TOKEN: ${{ github.token }}
           ARM_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
         run: |
-          # Read into a variable first, under `set -e`. Piping the query straight into
-          # grep would treat a failed query as "label absent" -- grep sees no input,
-          # matches nothing, and the step arms without ever having verified the switch.
+          # Read into a variable under `set -e`, so a failed query is not read as "no label".
           set -euo pipefail
           labels=$(gh pr view "$PR_NUMBER" --json labels --jq '.labels[].name')
-          # Case-insensitive and fixed-string: GitHub treats label names as unique
-          # case-insensitively, so "Do Not Auto-Merge" is the same switch to a human and
-          # must be to this check too.
+          # Case-insensitive, as GitHub compares label names.
           if grep -qixF 'do not auto-merge' <<< "$labels"; then
             echo "::warning::do not auto-merge applied since this run started; not arming."
             exit 0
           fi
+          # Arm before approving, so no approval outlives an arm that did not happen: a
+          # declined arm exits above and a failed one ends the step under `set -e`. The
+          # disarm workflow does not dismiss reviews. Arming first is safe, as auto-merge
+          # waits on a review requirement like any other.
           #
-          # Arming comes before approving, so no approval outlives an arm that did not
-          # happen: a declined arm exits above and a failed one ends the step under
-          # `set -e`, each before any review exists. Nothing would withdraw such an
-          # approval -- the disarm workflow turns auto-merge off and does not dismiss a
-          # review. Arming a pull request not yet approved is safe: auto-merge waits on
-          # the review requirement like any other, so nothing merges before the approval
-          # lands.
-          #
-          # Where the base branch requires an approving review, no bot pull request can
-          # supply one for itself, so without this approval auto-merge would arm and wait
-          # indefinitely; where none is required, the approval is redundant. It is always
-          # the default token's (github-actions[bot]) and never the App's. Where the base
-          # branch requires approval of the most recent push, an approval counts only from
-          # an identity other than the one that pushed last, and an App that pushes to
-          # pull request branches -- a catch-up merge, a rebuilt artifact -- is that
-          # identity. A refused approval is tolerated rather than fatal: auto-merge then
-          # waits for a person, which is the safe direction to fail in.
+          # The approval is github-actions' and never the App's. Where the base branch
+          # requires approval of the most recent push, an approval counts only from an
+          # identity other than the last pusher, and an App that pushes to pull request
+          # branches is that identity. A refused approval leaves the pull request for a
+          # person.
           GH_TOKEN="$ARM_TOKEN" gh pr merge --auto --squash "$PR_URL"
           decision=$(gh pr view "$PR_NUMBER" --json reviewDecision --jq .reviewDecision)
           if [ "$decision" = "APPROVED" ]; then

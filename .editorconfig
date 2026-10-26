@@ -1,24 +1,42 @@
 root = true
 
 [*]
+charset = utf-8
 end_of_line = lf
-trim_trailing_whitespace = true
 insert_final_newline = true
+trim_trailing_whitespace = true
+# shfmt reads these three and other tools ignore them; they sit under [*] so they also
+# reach shell scripts without an extension.
+simplify = true
+space_redirects = true
+switch_case_indent = true
+
+[*.py]
+indent_size = 4
+indent_style = space
+max_line_length = 88
 
 [*.sh]
 indent_size = 2
 indent_style = space
-space_redirects = true
-switch_case_indent = true
 
-[*.{conf,java,js,json,jsp,php,tf,ts,xml,yaml,yml}]
+[*.{cjs,js,mjs,ts}]
 indent_size = 2
 indent_style = space
 max_line_length = 88
 
-[*.{py}]
+[*.{json,jsonc,md}]
+indent_size = 2
+indent_style = space
+
+[*.toml]
 indent_size = 4
 indent_style = space
+
+[*.{yaml,yml}]
+indent_size = 2
+indent_style = space
+max_line_length = 100
 
 [Makefile]
 indent_style = tab

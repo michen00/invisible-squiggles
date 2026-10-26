@@ -11,14 +11,13 @@
 //     that is already armed;
 //   - the ecosystem names are Dependabot's slugs, not the keys dependabot.yml is written in.
 //
-// The last is the one that has already failed here. dependabot/fetch-metadata derives
+// The last is the one that fails silently. dependabot/fetch-metadata derives
 // package-ecosystem from the branch name, so it emits Dependabot's internal slugs --
-// `npm_and_yarn` and `github_actions` -- and never `npm` or `github-actions`. The
-// workflow once compared against the config keys, so every major fell through to the
-// hold branch with a log line that read exactly like a deliberate hold. No comparison is
-// left in the workflow today; any that returns has to use a slug, and the slug table
-// has to cover every ecosystem dependabot.yml declares, so the right spelling is on
-// record before anybody needs it.
+// `npm_and_yarn` and `github_actions` -- and never `npm` or `github-actions`. A
+// comparison against a config key never matches, so every major falls through to the
+// hold branch with a log line that reads exactly like a deliberate hold. Any comparison
+// in the workflow has to use a slug, and the slug table has to cover every ecosystem
+// dependabot.yml declares, so the right spelling is on record before anybody needs it.
 //
 // The steps run under bash exactly as written, with `gh` and `sleep` replaced on PATH.
 // The stand-in answers the provenance queries as a single GitHub-signed commit by the
@@ -123,10 +122,10 @@ function jobCondition(text) {
 // non-zero, so a step that starts making a new call fails here rather than being
 // answered with something plausible.
 //
-// The changed-files query is answered even though the workflow no longer makes it. The
+// The changed-files query is answered although the workflow does not make it. The
 // policy is that a major merges whatever it touches, so the cases below put it in front
 // of a diff reaching publish.yml, a workflow no pull request runs; a per-file hold list
-// brought back would make that query and hold, and fail here as `not-eligible`.
+// added to the workflow would make that query and hold, and fail here as `not-eligible`.
 const GH_STUB = `#!/usr/bin/env bash
 printf '%s\\n' "$*" >>"$STUB_LOG"
 case "$*" in

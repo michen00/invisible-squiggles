@@ -188,6 +188,7 @@ function runStep(script, env, { armed = false, labels = '' } = {}) {
         GH_REPO: 'owner/repo',
         PR_NUMBER: '7',
         PR_URL: 'https://github.com/owner/repo/pull/7',
+        ARM_TOKEN: 'arm-token',
         ...env,
       },
     });

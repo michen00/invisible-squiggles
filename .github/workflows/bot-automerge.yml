@@ -82,11 +82,11 @@ jobs:
       - name: Detect App credentials
         id: creds
         env:
-          APP_ID_VALUE: ${{ vars.APP_ID }}
+          APP_CLIENT_ID_VALUE: ${{ vars.APP_CLIENT_ID }}
           APP_KEY_VALUE: ${{ secrets.APP_PRIVATE_KEY }}
         run: |
           set -euo pipefail
-          if [ -n "$APP_ID_VALUE" ] && [ -n "$APP_KEY_VALUE" ]; then
+          if [ -n "$APP_CLIENT_ID_VALUE" ] && [ -n "$APP_KEY_VALUE" ]; then
             echo "available=true" >>"$GITHUB_OUTPUT"
           else
             echo "available=false" >>"$GITHUB_OUTPUT"
@@ -94,19 +94,17 @@ jobs:
                  "token. The merge will fire no downstream push or closed event."
           fi
 
-      # `APP_ID` holds the App's numeric id, which is what `create-github-app-token` wants;
-      # the client id is the separate `Iv23li...` string and is not what goes here. The
-      # sibling repositories use the same two names, so a key rotation is one operation
-      # across all of them rather than several spellings to remember. It is a variable
-      # rather than a secret because `if:` can read `vars` and cannot read `secrets`, and
-      # that test is what keeps this path optional.
+      # `APP_CLIENT_ID` holds the App's client ID (`Iv23li...`). It goes in `app-id`, which
+      # `create-github-app-token` reads as the client ID when `client-id` is unset. It is a
+      # variable rather than a secret because `if:` can read `vars` and cannot read
+      # `secrets`, and that test is what keeps this path optional.
       - name: Mint an App token, if one is configured
         id: app-token
         if: steps.creds.outputs.available == 'true'
         continue-on-error: true
         uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ vars.APP_ID }}
+          app-id: ${{ vars.APP_CLIENT_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           # Without these the token inherits every permission the installation holds, which
           # is more than this job declares for itself. Narrowing the borrowed identity to
@@ -296,10 +294,11 @@ jobs:
         if: steps.eligible.outputs.should_merge == 'true'
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          # Overrides the job-level GH_TOKEN when an App token was minted. This is the step
-          # whose identity decides the merge event's identity, so it is the only one where
-          # the borrowed token changes anything observable.
-          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
+          # The label read and the approval run under the default token. Only the arming
+          # call takes the App token, when one was minted: auto-merge is completed by
+          # whoever armed it, so that call alone decides the merge event's identity.
+          GH_TOKEN: ${{ github.token }}
+          ARM_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
         run: |
           # Read into a variable first, under `set -e`. Piping the query straight into
           # grep would treat a failed query as "label absent" -- grep sees no input,
@@ -322,11 +321,16 @@ jobs:
           # the review requirement like any other, so nothing merges before the approval
           # lands.
           #
-          # This costs one API call on a pull request already re-approved, which is
-          # precaution rather than necessity, and the failure is tolerated for the same
-          # reason: if Actions approval is ever disallowed, auto-merge waits for a human,
-          # which is the safe direction.
-          gh pr merge --auto --squash "$PR_URL"
+          # Where the base branch requires an approving review, no bot pull request can
+          # supply one for itself, so without this approval auto-merge would arm and wait
+          # indefinitely; where none is required, the approval is redundant. It is always
+          # the default token's (github-actions[bot]) and never the App's. Where the base
+          # branch requires approval of the most recent push, an approval counts only from
+          # an identity other than the one that pushed last, and an App that pushes to
+          # pull request branches -- a catch-up merge, a rebuilt artifact -- is that
+          # identity. A refused approval is tolerated rather than fatal: auto-merge then
+          # waits for a person, which is the safe direction to fail in.
+          GH_TOKEN="$ARM_TOKEN" gh pr merge --auto --squash "$PR_URL"
           decision=$(gh pr view "$PR_NUMBER" --json reviewDecision --jq .reviewDecision)
           if [ "$decision" = "APPROVED" ]; then
             echo "::notice::Already approved."

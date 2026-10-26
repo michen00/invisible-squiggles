@@ -2,12 +2,10 @@
 name: Bot auto-merge
 
 # Arms native auto-merge (squash) on eligible Dependabot and pre-commit-ci pull requests
-# and approves them. GitHub merges once every rule on the base branch is met: required
-# checks, reviews and resolved threads. scripts/test-bot-automerge.cjs pins the policy
-# and the ecosystem names.
+# and approves them. scripts/test-bot-automerge.cjs tests this workflow.
 #
 # No check polling: `gh pr checks --watch` fails when it runs before CI has registered
-# its checks; native auto-merge gates on the ruleset server-side instead.
+# its checks, and auto-merge waits for required checks anyway.
 
 on:
   pull_request:
@@ -23,10 +21,8 @@ concurrency:
 
 jobs:
   bot-automerge:
-    # The `do not auto-merge` label stops this job from arming; bot-automerge-disarm.yml
-    # turns off auto-merge that is already armed. The guard reads
-    # `pull_request.user.login`, not `github.actor`: the actor is whoever caused this
-    # event, so a later push by anyone else would skip the job.
+    # The guard reads `pull_request.user.login`, not `github.actor`: the actor is whoever
+    # caused this event, so a later push by anyone else would skip the job.
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       (github.event.pull_request.user.login == 'dependabot[bot]' ||
@@ -39,12 +35,9 @@ jobs:
       GH_REPO: ${{ github.repository }}
       PR_URL: ${{ github.event.pull_request.html_url }}
     steps:
-      # No checkout: nothing below reads the repository.
-
-      # Optional App identity for arming. Auto-merge completes as whoever armed it, and a
-      # merge completed under `GITHUB_TOKEN` starts no workflows, while an App's does.
-      # Dependabot-triggered runs read the Dependabot secret store, so the key must be in
-      # both stores; otherwise the notice below is the only sign.
+      # Optional App identity for arming: auto-merge completes as whoever armed it, and a
+      # merge under `GITHUB_TOKEN` starts no workflows. Dependabot-triggered runs read only
+      # the Dependabot secret store, so the key must be in both stores.
       - name: Detect App credentials
         id: creds
         env:
@@ -70,7 +63,6 @@ jobs:
         with:
           app-id: ${{ vars.APP_CLIENT_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          # Narrowed to this job's scopes rather than the installation's.
           permission-contents: write
           permission-pull-requests: write
 
@@ -88,9 +80,6 @@ jobs:
         if: github.event.pull_request.user.login == 'dependabot[bot]'
         uses: dependabot/fetch-metadata@v3
 
-      # Keep fetch-metadata at v3 or newer: v2 left update-type empty for some ecosystems,
-      # and their pull requests stopped merging without notice. One that still has none is
-      # held, and this says so.
       - name: Report metadata that cannot be gated on
         if: >-
           github.event.pull_request.user.login == 'dependabot[bot]' &&
@@ -108,20 +97,16 @@ jobs:
           ECOSYSTEM: ${{ steps.meta.outputs.package-ecosystem }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          # Every commit must be created by GitHub and, unless it is a merge, authored by
-          # the bot that opened the pull request. The author login alone proves nothing: it
-          # is resolved from the author email, which any pusher can set. The `web-flow`
-          # committer and the signed payload's committer line are both required, so the
-          # check does not rest on either alone.
+          # The author login alone proves nothing: it is resolved from the author email,
+          # which any pusher can set. So every commit must also be created by GitHub.
           #
-          # Merges are exempt from the author check so that Update branch and catch-up
-          # merges pass. GitHub also signs commits that an App or `GITHUB_TOKEN` creates
-          # through its API, which accepts any tree and parents, so the exemption trusts any
-          # holder of a write token. Where the base branch requires approval of the most
-          # recent push, the approval below cannot count on a commit github-actions pushed.
+          # Merges skip the author check so that Update branch and catch-up merges pass.
+          # GitHub also signs commits that an App or `GITHUB_TOKEN` creates through its API,
+          # with any tree and parents, so this trusts any holder of a write token. Where the
+          # base branch requires approval of the most recent push, the approval below does
+          # not count on a commit github-actions pushed.
           #
-          # Fails closed: nothing is swallowed, so a failed query leaves `should_merge`
-          # unset and every later step skips.
+          # Fails closed: a failed query leaves `should_merge` unset, so nothing is armed.
           set -euo pipefail
           jq_rows='.[] | [
             (if (.commit.verification.verified == true)
@@ -171,14 +156,9 @@ jobs:
             echo "::notice::Dependabot ${UPDATE_TYPE}; eligible for auto-merge."
             echo "should_merge=true" >> "$GITHUB_OUTPUT"
           elif [ "$UPDATE_TYPE" = "version-update:semver-major" ]; then
-            # Majors merge on green CI too. CI exercises only code a pull request runs, so
-            # a major used only in a workflow no pull request starts, or only on a path CI
-            # does not cover such as publishing, merges unexercised and is fixed forward;
-            # the cooldowns in dependabot.yml are the only delay.
-            #
-            # fetch-metadata reports ecosystems as branch-name slugs (`npm_and_yarn`,
-            # `github_actions`), not dependabot.yml keys. A test against a config key never
-            # matches, and every major then falls through to a hold without failing.
+            # CI exercises only code a pull request runs, so a major used only by a workflow
+            # that no pull request starts, or on a path CI does not cover such as publishing,
+            # merges untested.
             echo "::notice::${ECOSYSTEM:-unknown} major; eligible on green CI."
             echo "should_merge=true" >> "$GITHUB_OUTPUT"
           else
@@ -192,7 +172,6 @@ jobs:
         if: steps.eligible.outputs.should_merge == 'true'
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          # Only the arming call takes the App token; the approval must not.
           GH_TOKEN: ${{ github.token }}
           ARM_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
         run: |
@@ -204,16 +183,12 @@ jobs:
             echo "::warning::do not auto-merge applied since this run started; not arming."
             exit 0
           fi
-          # Arm before approving, so no approval outlives an arm that did not happen: a
-          # declined arm exits above and a failed one ends the step under `set -e`. The
-          # disarm workflow does not dismiss reviews. Arming first is safe, as auto-merge
-          # waits on a review requirement like any other.
+          # Arm before approving: the disarm workflow does not dismiss reviews, so an
+          # approval must not outlive an arm that failed.
           #
-          # The approval is github-actions' and never the App's. Where the base branch
-          # requires approval of the most recent push, an approval counts only from an
-          # identity other than the last pusher, and an App that pushes to pull request
-          # branches is that identity. A refused approval leaves the pull request for a
-          # person.
+          # Approve as github-actions, never as the App: where the base branch requires
+          # approval of the most recent push, the last pusher's approval does not count,
+          # and an App that pushes to pull request branches is the last pusher.
           GH_TOKEN="$ARM_TOKEN" gh pr merge --auto --squash "$PR_URL"
           decision=$(gh pr view "$PR_NUMBER" --json reviewDecision --jq .reviewDecision)
           if [ "$decision" = "APPROVED" ]; then

@@ -47,8 +47,7 @@ const ELIGIBLE = [
 const UNKNOWN = ['', 'version-update:semver-unknown'];
 
 // dependabot.yml key -> the slug fetch-metadata reports, which it reads from the branch
-// name (`dependabot/npm_and_yarn/...`). Both values were confirmed against this
-// repository's Dependabot branch names.
+// name (`dependabot/npm_and_yarn/...`).
 const ECOSYSTEM_SLUGS = {
   npm: 'npm_and_yarn',
   'github-actions': 'github_actions',

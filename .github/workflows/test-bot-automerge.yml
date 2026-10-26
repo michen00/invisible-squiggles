@@ -1,8 +1,6 @@
 ---
 name: Test bot-automerge
 
-# The paths are the files the suite reads (the two workflows whose steps it runs and
-# dependabot.yml), the suite itself, and this file.
 on:
   pull_request:
     branches: [main]
@@ -33,8 +31,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-      # No OS matrix and no `npm ci`: the suite needs no dependency, and runs the
-      # workflows' shell steps under the same bash they run under.
       - name: Test bot-automerge
         run: |
           scripts/test-bot-automerge.cjs

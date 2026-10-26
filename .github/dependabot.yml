@@ -26,8 +26,6 @@ updates:
         patterns: ['*']
     cooldown:
       # default-days only: GitHub rejects the semver-* keys for this ecosystem,
-      # and an invalid key drops this whole entry without any local check
-      # failing. The delay is long because bot-automerge.yml merges actions
-      # majors with no other soak, and a compromised publisher ships a patch as
-      # readily as a major.
+      # and an invalid key silently drops this whole entry. The delay is long
+      # because majors merge with no other soak.
       default-days: 30

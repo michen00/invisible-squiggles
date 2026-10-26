@@ -32,8 +32,8 @@ updates:
       # check-dependabot schema hook does not catch it, because the rejection is
       # server-side rather than schematic.
       #
-      # So one number covers every actions update, and 30 days is chosen over a
-      # shorter delay because bot-automerge.yml now arms actions majors: this is
+      # So one number covers every actions update, and it is long rather than
+      # short because bot-automerge.yml arms actions majors: this is
       # the only soak period between a release being published and it merging
       # here unattended. A patch is not safer than a major when the risk is a
       # compromised publisher rather than a changed interface, and these packages

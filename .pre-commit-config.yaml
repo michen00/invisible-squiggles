@@ -82,7 +82,7 @@ repos:
     hooks:
       - id: unwrap-markdown-prose-py
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.49.1
+    rev: v0.50.0
     hooks:
       - id: markdownlint
         # --rules loads the repo-local MD060 fixer. The built-in rule reports a
@@ -128,7 +128,7 @@ repos:
 
   # configuration validation
   - repo: https://github.com/python-jsonschema/check-jsonschema
-    rev: 0.38.2
+    rev: 0.39.0
     hooks:
       - id: check-dependabot
       - id: check-github-workflows

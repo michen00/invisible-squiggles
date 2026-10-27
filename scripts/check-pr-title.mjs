@@ -168,9 +168,7 @@ function parseCommitParsers(toml) {
     );
     if (!match) continue;
     parsers.push({
-      // TOML basic strings process backslash escapes, so `"^\\d+"` in the file is the
-      // regex `^\d+`. Only the doubled backslash appears in this config. Literal
-      // strings (`'^feat'`) process none, so their text is the regex as written.
+      // A basic string's `\\` is one backslash; a literal string is taken as written.
       message: match[1] === undefined ? match[2] : match[1].replace(/\\\\/g, '\\'),
       skip: /\bskip\s*=\s*true\b/.test(match[3]),
     });
@@ -181,11 +179,8 @@ function parseCommitParsers(toml) {
 /**
  * Strip TOML line comments.
  *
- * Only used for presence tests, where a key named inside a comment must not read as
- * configuration. Quote tracking is deliberately shallow: it handles basic and literal
- * strings, the two kinds this file uses, and anything it gets wrong leaves a `#` in
- * place -- making the scan see more text, not less, which is the safe direction for a
- * test whose only effect is to halt the run.
+ * For presence tests only. Quote tracking is shallow; a miss leaves extra text, which
+ * can only halt the run.
  */
 function stripTomlComments(toml) {
   return toml
@@ -201,7 +196,7 @@ function stripTomlComments(toml) {
             return line.slice(0, index);
           }
         } else if (char === quote && (quote === "'" || line[index - 1] !== '\\')) {
-          // Only a basic string can escape its closing quote; a literal string cannot.
+          // Only a basic string can escape its closing quote.
           quote = null;
         }
       }

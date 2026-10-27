@@ -179,8 +179,11 @@ function parseCommitParsers(toml) {
 /**
  * Strip TOML line comments.
  *
- * For presence tests only. Quote tracking is shallow; a miss leaves extra text, which
- * can only halt the run.
+ * Only used for presence tests, where a key named inside a comment must not read as
+ * configuration. Quote tracking is deliberately shallow: it handles basic and literal
+ * strings, the two kinds this file uses, and anything it gets wrong leaves a `#` in
+ * place -- making the scan see more text, not less, which is the safe direction for a
+ * test whose only effect is to halt the run.
  */
 function stripTomlComments(toml) {
   return toml

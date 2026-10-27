@@ -54,15 +54,13 @@ jobs:
                  "token. The merge will fire no downstream push or closed event."
           fi
 
-      # `APP_CLIENT_ID` is the App's client ID, which the action reads from `app-id` when
-      # `client-id` is unset.
       - name: Mint an App token, if one is configured
         id: app-token
         if: steps.creds.outputs.available == 'true'
         continue-on-error: true
         uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ vars.APP_CLIENT_ID }}
+          client-id: ${{ vars.APP_CLIENT_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           permission-contents: write
           permission-pull-requests: write

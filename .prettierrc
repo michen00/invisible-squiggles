@@ -3,6 +3,12 @@
   "experimentalTernaries": true,
   "htmlWhitespaceSensitivity": "strict",
   "jsxSingleQuote": true,
+  "overrides": [
+    {
+      "files": ["*.yaml", "*.yml"],
+      "options": { "printWidth": 100 }
+    }
+  ],
   "printWidth": 88,
   "singleQuote": true,
   "trailingComma": "es5"

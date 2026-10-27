@@ -1,13 +1,6 @@
 ---
 name: Test bot-automerge
 
-# The path filter names the files the suite reads -- the two workflows whose steps it
-# runs, dependabot.yml for the ecosystem names, and the suite itself -- plus this file,
-# so that an edit to how the suite runs runs it. It used to cover the whole workflows
-# directory, because the suite then classified every workflow for a hold list; the hold
-# list is gone, and with it the reason to run on an unrelated workflow edit. The CI
-# complete job runs the suite on every pull request regardless, and that is the run
-# that gates the merge.
 on:
   pull_request:
     branches: [main]
@@ -38,9 +31,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-      # No OS matrix and no `npm ci`: the suite reads files in the tree and runs their
-      # shell steps under the runner's bash with a stand-in for `gh`, which needs no
-      # dependency and is the shell those workflows run under anyway.
       - name: Test bot-automerge
         run: |
           scripts/test-bot-automerge.cjs

@@ -163,13 +163,16 @@ function parseCommitParsers(toml) {
 
   const parsers = [];
   for (const line of block.split('\n')) {
-    const match = /^\s*\{\s*message\s*=\s*"((?:[^"\\]|\\.)*)"(.*)$/.exec(line);
+    const match = /^\s*\{\s*message\s*=\s*(?:"((?:[^"\\]|\\.)*)"|'([^']*)')(.*)$/.exec(
+      line
+    );
     if (!match) continue;
     parsers.push({
       // TOML basic strings process backslash escapes, so `"^\\d+"` in the file is the
-      // regex `^\d+`. Only the doubled backslash appears in this config.
-      message: match[1].replace(/\\\\/g, '\\'),
-      skip: /\bskip\s*=\s*true\b/.test(match[2]),
+      // regex `^\d+`. Only the doubled backslash appears in this config. Literal
+      // strings (`'^feat'`) process none, so their text is the regex as written.
+      message: match[1] === undefined ? match[2] : match[1].replace(/\\\\/g, '\\'),
+      skip: /\bskip\s*=\s*true\b/.test(match[3]),
     });
   }
   return parsers;
@@ -179,22 +182,27 @@ function parseCommitParsers(toml) {
  * Strip TOML line comments.
  *
  * Only used for presence tests, where a key named inside a comment must not read as
- * configuration. Quote tracking is deliberately shallow: it handles basic strings,
- * which is what this file uses, and anything it gets wrong leaves a `#` in place --
- * making the scan see more text, not less, which is the safe direction for a test
- * whose only effect is to halt the run.
+ * configuration. Quote tracking is deliberately shallow: it handles basic and literal
+ * strings, the two kinds this file uses, and anything it gets wrong leaves a `#` in
+ * place -- making the scan see more text, not less, which is the safe direction for a
+ * test whose only effect is to halt the run.
  */
 function stripTomlComments(toml) {
   return toml
     .split('\n')
     .map((line) => {
-      let inString = false;
+      let quote = null;
       for (let index = 0; index < line.length; index += 1) {
         const char = line[index];
-        if (char === '"' && line[index - 1] !== '\\') {
-          inString = !inString;
-        } else if (char === '#' && !inString) {
-          return line.slice(0, index);
+        if (quote === null) {
+          if (char === '"' || char === "'") {
+            quote = char;
+          } else if (char === '#') {
+            return line.slice(0, index);
+          }
+        } else if (char === quote && (quote === "'" || line[index - 1] !== '\\')) {
+          // Only a basic string can escape its closing quote; a literal string cannot.
+          quote = null;
         }
       }
       return line;

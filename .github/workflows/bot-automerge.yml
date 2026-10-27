@@ -36,8 +36,9 @@ jobs:
       PR_URL: ${{ github.event.pull_request.html_url }}
     steps:
       # Optional App identity for arming: auto-merge completes as whoever armed it, and a
-      # merge under `GITHUB_TOKEN` starts no workflows. Dependabot-triggered runs read only
-      # the Dependabot secret store, so the key must be in both stores.
+      # merge under `GITHUB_TOKEN` starts no workflows, so pr-catchup.yml would not run.
+      # Dependabot-triggered runs read only the Dependabot secret store, so the key must be
+      # in both stores.
       - name: Detect App credentials
         id: creds
         env:
@@ -188,7 +189,7 @@ jobs:
           #
           # Approve as github-actions, never as the App: where the base branch requires
           # approval of the most recent push, the last pusher's approval does not count,
-          # and an App that pushes to pull request branches is the last pusher.
+          # and pr-catchup.yml pushes as the App.
           GH_TOKEN="$ARM_TOKEN" gh pr merge --auto --squash "$PR_URL"
           decision=$(gh pr view "$PR_NUMBER" --json reviewDecision --jq .reviewDecision)
           if [ "$decision" = "APPROVED" ]; then

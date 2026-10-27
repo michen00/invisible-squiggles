@@ -1,0 +1,256 @@
+---
+name: PR catchup
+
+# Merges main into each open pull request from this repository that is behind main and
+# does not conflict, on every push to main and on demand. It never merges into main.
+#
+# The merge uses POST /repos/{repo}/merges: GitHub signs the commit, which satisfies the
+# signed-commits ruleset, and the subject can be `chore: merge main into #N`. "Update a
+# pull request branch" cannot set a subject, and its default passes the commit-message
+# ruleset only through the `Merge ` exception.
+#
+# As of 2026-06-11, GitHub holds the pull_request runs that a github-actions[bot] commit
+# causes as action_required until someone with write access approves them, and no
+# setting lifts the hold:
+# https://github.blog/changelog/2026-06-11-bot-created-pull-requests-can-run-workflows-if-approved/
+# Without an App, this workflow approves the runs at the commit it pushed (`approvable` in
+# .github/scripts/approve-bot-gated-runs.sh) and fails if any stays held; approve it from
+# the pull request's Checks tab to recover. With an App (vars.APP_CLIENT_ID and
+# secrets.APP_PRIVATE_KEY), it merges as the App and nothing is held.
+#
+# require_extra_approval_for_unattributed_changes does not treat a github-actions[bot]
+# merge commit as unattributed.
+#
+# A merge completed under GITHUB_TOKEN starts no workflow, so this does not run after an
+# auto-merge armed with that token; dispatch it by hand then.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: pr-catchup
+  cancel-in-progress: false
+
+jobs:
+  catchup:
+    # A dispatched run loads this file from the ref it was dispatched from, so a dispatch
+    # from a branch would run that branch's version of it with write access. Push events
+    # come only from the default branch; this holds a dispatch to the same rule.
+    if: >-
+      github.event_name != 'workflow_dispatch'
+      || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the approval script
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .github/scripts/approve-bot-gated-runs.sh
+          sparse-checkout-cone-mode: false
+
+      # Missing or invalid App credentials leave the default-token path available.
+      - name: Mint an App token, if one is configured
+        id: app-token
+        continue-on-error: true
+        if: vars.APP_CLIENT_ID != ''
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Update behind PR branches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
+          FALLBACK_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Actions runs a run: body as `bash -e {0}`, without pipefail. Setting it makes a
+          # failing `gh pr list` fail this step, instead of leaving the loop below nothing
+          # to read and passing.
+          set -euo pipefail
+
+          # Where the steps pass state to each other. A test overrides it to run this text
+          # unmodified against a temporary directory. Each step reads it itself, so each
+          # step can run alone.
+          state_dir="${PR_CATCHUP_DIR:-/tmp}"
+
+          : > "$state_dir/pr-catchup-updated.txt"
+          : > "$state_dir/pr-catchup-refused.txt"
+          # --limit truncates the listing without warning, so it has to stay above any
+          # number of open pull requests this repository can reach.
+          gh pr list --repo "$REPO" --state open --base main --limit 1000 \
+            --json number,headRefName,isCrossRepository,mergeable \
+            --jq '.[]
+              | select(.isCrossRepository == false and .mergeable != "CONFLICTING")
+              | "\(.number) \(.headRefName)"' \
+          | while read -r num branch; do
+              echo "::group::PR #$num"
+              # The call returns the merge commit it created, so the new head is read from
+              # the response instead of polled for. A branch that already contains main
+              # gets 204 with an empty body, which reads as an empty SHA.
+              merged="$state_dir/pr-catchup-merged.sha"
+              # gh prints a failing status only on stderr, as a trailing "(HTTP nnn)", so
+              # that is the only place to read the 409 that means a conflict. stdout goes
+              # to a file, because 2>&1 would mix the SHA with the refusal.
+              merge_token="${APP_TOKEN:-${FALLBACK_TOKEN:-${GH_TOKEN:-}}}"
+              refusal="$(GH_TOKEN="$merge_token" gh api --method POST "repos/$REPO/merges" \
+                -f base="$branch" -f head=main \
+                -f commit_message="chore: merge main into #$num" \
+                --jq '.sha // empty' 2>&1 >"$merged")" && merge_rc=0 || merge_rc=$?
+              if [ "$merge_rc" != "0" ] && [ -n "${APP_TOKEN:-}" ] &&
+                printf '%s' "$refusal" | grep -Eq '\(HTTP (401|403|404)\)'; then
+                echo "::warning::App merge refused for #$num; retrying with GITHUB_TOKEN"
+                merge_token="${FALLBACK_TOKEN:-${GH_TOKEN:-}}"
+                refusal="$(GH_TOKEN="$merge_token" gh api --method POST "repos/$REPO/merges" \
+                  -f base="$branch" -f head=main \
+                  -f commit_message="chore: merge main into #$num" \
+                  --jq '.sha // empty' 2>&1 >"$merged")" && merge_rc=0 || merge_rc=$?
+              fi
+              after="$(cat "$merged")"
+              if [ "$merge_rc" = "0" ] && [ -n "$after" ]; then
+                echo "updated #$num to $after"
+                if [ "$merge_token" = "${FALLBACK_TOKEN:-${GH_TOKEN:-}}" ]; then
+                  echo "$num $after" >> "$state_dir/pr-catchup-updated.txt"
+                fi
+              elif [ "$merge_rc" = "0" ]; then
+                echo "no update needed for #$num"
+              elif printf '%s' "$refusal" | grep -q '(HTTP 409)'; then
+                # A conflict the listing did not filter out: `mergeable` reads UNKNOWN
+                # until GitHub computes it, and the listing filters only CONFLICTING. Only
+                # the author can resolve it, so it is reported, not raised.
+                echo "::notice::#$num conflicts with main, so it stays behind"
+              else
+                # Only an empty body means current, and only a 409 means a conflict.
+                # Treating any other refusal (a 403, a 404, a rate limit, a 5xx) as
+                # either would leave the pull request behind under a green run. It is
+                # recorded rather than raised so the loop continues; the last step
+                # reports it and fails.
+                echo "$num $branch ${refusal//$'\n'/ }" >> "$state_dir/pr-catchup-refused.txt"
+              fi
+              echo "::endgroup::"
+            done
+
+      # Only merges made with the default token cause runs that need approval.
+      - name: Approve the runs this catch-up caused
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          source "${GITHUB_WORKSPACE}/.github/scripts/approve-bot-gated-runs.sh"
+
+          state_dir="${PR_CATCHUP_DIR:-/tmp}"
+
+          : > "$state_dir/pr-catchup-gated.txt"
+          : > "$state_dir/pr-catchup-silent.txt"
+          : > "$state_dir/pr-catchup-blind.txt"
+          if [ ! -s "$state_dir/pr-catchup-updated.txt" ]; then
+            echo "no branch was updated, so there is nothing to approve"
+            exit 0
+          fi
+
+          while read -r num sha; do
+            echo "::group::PR #$num at $sha"
+
+            APPROVE_BOT_GATED_OUT="$state_dir/pr-catchup-gated-$num.txt"
+            rc=0
+            approve_bot_gated_runs_for_sha "$sha" "$num" || rc=$?
+            if [ "$rc" = "2" ]; then
+              echo "$num $sha" >> "$state_dir/pr-catchup-silent.txt"
+            elif [ "$rc" != "0" ]; then
+              if [ -s "$APPROVE_BOT_GATED_OUT" ]; then
+                while read -r id; do
+                  echo "$id $num" >> "$state_dir/pr-catchup-gated.txt"
+                done < "$APPROVE_BOT_GATED_OUT"
+              else
+                # Still held, but the run listing came back empty: the Actions
+                # lookup that would name the run failed without output. Recording
+                # it as gated would name a run nobody identified, so it is
+                # recorded as blind.
+                echo "$num $sha" >> "$state_dir/pr-catchup-blind.txt"
+              fi
+            fi
+
+            echo "::endgroup::"
+          done < "$state_dir/pr-catchup-updated.txt"
+
+      # A refused merge fails the run, whichever identity attempted it.
+      - name: Fail if any caused run is still awaiting approval
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          # Each way a caught-up pull request can stay untested without a failure,
+          # reported separately because each needs a different fix.
+          stalled=0
+          state_dir="${PR_CATCHUP_DIR:-/tmp}"
+
+          if [ -s "$state_dir/pr-catchup-refused.txt" ]; then
+            stalled=1
+            while read -r num branch reason; do
+              echo "::error::merging main into PR #$num was refused, so it stays" \
+                "behind main: $reason"
+              echo "  an empty body means the branch is already current and a 409 means it"
+              echo "  conflicts; neither is reported here, so this is a permission, rate-limit,"
+              echo "  or availability fault. Confirm what the endpoint says now, then re-run the"
+              echo "  catch-up once the cause clears:"
+              echo "    gh api --method POST repos/$REPO/merges -f base=$branch -f head=main \\"
+              echo "      -f commit_message='chore: merge main into #$num'"
+              echo "    gh workflow run pr-catchup.yml"
+            done < "$state_dir/pr-catchup-refused.txt"
+          fi
+
+          if [ -s "$state_dir/pr-catchup-blind.txt" ]; then
+            stalled=1
+            while read -r num sha; do
+              echo "::error::whether PR #$num cleared the approval gate at $sha is unknown:" \
+                "an Actions lookup failed during the approval pass"
+              echo "  the lookup printed nothing, which reads as an empty count and an empty run"
+              echo "  list, so this is unverified rather than clear. Check the head and approve"
+              echo "  anything held there:"
+              echo "    gh api repos/$REPO/actions/runs?head_sha=$sha"
+            done < "$state_dir/pr-catchup-blind.txt"
+          fi
+
+          if [ -s "$state_dir/pr-catchup-gated.txt" ]; then
+            stalled=1
+            while read -r id num; do
+              echo "::error::run $id for PR #$num is still awaiting approval, so its" \
+                "required checks cannot report"
+              echo "  approve it now from the PR's checks tab, or run:"
+              echo "    gh api --method POST repos/$REPO/actions/runs/$id/approve"
+            done < "$state_dir/pr-catchup-gated.txt"
+            echo "Approving unblocks the PR that is stuck right now. If every catch-up fails this"
+            echo "way, GITHUB_TOKEN is not permitted to approve runs here, and the durable fix is"
+            echo "to make the merge call with a GitHub App installation token: the push is"
+            echo "then not attributed to github-actions[bot], so GitHub never gates the runs at"
+            echo "all. No repository setting can relax this gate."
+          fi
+
+          if [ -s "$state_dir/pr-catchup-silent.txt" ]; then
+            stalled=1
+            while read -r num sha; do
+              echo "::error::no pull_request run ever appeared for PR #$num at $sha, so" \
+                "its required checks cannot report"
+              echo "  see what does exist at that commit:"
+              echo "    gh api repos/$REPO/actions/runs?head_sha=$sha"
+              echo "  approve anything listed as action_required, or push to the PR branch to"
+              echo "  create fresh runs. This is queueing latency or suppression, not the"
+              echo "  approval gate, so there may be no run to approve at all."
+            done < "$state_dir/pr-catchup-silent.txt"
+          fi
+
+          if [ "$stalled" = "0" ]; then
+            echo "every run this catch-up caused is past the approval gate"
+            exit 0
+          fi
+          exit 1

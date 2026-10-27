@@ -8,6 +8,10 @@ ci:
     chore(pre-commit): autoupdate hook versions
 
     for more information, see https://pre-commit.ci
+  # tombi fetches the SchemaStore catalog to format and lint TOML against each
+  # file's schema, and pre-commit.ci runs hooks with no network access, so both
+  # tombi hooks fail there before reading a file. CI's pre-commit job runs them.
+  skip: [tombi-format, tombi-lint]
 
 default_stages: [pre-commit]
 repos:

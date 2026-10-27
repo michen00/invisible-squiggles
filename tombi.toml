@@ -1,0 +1,13 @@
+toml-version = 'v1.0.0'
+
+# uv.lock and Cargo.lock are TOML, but uv and cargo write them.
+[files]
+exclude = ['**/*.lock']
+
+[format.rules]
+string-quote-style = 'single'
+
+# pyproject-fmt formats pyproject.toml; tombi only lints it.
+[[overrides]]
+files.include = ['pyproject.toml']
+format.enabled = false

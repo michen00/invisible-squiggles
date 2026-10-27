@@ -73,6 +73,10 @@ repos:
     rev: v3.14.1-1
     hooks:
       - id: shfmt
+  - repo: https://github.com/tombi-toml/tombi-pre-commit
+    rev: v1.9.6
+    hooks:
+      - id: tombi-format
   # Joins manual soft-wrap line breaks in Markdown prose. Ordered before
   # markdownlint below so its --fix sees the final text rather than a shape
   # about to change under it. Prettier can't fight it: .prettierignore already
@@ -104,6 +108,10 @@ repos:
       - id: check-json
       - id: check-toml
       - id: check-yaml
+  - repo: https://github.com/tombi-toml/tombi-pre-commit
+    rev: v1.9.6
+    hooks:
+      - id: tombi-lint
   - repo: https://github.com/adrienverge/yamllint.git
     rev: v1.38.0
     hooks:

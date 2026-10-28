@@ -6,15 +6,18 @@
 //     dependabot.yml declares;
 //   - an unrecognized update type is held, and arming acts only on the eligibility
 //     verdict;
+//   - a merge commit a person authored holds the pull request, and one a bot authored
+//     does not;
 //   - the `do not auto-merge` label stops arming and disarms an armed pull request;
 //   - ecosystem names are Dependabot's slugs, not dependabot.yml keys. A comparison
 //     against a config key never matches, and every major falls through to a hold that
 //     logs like a deliberate one.
 //
-// The stand-in reports one GitHub-signed commit by the pull request's author, so these
-// cases test the decision, not the provenance guard. `${{ }}` expressions are not
-// evaluated: `if:` conditions are checked as text, and a step whose script contains one
-// is refused.
+// Unless a case sets its commits, the stand-in reports one GitHub-signed commit by the
+// pull request's author, so those cases test the decision, not the provenance guard.
+// The merge cases add a GitHub-signed merge by a given author. `${{ }}` expressions are
+// not evaluated: `if:` conditions are checked as text, and a step whose script contains
+// one is refused.
 //
 // Narrow parsing, not a YAML library: this runs with nothing installed. Narrow parsing
 // fails open, so `analyze` also runs against broken copies of the real files below.
@@ -45,6 +48,12 @@ const ELIGIBLE = [
 // fetch-metadata leaves update-type empty when it cannot recover one; a type it adds
 // later is equally unknown to the workflow.
 const UNKNOWN = ['', 'version-update:semver-unknown'];
+
+// Who authors a merge on a bot pull request. Catch-up merges as github-actions[bot] or
+// as an App; a person merges with Update branch or in the conflict editor, and a merge
+// whose author email maps to no account reads as `<none>`.
+const BOT_MERGERS = ['github-actions[bot]', 'some-app[bot]'];
+const PERSON_MERGERS = ['michen00', '<none>'];
 
 // dependabot.yml key -> the slug fetch-metadata reports, which it reads from the branch
 // name (`dependabot/npm_and_yarn/...`).
@@ -114,9 +123,9 @@ function jobCondition(text) {
 const GH_STUB = `#!/usr/bin/env bash
 printf '%s\\n' "$*" >>"$STUB_LOG"
 case "$*" in
-  "api repos/"*"/commits "*) printf '%s\\n' "github|plain|$STUB_AUTHOR" ;;
+  "api repos/"*"/commits "*) printf '%s\\n' "$STUB_COMMITS" ;;
   "api repos/"*"/files "*) printf '%s\\n' $STUB_FILES ;;
-  "api repos/"*"/pulls/"*) echo 1 ;;
+  "api repos/"*"/pulls/"*) printf '%s\\n' "$STUB_COMMITS" | grep -c . ;;
   *"--json labels"*) printf '%s' "$STUB_LABELS" ;;
   *"--json reviewDecision"*) echo "$STUB_DECISION" ;;
   *"--json state"*) echo OPEN ;;
@@ -164,7 +173,7 @@ function runStep(script, env, { armed = false, labels = '' } = {}) {
         STUB_LOG: paths.log,
         STUB_ARMED: paths.armed,
         STUB_LABELS: labels,
-        STUB_AUTHOR: env.AUTHOR || 'dependabot[bot]',
+        STUB_COMMITS: `github|plain|${env.AUTHOR || 'dependabot[bot]'}`,
         STUB_DECISION: '',
         STUB_FILES: '.github/workflows/publish.yml package.json',
         GH_REPO: 'owner/repo',
@@ -268,6 +277,27 @@ function analyze({ bot, disarm, dependabot }) {
       const run = decideFor(updateType, slugs[0] || '');
       if (run.outputs.should_merge === 'true') {
         add('unknown-not-held', updateType || '(empty)');
+      }
+    }
+
+    // A merge a person makes on GitHub is GitHub-signed too, and one resolved by hand
+    // can carry any content, so only a bot's merge leaves an eligible update eligible.
+    const withMergeBy = (merger) =>
+      runStep(decide, {
+        AUTHOR: 'dependabot[bot]',
+        UPDATE_TYPE: ELIGIBLE[0],
+        ECOSYSTEM: slugs[0] || '',
+        STUB_COMMITS: `github|plain|dependabot[bot]\ngithub|merge|${merger}`,
+      });
+    for (const merger of BOT_MERGERS) {
+      const run = withMergeBy(merger);
+      if (run.status !== 0 || run.outputs.should_merge !== 'true') {
+        add('bot-merge-held', `${merger}: ${run.stderr.trim()}`);
+      }
+    }
+    for (const merger of PERSON_MERGERS) {
+      if (withMergeBy(merger).outputs.should_merge === 'true') {
+        add('person-merge-not-held', merger);
       }
     }
   }
@@ -419,6 +449,15 @@ expectError(
 );
 expectError('the eligibility step renamed', 'step-missing', (c) => {
   c.bot = c.bot.replace(`- name: ${ELIGIBILITY_STEP}`, '- name: Decide');
+});
+
+// Whose merges are trusted.
+const PERSON_MERGE_HOLD = `elif [ "$kind" = "merge" ] && [[ "$commit_author" != *'[bot]' ]]; then`;
+expectError('a merge by a person trusted', 'person-merge-not-held', (c) => {
+  c.bot = c.bot.replace(PERSON_MERGE_HOLD, 'elif false; then');
+});
+expectError('every merge held', 'bot-merge-held', (c) => {
+  c.bot = c.bot.replace(PERSON_MERGE_HOLD, 'elif [ "$kind" = "merge" ]; then');
 });
 
 // The kill switch.

@@ -110,19 +110,24 @@ jobs:
           # which any pusher can set. So every commit must also be created by GitHub, and
           # every commit that is not a merge must be authored by the pull request's author.
           #
-          # A merge commit is trusted only if it is mechanical: it has exactly two parents,
-          # and its tree is identical to a clean merge of them, which `git merge-tree`
-          # recomputes here. Who authored it does not matter. Update branch and
+          # A merge commit is trusted if it is mechanical or if a repository admin
+          # authored it. Mechanical means exactly two parents, and a tree identical to a
+          # clean merge of them, which `git merge-tree` recomputes here. Update branch and
           # pr-catchup.yml's merges through the merges API succeed only when the merge is
-          # clean, so they pass, whoever made them. A merge resolved by hand in the
-          # conflict editor, or one carrying any other edit, differs from the clean merge,
-          # and an octopus merge has more than two parents, so each holds the pull request.
+          # clean, so they pass, whoever made them. GitHub records whoever makes a merge
+          # in its web interface or through the merges API as its author, so an admin's
+          # merge passes even when it resolves a conflict by hand or carries other edits.
+          # Anyone else's such merge is not mechanical, and neither is an octopus merge,
+          # which has more than two parents, so it holds the pull request. Admin means the
+          # collaborator permission API answers `admin`, asked once per author with only
+          # the metadata read every token has; a failed lookup, or an author GitHub cannot
+          # name, counts as not an admin.
           #
           # GitHub also signs commits that an App or `GITHUB_TOKEN` creates through its API,
-          # with any author, tree and parents, so for commits that are not merges this
-          # trusts any holder of a write token. Where the base branch requires approval of
-          # the most recent push, the approval below does not count on a commit
-          # github-actions pushed.
+          # with any author, tree and parents, so for commits that are not merges, and for
+          # merges attributed to an admin, this trusts any holder of a write token. Where
+          # the base branch requires approval of the most recent push, the approval below
+          # does not count on a commit github-actions pushed.
           #
           # Fails closed: a failed query or fetch leaves `should_merge` unset, so nothing
           # is armed.
@@ -166,6 +171,21 @@ jobs:
             clean=$(git merge-tree --write-tree --no-messages "$first" "$second") || return 1
             [ "$clean" = "$(git rev-parse --verify "${sha}^{tree}")" ]
           }
+          # Succeeds only when the repository reports `admin` for the login, which is
+          # looked up once. A failed lookup, an empty login and `<none>` are not admin.
+          declare -A permission=()
+          admin() {
+            local login=$1
+            if [ -z "$login" ] || [ "$login" = "<none>" ]; then
+              return 1
+            fi
+            if [ -z "${permission[$login]+set}" ]; then
+              permission[$login]=$(gh api \
+                "repos/${GH_REPO}/collaborators/${login}/permission" --jq .permission) ||
+                permission[$login]=unknown
+            fi
+            [ "${permission[$login]}" = admin ]
+          }
           rejected=0
           while IFS='|' read -r origin kind commit_author sha parents; do
             [ -z "$origin" ] && continue
@@ -175,8 +195,10 @@ jobs:
             elif [ "$kind" != "merge" ] && [ "$commit_author" != "$AUTHOR" ]; then
               echo "::warning::non-merge commit authored by ${commit_author}; holding."
               rejected=$((rejected + 1))
-            elif [ "$kind" = "merge" ] && ! mechanical "$sha" "$parents"; then
-              echo "::warning::merge ${sha} is not a clean merge of two parents; holding."
+            elif [ "$kind" = "merge" ] && ! mechanical "$sha" "$parents" &&
+                 ! admin "$commit_author"; then
+              echo "::warning::merge ${sha} by ${commit_author} is neither a clean merge" \
+                   "of two parents nor an admin's; holding."
               rejected=$((rejected + 1))
             fi
           done <<< "$rows"

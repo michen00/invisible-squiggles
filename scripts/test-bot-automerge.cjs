@@ -7,9 +7,11 @@
 //     dependabot.yml declares;
 //   - an unrecognized update type is held, and arming acts only on the eligibility
 //     verdict;
-//   - a clean merge of two parents leaves the pull request eligible, whoever authored
-//     it, and a conflict resolved by hand, a merge with an extra edit, or an octopus
-//     merge holds it;
+//   - a merge leaves the pull request eligible when it is a clean merge of two parents,
+//     whoever authored it, or when a repository admin authored it, edits and all; a
+//     conflict resolved by hand, a merge with an extra edit, or an octopus merge by
+//     anyone else holds it, as does one whose author's permission lookup fails or who
+//     GitHub cannot name, and each author is looked up at most once;
 //   - the `do not auto-merge` label stops arming and disarms an armed pull request;
 //   - ecosystem names are Dependabot's slugs, not dependabot.yml keys. A comparison
 //     against a config key never matches, and every major falls through to a hold that
@@ -18,8 +20,9 @@
 // Every step runs in a clone of a throwaway origin's main, as the checkout before the
 // eligibility step leaves the runner, and origin's refs/pull/<n>/head hold real commits,
 // so the step's fetch and `git merge-tree` are real. The stand-in lists those commits,
-// each GitHub-signed. Unless a case picks a merge scenario, the pull request is one
-// commit by its author, so those cases test the decision, not the provenance guard.
+// each GitHub-signed, and answers the permission lookup from ADMIN and FLAKY, with write
+// for anyone else. Unless a case picks a merge scenario, the pull request is one commit
+// by its author, so those cases test the decision, not the provenance guard.
 // `${{ }}` expressions are not evaluated: `if:` conditions are checked as text, and a
 // step whose script contains one is refused.
 //
@@ -122,6 +125,13 @@ function jobCondition(text) {
 const GH_STUB = `#!/usr/bin/env bash
 printf '%s\\n' "$*" >>"$STUB_LOG"
 case "$*" in
+  "api repos/"*"/collaborators/"*)
+    login=\${2#*/collaborators/}; login=\${login%/permission}
+    case $login in
+      "$STUB_ADMIN") echo admin ;;
+      "$STUB_FLAKY") echo "gh: Server Error (HTTP 502)" >&2; exit 1 ;;
+      *) echo write ;;
+    esac ;;
   "api repos/"*"/commits "*) printf '%s\\n' "$STUB_COMMITS" ;;
   "api repos/"*"/files "*) printf '%s\\n' $STUB_FILES ;;
   "api repos/"*"/pulls/"*) printf '%s\\n' "$STUB_COMMITS" | grep -c . ;;
@@ -194,6 +204,10 @@ mustGit(DEV, ['commit', '-qam', 'build: change c']);
 mustGit(DEV, ['switch', '-q', 'main']);
 write('b.txt', 'b, changed on main');
 mustGit(DEV, ['commit', '-qam', 'feat: change b'], 'michen00');
+// Main moved on again, for a second merge into one pull request.
+mustGit(DEV, ['switch', '-qc', 'main-again', 'main']);
+write('b.txt', 'b, changed on main again');
+mustGit(DEV, ['commit', '-qam', 'feat: change b again'], 'michen00');
 // A base that edits the same line of a.txt as every pull request, for the conflict.
 mustGit(DEV, ['switch', '-qc', 'conflicting', START]);
 write('a.txt', 'a, changed on the base');
@@ -217,11 +231,20 @@ function pull(number, { base = 'main', finish = () => {} } = {}) {
         ' '
       );
       const kind = parents.length >= 2 ? 'merge' : 'plain';
-      const author = mustGit(DEV, ['log', '-1', '--format=%an', sha]);
+      const name = mustGit(DEV, ['log', '-1', '--format=%an', sha]);
+      const author = name === NO_ACCOUNT ? '<none>' : name;
       return `github|${kind}|${author}|${sha}|${parents.join(' ')}`;
     });
   return { number: String(number), rows: rows.join('\n') };
 }
+
+// Who the stand-in says each merge author is: ADMIN is an admin, FLAKY's lookup fails,
+// and anyone else has write. NO_ACCOUNT's commits are listed with the `<none>` login of
+// an author GitHub cannot name, since git strips `<` and `>` from a name.
+const ADMIN = 'michen00';
+const NON_ADMIN = 'contributor';
+const FLAKY = 'flaky-lookup';
+const NO_ACCOUNT = 'no-account';
 
 const mergeAs =
   (author, ...branches) =>
@@ -231,45 +254,86 @@ const mergeAs =
 // The pull request every case without a merge runs as.
 const PLAIN = pull(7);
 
+/** Merge main cleanly as `author`, then amend an extra edit into the merge. */
+const editedMerge = (author) => () => {
+  mergeAs(author, 'main')();
+  write('c.txt', `c, edited in the merge by ${author}`);
+  mustGit(DEV, ['commit', '-q', '--amend', '--no-edit', '--all'], author);
+};
+
+/** Merge `conflicting` as `author`, resolved by hand with an extra edit. */
+const resolvedMerge = (author) => () => {
+  const merge = git(DEV, ['merge', '-q', '--no-edit', 'conflicting'], author);
+  if (merge.ok) throw new Error('fixture: the conflict merged cleanly');
+  write('a.txt', 'whatever the resolver typed');
+  write('c.txt', 'and an edit elsewhere');
+  mustGit(DEV, ['add', 'a.txt', 'c.txt']);
+  mustGit(DEV, ['commit', '-q', '--no-edit'], author);
+};
+
 // pr-catchup.yml merges as github-actions[bot] or as the App, and Update branch as the
-// person who clicked it; GitHub makes either only when the merge is clean.
-const MECHANICAL = [
+// person who clicked it; GitHub makes either only when the merge is clean, so neither
+// needs a lookup. An admin's merge passes edits and all, on one lookup per author.
+const TRUSTED_MERGES = [
   {
     name: 'a catch-up merge',
+    lookups: 0,
     ...pull(11, { finish: mergeAs('github-actions[bot]', 'main') }),
   },
   {
-    name: 'an Update branch merge',
-    ...pull(12, { finish: mergeAs('michen00', 'main') }),
+    name: 'an Update branch merge by a non-admin',
+    lookups: 0,
+    ...pull(12, { finish: mergeAs(NON_ADMIN, 'main') }),
+  },
+  {
+    name: "an admin's conflict resolved by hand with extra edits",
+    lookups: 1,
+    ...pull(16, { base: 'conflicting', finish: resolvedMerge(ADMIN) }),
+  },
+  {
+    name: 'two edited merges by one admin',
+    lookups: 1,
+    ...pull(17, {
+      base: 'main-again',
+      finish: () => {
+        editedMerge(ADMIN)();
+        const merge = git(
+          DEV,
+          ['merge', '-q', '--no-ff', '--no-edit', 'main-again'],
+          ADMIN
+        );
+        if (!merge.ok) throw new Error(`fixture: ${merge.err}`);
+        write('c.txt', 'c, edited again');
+        mustGit(DEV, ['commit', '-q', '--amend', '--no-edit', '--all'], ADMIN);
+      },
+    }),
   },
 ];
-const NOT_MECHANICAL = [
+const HELD_MERGES = [
   {
-    name: 'a conflict resolved by hand',
-    ...pull(13, {
-      base: 'conflicting',
-      finish: () => {
-        const merge = git(DEV, ['merge', '-q', '--no-edit', 'conflicting'], 'michen00');
-        if (merge.ok) throw new Error('fixture: the conflict merged cleanly');
-        write('a.txt', 'whatever the resolver typed');
-        mustGit(DEV, ['add', 'a.txt']);
-        mustGit(DEV, ['commit', '-q', '--no-edit'], 'michen00');
-      },
-    }),
+    name: 'a conflict a non-admin resolved by hand',
+    lookups: 1,
+    ...pull(13, { base: 'conflicting', finish: resolvedMerge(NON_ADMIN) }),
   },
   {
-    name: 'a clean merge with an extra edit',
-    ...pull(14, {
-      finish: () => {
-        mergeAs('michen00', 'main')();
-        write('c.txt', 'c, edited in the merge');
-        mustGit(DEV, ['commit', '-q', '--amend', '--no-edit', '--all'], 'michen00');
-      },
-    }),
+    name: 'a clean merge with an extra edit by a non-admin',
+    lookups: 1,
+    ...pull(14, { finish: editedMerge(NON_ADMIN) }),
   },
   {
-    name: 'an octopus merge',
+    name: 'an octopus merge by a bot',
+    lookups: 1,
     ...pull(15, { finish: mergeAs('github-actions[bot]', 'main', 'side') }),
+  },
+  {
+    name: 'an edited merge whose permission lookup fails',
+    lookups: 1,
+    ...pull(18, { finish: editedMerge(FLAKY) }),
+  },
+  {
+    name: 'an edited merge by an author GitHub cannot name',
+    lookups: 0,
+    ...pull(19, { finish: editedMerge(NO_ACCOUNT) }),
   },
 ];
 
@@ -309,6 +373,8 @@ function runStep(script, env, { armed = false, labels = '' } = {}) {
         STUB_LABELS: labels,
         STUB_COMMITS: `github|plain|${env.AUTHOR || 'dependabot[bot]'}|${PLAIN_SHA}|${START}`,
         STUB_DECISION: '',
+        STUB_ADMIN: ADMIN,
+        STUB_FLAKY: FLAKY,
         STUB_FILES: '.github/workflows/publish.yml package.json',
         GH_REPO: 'owner/repo',
         PR_NUMBER: PLAIN.number,
@@ -415,7 +481,8 @@ function analyze({ bot, disarm, dependabot }) {
     }
 
     // A merge resolved by hand in GitHub's conflict editor is GitHub-signed too and can
-    // carry anything, so only a mechanical merge leaves an eligible update eligible.
+    // carry anything, so only a mechanical merge, or an admin's, leaves an eligible
+    // update eligible.
     const withMerge = ({ number, rows }) =>
       runStep(decide, {
         AUTHOR: 'dependabot[bot]',
@@ -424,15 +491,22 @@ function analyze({ bot, disarm, dependabot }) {
         PR_NUMBER: number,
         STUB_COMMITS: rows,
       });
-    for (const scenario of MECHANICAL) {
+    const lookupsIn = (run) =>
+      run.calls.filter((call) => call.includes('/collaborators/')).length;
+    for (const scenario of TRUSTED_MERGES) {
       const run = withMerge(scenario);
       if (run.status !== 0 || run.outputs.should_merge !== 'true') {
-        add('mechanical-merge-held', `${scenario.name}: ${run.stderr.trim()}`);
+        add('trusted-merge-held', `${scenario.name}: ${run.stderr.trim()}`);
+      }
+      if (lookupsIn(run) !== scenario.lookups) {
+        add('lookup-count', `${scenario.name}: ${lookupsIn(run)}`);
       }
     }
-    for (const scenario of NOT_MECHANICAL) {
-      if (withMerge(scenario).outputs.should_merge === 'true') {
-        add('merge-not-held', scenario.name);
+    for (const scenario of HELD_MERGES) {
+      const run = withMerge(scenario);
+      if (run.outputs.should_merge === 'true') add('merge-not-held', scenario.name);
+      if (lookupsIn(run) !== scenario.lookups) {
+        add('lookup-count', `${scenario.name}: ${lookupsIn(run)}`);
       }
     }
   }
@@ -587,22 +661,37 @@ expectError('the eligibility step renamed', 'step-missing', (c) => {
 });
 
 // Which merges are trusted.
-const MERGE_HOLD = 'elif [ "$kind" = "merge" ] && ! mechanical "$sha" "$parents"; then';
+const MERGE_HOLD =
+  'elif [ "$kind" = "merge" ] && ! mechanical "$sha" "$parents" &&\n' +
+  '                 ! admin "$commit_author"; then';
 const TREE_MATCH = '[ "$clean" = "$(git rev-parse --verify "${sha}^{tree}")" ]';
+const IS_ADMIN = '[ "${permission[$login]}" = admin ]';
 expectError('every merge trusted', 'merge-not-held', (c) => {
   c.bot = c.bot.replace(MERGE_HOLD, 'elif false; then');
 });
-expectError('every merge held', 'mechanical-merge-held', (c) => {
+expectError('every merge held', 'trusted-merge-held', (c) => {
   c.bot = c.bot.replace(MERGE_HOLD, 'elif [ "$kind" = "merge" ]; then');
 });
 expectError('a merge trusted without comparing its tree', 'merge-not-held', (c) => {
   c.bot = c.bot.replace(TREE_MATCH, 'true');
 });
-expectError('merges held by their author again', 'mechanical-merge-held', (c) => {
+expectError('merges held by their author again', 'trusted-merge-held', (c) => {
   c.bot = c.bot.replace(
     MERGE_HOLD,
     `elif [ "$kind" = "merge" ] && [[ "$commit_author" != *'[bot]' ]]; then`
   );
+});
+expectError('admins no longer trusted', 'trusted-merge-held', (c) => {
+  c.bot = c.bot.replace(IS_ADMIN, 'false');
+});
+expectError('every author taken for an admin', 'merge-not-held', (c) => {
+  c.bot = c.bot.replace(IS_ADMIN, 'true');
+});
+expectError('a failed lookup read as admin', 'merge-not-held', (c) => {
+  c.bot = c.bot.replace('permission[$login]=unknown', 'permission[$login]=admin');
+});
+expectError('the lookup asked for every merge', 'lookup-count', (c) => {
+  c.bot = c.bot.replace('if [ -z "${permission[$login]+set}" ]; then', 'if true; then');
 });
 
 // The kill switch.

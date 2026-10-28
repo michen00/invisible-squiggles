@@ -1,28 +1,14 @@
 ---
 name: PR catchup
 
-# Merges main into each open pull request from this repository that is behind main and
-# does not conflict, on every push to main and on demand. It never merges into main.
+# Merges main into each open, non-conflicting pull request branch from this repository.
+# POST /repos/{repo}/merges, unlike "Update branch", lets the merge commit take a
+# conventional subject.
 #
-# The merge uses POST /repos/{repo}/merges: GitHub signs the commit, which satisfies the
-# signed-commits ruleset, and the subject can be `chore: merge main into #N`. "Update a
-# pull request branch" cannot set a subject, and its default passes the commit-message
-# ruleset only through the `Merge ` exception.
-#
-# As of 2026-06-11, GitHub holds the pull_request runs that a github-actions[bot] commit
-# causes as action_required until someone with write access approves them, and no
-# setting lifts the hold:
+# As of 2026-06-11, GitHub holds the runs that a github-actions[bot] push causes:
 # https://github.blog/changelog/2026-06-11-bot-created-pull-requests-can-run-workflows-if-approved/
-# Without an App, this workflow approves the runs at the commit it pushed (`approvable` in
-# .github/scripts/approve-bot-gated-runs.sh) and fails if any stays held; approve it from
-# the pull request's Checks tab to recover. With an App (vars.APP_CLIENT_ID and
-# secrets.APP_PRIVATE_KEY), it merges as the App and nothing is held.
-#
-# require_extra_approval_for_unattributed_changes does not treat a github-actions[bot]
-# merge commit as unattributed.
-#
-# A merge completed under GITHUB_TOKEN starts no workflow, so this does not run after an
-# auto-merge armed with that token; dispatch it by hand then.
+# The approval step releases them. An App token (vars.APP_CLIENT_ID,
+# secrets.APP_PRIVATE_KEY) avoids the hold.
 
 on:
   push:
@@ -40,9 +26,8 @@ concurrency:
 
 jobs:
   catchup:
-    # A dispatched run loads this file from the ref it was dispatched from, so a dispatch
-    # from a branch would run that branch's version of it with write access. Push events
-    # come only from the default branch; this holds a dispatch to the same rule.
+    # A dispatch runs this file from the dispatched ref with write access, so allow only
+    # the default branch.
     if: >-
       github.event_name != 'workflow_dispatch'
       || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
@@ -56,7 +41,7 @@ jobs:
             .github/scripts/approve-bot-gated-runs.sh
           sparse-checkout-cone-mode: false
 
-      # Missing or invalid App credentials leave the default-token path available.
+      # Missing or invalid App credentials fall back to GITHUB_TOKEN.
       - name: Mint an App token, if one is configured
         id: app-token
         continue-on-error: true
@@ -75,20 +60,13 @@ jobs:
           FALLBACK_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
-          # Actions runs a run: body as `bash -e {0}`, without pipefail. Setting it makes a
-          # failing `gh pr list` fail this step, instead of leaving the loop below nothing
-          # to read and passing.
           set -euo pipefail
 
-          # Where the steps pass state to each other. A test overrides it to run this text
-          # unmodified against a temporary directory. Each step reads it itself, so each
-          # step can run alone.
           state_dir="${PR_CATCHUP_DIR:-/tmp}"
 
           : > "$state_dir/pr-catchup-updated.txt"
           : > "$state_dir/pr-catchup-refused.txt"
-          # --limit truncates the listing without warning, so it has to stay above any
-          # number of open pull requests this repository can reach.
+          # --limit truncates silently, so keep it above any likely open-PR count.
           gh pr list --repo "$REPO" --state open --base main --limit 1000 \
             --json number,headRefName,isCrossRepository,mergeable \
             --jq '.[]
@@ -96,13 +74,9 @@ jobs:
               | "\(.number) \(.headRefName)"' \
           | while read -r num branch; do
               echo "::group::PR #$num"
-              # The call returns the merge commit it created, so the new head is read from
-              # the response instead of polled for. A branch that already contains main
-              # gets 204 with an empty body, which reads as an empty SHA.
+              # A branch already current gets 204 and no body, so the SHA reads empty.
               merged="$state_dir/pr-catchup-merged.sha"
-              # gh prints a failing status only on stderr, as a trailing "(HTTP nnn)", so
-              # that is the only place to read the 409 that means a conflict. stdout goes
-              # to a file, because 2>&1 would mix the SHA with the refusal.
+              # gh prints the HTTP status only on stderr; stdout (the SHA) goes to a file.
               merge_token="${APP_TOKEN:-${FALLBACK_TOKEN:-${GH_TOKEN:-}}}"
               refusal="$(GH_TOKEN="$merge_token" gh api --method POST "repos/$REPO/merges" \
                 -f base="$branch" -f head=main \
@@ -120,28 +94,23 @@ jobs:
               after="$(cat "$merged")"
               if [ "$merge_rc" = "0" ] && [ -n "$after" ]; then
                 echo "updated #$num to $after"
+                # Only GITHUB_TOKEN merges cause held runs.
                 if [ "$merge_token" = "${FALLBACK_TOKEN:-${GH_TOKEN:-}}" ]; then
                   echo "$num $after" >> "$state_dir/pr-catchup-updated.txt"
                 fi
               elif [ "$merge_rc" = "0" ]; then
                 echo "no update needed for #$num"
               elif printf '%s' "$refusal" | grep -q '(HTTP 409)'; then
-                # A conflict the listing did not filter out: `mergeable` reads UNKNOWN
-                # until GitHub computes it, and the listing filters only CONFLICTING. Only
-                # the author can resolve it, so it is reported, not raised.
+                # A conflict gets here if mergeable read UNKNOWN when listed. Only the
+                # author can resolve it, so it does not fail the run.
                 echo "::notice::#$num conflicts with main, so it stays behind"
               else
-                # Only an empty body means current, and only a 409 means a conflict.
-                # Treating any other refusal (a 403, a 404, a rate limit, a 5xx) as
-                # either would leave the pull request behind under a green run. It is
-                # recorded rather than raised so the loop continues; the last step
-                # reports it and fails.
+                # Any other refusal fails the run in the last step.
                 echo "$num $branch ${refusal//$'\n'/ }" >> "$state_dir/pr-catchup-refused.txt"
               fi
               echo "::endgroup::"
             done
 
-      # Only merges made with the default token cause runs that need approval.
       - name: Approve the runs this catch-up caused
         env:
           GH_TOKEN: ${{ github.token }}
@@ -173,10 +142,7 @@ jobs:
                   echo "$id $num" >> "$state_dir/pr-catchup-gated.txt"
                 done < "$APPROVE_BOT_GATED_OUT"
               else
-                # Still held, but the run listing came back empty: the Actions
-                # lookup that would name the run failed without output. Recording
-                # it as gated would name a run nobody identified, so it is
-                # recorded as blind.
+                # Runs are still held but the lookup named none: unverified, not gated.
                 echo "$num $sha" >> "$state_dir/pr-catchup-blind.txt"
               fi
             fi
@@ -184,13 +150,11 @@ jobs:
             echo "::endgroup::"
           done < "$state_dir/pr-catchup-updated.txt"
 
-      # A refused merge fails the run, whichever identity attempted it.
+      # Also fails on refused merges, unverified heads and missing runs.
       - name: Fail if any caused run is still awaiting approval
         env:
           REPO: ${{ github.repository }}
         run: |
-          # Each way a caught-up pull request can stay untested without a failure,
-          # reported separately because each needs a different fix.
           stalled=0
           state_dir="${PR_CATCHUP_DIR:-/tmp}"
 

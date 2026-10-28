@@ -79,10 +79,7 @@ repos:
     rev: v1.9.6
     hooks:
       - id: tombi-format
-  # Joins manual soft-wrap line breaks in Markdown prose. Ordered before
-  # markdownlint below so its --fix sees the final text rather than a shape
-  # about to change under it. Prettier can't fight it: .prettierignore already
-  # excludes *.md. Exclusions live in .unwrapignore, the tool's own mechanism.
+  # Before markdownlint, so its --fix sees the final text; nothing here rewraps prose.
   - repo: https://github.com/michen00/markdown-prose-hooks-py
     rev: v0.5.2
     hooks:
@@ -91,9 +88,7 @@ repos:
     rev: v0.50.0
     hooks:
       - id: markdownlint
-        # --rules loads the repo-local MD060 fixer. The built-in rule reports a
-        # stale delimiter row but will not repair one, so --fix alone leaves
-        # every retabulated table failing its own check.
+        # The repo-local MD060 rule repairs stale delimiter rows; the built-in one can't.
         args:
           [
             '--config',

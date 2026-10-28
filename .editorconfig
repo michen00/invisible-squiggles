@@ -5,7 +5,7 @@ charset = utf-8
 end_of_line = lf
 insert_final_newline = true
 trim_trailing_whitespace = true
-# shfmt-only keys, under [*] so they reach shell scripts without an extension.
+# shfmt keys, in [*] so they reach extensionless scripts.
 simplify = true
 space_redirects = true
 switch_case_indent = true
@@ -15,7 +15,7 @@ indent_size = 4
 indent_style = space
 max_line_length = 88
 
-[*.sh]
+[*.{json,jsonc,md,sh,toml}]
 indent_size = 2
 indent_style = space
 
@@ -23,14 +23,6 @@ indent_style = space
 indent_size = 2
 indent_style = space
 max_line_length = 88
-
-[*.{json,jsonc,md}]
-indent_size = 2
-indent_style = space
-
-[*.toml]
-indent_size = 2
-indent_style = space
 
 [*.{yaml,yml}]
 indent_size = 2

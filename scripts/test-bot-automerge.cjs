@@ -1,26 +1,31 @@
 #!/usr/bin/env node
 
 // Runs the shell steps of .github/workflows/bot-automerge.yml and
-// bot-automerge-disarm.yml against a stand-in for `gh`, and checks that:
+// bot-automerge-disarm.yml against a stand-in for `gh` and throwaway git repositories,
+// and checks that:
 //   - a Dependabot patch, minor or major update is eligible in every ecosystem
 //     dependabot.yml declares;
 //   - an unrecognized update type is held, and arming acts only on the eligibility
 //     verdict;
-//   - a merge commit a person authored holds the pull request, and one a bot authored
-//     does not;
+//   - a clean merge of two parents leaves the pull request eligible, whoever authored
+//     it, and a conflict resolved by hand, a merge with an extra edit, or an octopus
+//     merge holds it;
 //   - the `do not auto-merge` label stops arming and disarms an armed pull request;
 //   - ecosystem names are Dependabot's slugs, not dependabot.yml keys. A comparison
 //     against a config key never matches, and every major falls through to a hold that
 //     logs like a deliberate one.
 //
-// Unless a case sets its commits, the stand-in reports one GitHub-signed commit by the
-// pull request's author, so those cases test the decision, not the provenance guard.
-// The merge cases add a GitHub-signed merge by a given author. `${{ }}` expressions are
-// not evaluated: `if:` conditions are checked as text, and a step whose script contains
-// one is refused.
+// Every step runs in a clone of a throwaway origin's main, as the checkout before the
+// eligibility step leaves the runner, and origin's refs/pull/<n>/head hold real commits,
+// so the step's fetch and `git merge-tree` are real. The stand-in lists those commits,
+// each GitHub-signed. Unless a case picks a merge scenario, the pull request is one
+// commit by its author, so those cases test the decision, not the provenance guard.
+// `${{ }}` expressions are not evaluated: `if:` conditions are checked as text, and a
+// step whose script contains one is refused.
 //
-// Narrow parsing, not a YAML library: this runs with nothing installed. Narrow parsing
-// fails open, so `analyze` also runs against broken copies of the real files below.
+// Narrow parsing, not a YAML library: this runs with nothing installed but git. Narrow
+// parsing fails open, so `analyze` also runs against broken copies of the real files
+// below.
 
 'use strict';
 
@@ -48,12 +53,6 @@ const ELIGIBLE = [
 // fetch-metadata leaves update-type empty when it cannot recover one; a type it adds
 // later is equally unknown to the workflow.
 const UNKNOWN = ['', 'version-update:semver-unknown'];
-
-// Who authors a merge on a bot pull request. Catch-up merges as github-actions[bot] or
-// as an App; a person merges with Update branch or in the conflict editor, and a merge
-// whose author email maps to no account reads as `<none>`.
-const BOT_MERGERS = ['github-actions[bot]', 'some-app[bot]'];
-const PERSON_MERGERS = ['michen00', '<none>'];
 
 // dependabot.yml key -> the slug fetch-metadata reports, which it reads from the branch
 // name (`dependabot/npm_and_yarn/...`).
@@ -146,9 +145,143 @@ fs.mkdirSync(STUB_BIN);
 fs.writeFileSync(path.join(STUB_BIN, 'gh'), GH_STUB, { mode: 0o755 });
 fs.writeFileSync(path.join(STUB_BIN, 'sleep'), '#!/bin/sh\n', { mode: 0o755 });
 
+// --- Git fixtures ---------------------------------------------------------------
+// Built once: an origin whose refs/pull/<n>/head are the pull requests below, and a
+// clone of its main for every step to run in. Each pull request starts from START
+// with one Dependabot commit to a.txt; main has since changed b.txt and `side` c.txt,
+// so merging either is clean.
+
+/** Run git in `cwd` as `author`, committed by GitHub, with no user or system config. */
+function git(cwd, args, author = 'dependabot[bot]') {
+  const result = spawnSync('git', args, {
+    cwd,
+    encoding: 'utf8',
+    env: {
+      PATH: process.env.PATH,
+      HOME: SCRATCH,
+      GIT_CONFIG_NOSYSTEM: '1',
+      GIT_AUTHOR_NAME: author,
+      GIT_AUTHOR_EMAIL: `${author}@example.invalid`,
+      GIT_COMMITTER_NAME: 'GitHub',
+      GIT_COMMITTER_EMAIL: 'noreply@github.com',
+    },
+  });
+  return {
+    ok: result.status === 0,
+    out: (result.stdout || '').trim(),
+    err: result.stderr,
+  };
+}
+
+/** Like `git`, but a failure is a broken fixture, so it stops the run. */
+function mustGit(cwd, args, author) {
+  const result = git(cwd, args, author);
+  if (!result.ok) throw new Error(`fixture: git ${args.join(' ')}: ${result.err}`);
+  return result.out;
+}
+
+const DEV = path.join(SCRATCH, 'dev');
+fs.mkdirSync(DEV);
+const write = (name, text) => fs.writeFileSync(path.join(DEV, name), `${text}\n`);
+mustGit(DEV, ['init', '-q', '-b', 'main']);
+for (const name of ['a', 'b', 'c']) write(`${name}.txt`, name);
+mustGit(DEV, ['add', '.']);
+mustGit(DEV, ['commit', '-qm', 'chore: start'], 'michen00');
+const START = mustGit(DEV, ['rev-parse', 'HEAD']);
+mustGit(DEV, ['switch', '-qc', 'side']);
+write('c.txt', 'c, changed on side');
+mustGit(DEV, ['commit', '-qam', 'build: change c']);
+mustGit(DEV, ['switch', '-q', 'main']);
+write('b.txt', 'b, changed on main');
+mustGit(DEV, ['commit', '-qam', 'feat: change b'], 'michen00');
+// A base that edits the same line of a.txt as every pull request, for the conflict.
+mustGit(DEV, ['switch', '-qc', 'conflicting', START]);
+write('a.txt', 'a, changed on the base');
+mustGit(DEV, ['commit', '-qam', 'feat: change a'], 'michen00');
+
 /**
- * Run `script` as GitHub runs a `run:` block with no explicit shell (`bash -e`), with the
- * stand-ins first on PATH.
+ * Record a pull request numbered `number`: one Dependabot commit, then `finish`. Its
+ * rows are the commits from `base` to its head, in the shape the step's jq filter
+ * produces: origin, kind, author, SHA, and parent SHAs.
+ */
+function pull(number, { base = 'main', finish = () => {} } = {}) {
+  mustGit(DEV, ['switch', '-qc', `pull-${number}`, START]);
+  write('a.txt', 'a, bumped');
+  mustGit(DEV, ['commit', '-qam', 'build: bump a']);
+  finish();
+  mustGit(DEV, ['update-ref', `refs/pull/${number}/head`, 'HEAD']);
+  const rows = mustGit(DEV, ['rev-list', '--reverse', `${base}..HEAD`])
+    .split('\n')
+    .map((sha) => {
+      const [, ...parents] = mustGit(DEV, ['rev-list', '--parents', '-n1', sha]).split(
+        ' '
+      );
+      const kind = parents.length >= 2 ? 'merge' : 'plain';
+      const author = mustGit(DEV, ['log', '-1', '--format=%an', sha]);
+      return `github|${kind}|${author}|${sha}|${parents.join(' ')}`;
+    });
+  return { number: String(number), rows: rows.join('\n') };
+}
+
+const mergeAs =
+  (author, ...branches) =>
+  () =>
+    mustGit(DEV, ['merge', '-q', '--no-ff', '--no-edit', ...branches], author);
+
+// The pull request every case without a merge runs as.
+const PLAIN = pull(7);
+
+// pr-catchup.yml merges as github-actions[bot] or as the App, and Update branch as the
+// person who clicked it; GitHub makes either only when the merge is clean.
+const MECHANICAL = [
+  {
+    name: 'a catch-up merge',
+    ...pull(11, { finish: mergeAs('github-actions[bot]', 'main') }),
+  },
+  {
+    name: 'an Update branch merge',
+    ...pull(12, { finish: mergeAs('michen00', 'main') }),
+  },
+];
+const NOT_MECHANICAL = [
+  {
+    name: 'a conflict resolved by hand',
+    ...pull(13, {
+      base: 'conflicting',
+      finish: () => {
+        const merge = git(DEV, ['merge', '-q', '--no-edit', 'conflicting'], 'michen00');
+        if (merge.ok) throw new Error('fixture: the conflict merged cleanly');
+        write('a.txt', 'whatever the resolver typed');
+        mustGit(DEV, ['add', 'a.txt']);
+        mustGit(DEV, ['commit', '-q', '--no-edit'], 'michen00');
+      },
+    }),
+  },
+  {
+    name: 'a clean merge with an extra edit',
+    ...pull(14, {
+      finish: () => {
+        mergeAs('michen00', 'main')();
+        write('c.txt', 'c, edited in the merge');
+        mustGit(DEV, ['commit', '-q', '--amend', '--no-edit', '--all'], 'michen00');
+      },
+    }),
+  },
+  {
+    name: 'an octopus merge',
+    ...pull(15, { finish: mergeAs('github-actions[bot]', 'main', 'side') }),
+  },
+];
+
+const ORIGIN = path.join(SCRATCH, 'origin.git');
+mustGit(SCRATCH, ['clone', '-q', '--mirror', DEV, ORIGIN]);
+const RUNNER = path.join(SCRATCH, 'runner');
+mustGit(SCRATCH, ['clone', '-q', '--branch', 'main', ORIGIN, RUNNER]);
+const PLAIN_SHA = PLAIN.rows.split('|')[3];
+
+/**
+ * Run `script` as GitHub runs a `run:` block with no explicit shell (`bash -e`), in the
+ * runner clone, with the stand-ins first on PATH.
  */
 function runStep(script, env, { armed = false, labels = '' } = {}) {
   const dir = fs.mkdtempSync(path.join(SCRATCH, 'run-'));
@@ -165,6 +298,7 @@ function runStep(script, env, { armed = false, labels = '' } = {}) {
       armed: file('armed', `${armed}\n`),
     };
     const result = spawnSync('bash', ['--noprofile', '--norc', '-e', paths.script], {
+      cwd: RUNNER,
       encoding: 'utf8',
       env: {
         PATH: `${STUB_BIN}${path.delimiter}${process.env.PATH}`,
@@ -173,11 +307,11 @@ function runStep(script, env, { armed = false, labels = '' } = {}) {
         STUB_LOG: paths.log,
         STUB_ARMED: paths.armed,
         STUB_LABELS: labels,
-        STUB_COMMITS: `github|plain|${env.AUTHOR || 'dependabot[bot]'}`,
+        STUB_COMMITS: `github|plain|${env.AUTHOR || 'dependabot[bot]'}|${PLAIN_SHA}|${START}`,
         STUB_DECISION: '',
         STUB_FILES: '.github/workflows/publish.yml package.json',
         GH_REPO: 'owner/repo',
-        PR_NUMBER: '7',
+        PR_NUMBER: PLAIN.number,
         PR_URL: 'https://github.com/owner/repo/pull/7',
         ARM_TOKEN: 'arm-token',
         ...env,
@@ -280,24 +414,25 @@ function analyze({ bot, disarm, dependabot }) {
       }
     }
 
-    // A merge a person makes on GitHub is GitHub-signed too, and one resolved by hand
-    // can carry any content, so only a bot's merge leaves an eligible update eligible.
-    const withMergeBy = (merger) =>
+    // A merge resolved by hand in GitHub's conflict editor is GitHub-signed too and can
+    // carry anything, so only a mechanical merge leaves an eligible update eligible.
+    const withMerge = ({ number, rows }) =>
       runStep(decide, {
         AUTHOR: 'dependabot[bot]',
         UPDATE_TYPE: ELIGIBLE[0],
         ECOSYSTEM: slugs[0] || '',
-        STUB_COMMITS: `github|plain|dependabot[bot]\ngithub|merge|${merger}`,
+        PR_NUMBER: number,
+        STUB_COMMITS: rows,
       });
-    for (const merger of BOT_MERGERS) {
-      const run = withMergeBy(merger);
+    for (const scenario of MECHANICAL) {
+      const run = withMerge(scenario);
       if (run.status !== 0 || run.outputs.should_merge !== 'true') {
-        add('bot-merge-held', `${merger}: ${run.stderr.trim()}`);
+        add('mechanical-merge-held', `${scenario.name}: ${run.stderr.trim()}`);
       }
     }
-    for (const merger of PERSON_MERGERS) {
-      if (withMergeBy(merger).outputs.should_merge === 'true') {
-        add('person-merge-not-held', merger);
+    for (const scenario of NOT_MECHANICAL) {
+      if (withMerge(scenario).outputs.should_merge === 'true') {
+        add('merge-not-held', scenario.name);
       }
     }
   }
@@ -451,13 +586,23 @@ expectError('the eligibility step renamed', 'step-missing', (c) => {
   c.bot = c.bot.replace(`- name: ${ELIGIBILITY_STEP}`, '- name: Decide');
 });
 
-// Whose merges are trusted.
-const PERSON_MERGE_HOLD = `elif [ "$kind" = "merge" ] && [[ "$commit_author" != *'[bot]' ]]; then`;
-expectError('a merge by a person trusted', 'person-merge-not-held', (c) => {
-  c.bot = c.bot.replace(PERSON_MERGE_HOLD, 'elif false; then');
+// Which merges are trusted.
+const MERGE_HOLD = 'elif [ "$kind" = "merge" ] && ! mechanical "$sha" "$parents"; then';
+const TREE_MATCH = '[ "$clean" = "$(git rev-parse --verify "${sha}^{tree}")" ]';
+expectError('every merge trusted', 'merge-not-held', (c) => {
+  c.bot = c.bot.replace(MERGE_HOLD, 'elif false; then');
 });
-expectError('every merge held', 'bot-merge-held', (c) => {
-  c.bot = c.bot.replace(PERSON_MERGE_HOLD, 'elif [ "$kind" = "merge" ]; then');
+expectError('every merge held', 'mechanical-merge-held', (c) => {
+  c.bot = c.bot.replace(MERGE_HOLD, 'elif [ "$kind" = "merge" ]; then');
+});
+expectError('a merge trusted without comparing its tree', 'merge-not-held', (c) => {
+  c.bot = c.bot.replace(TREE_MATCH, 'true');
+});
+expectError('merges held by their author again', 'mechanical-merge-held', (c) => {
+  c.bot = c.bot.replace(
+    MERGE_HOLD,
+    `elif [ "$kind" = "merge" ] && [[ "$commit_author" != *'[bot]' ]]; then`
+  );
 });
 
 // The kill switch.

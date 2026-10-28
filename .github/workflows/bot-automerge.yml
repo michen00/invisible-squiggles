@@ -88,6 +88,16 @@ jobs:
         run: |
           echo "::notice::No update-type for ${ECOSYSTEM:-unknown}; leaving this for a human."
 
+      # The next step recomputes merge commits, so it needs git objects. This checks out
+      # the default branch, never the pull request's head, and the next step fetches the
+      # pull request's commits as objects only: nothing from the pull request runs.
+      - name: Check out the default branch's history
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          persist-credentials: false
+
       - name: Decide eligibility
         id: eligible
         env:
@@ -97,19 +107,25 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           # The author login alone proves nothing: it is resolved from the author email,
-          # which any pusher can set. So every commit must also be created by GitHub.
+          # which any pusher can set. So every commit must also be created by GitHub, and
+          # every commit that is not a merge must be authored by the pull request's author.
           #
-          # Merges skip the author check so that catch-up merges pass, but must be
-          # authored by a bot: catch-up merges as github-actions[bot] or as the App. A
-          # merge a person makes on GitHub, with Update branch or in the conflict
-          # editor, is GitHub-signed but authored by that person, and one resolved by
-          # hand can carry any content, so it holds the pull request.
+          # A merge commit is trusted only if it is mechanical: it has exactly two parents,
+          # and its tree is identical to a clean merge of them, which `git merge-tree`
+          # recomputes here. Who authored it does not matter. Update branch and
+          # pr-catchup.yml's merges through the merges API succeed only when the merge is
+          # clean, so they pass, whoever made them. A merge resolved by hand in the
+          # conflict editor, or one carrying any other edit, differs from the clean merge,
+          # and an octopus merge has more than two parents, so each holds the pull request.
+          #
           # GitHub also signs commits that an App or `GITHUB_TOKEN` creates through its API,
-          # with any tree and parents, so this trusts any holder of a write token. Where the
-          # base branch requires approval of the most recent push, the approval below does
-          # not count on a commit github-actions pushed.
+          # with any author, tree and parents, so for commits that are not merges this
+          # trusts any holder of a write token. Where the base branch requires approval of
+          # the most recent push, the approval below does not count on a commit
+          # github-actions pushed.
           #
-          # Fails closed: a failed query leaves `should_merge` unset, so nothing is armed.
+          # Fails closed: a failed query or fetch leaves `should_merge` unset, so nothing
+          # is armed.
           set -euo pipefail
           jq_rows='.[] | [
             (if (.commit.verification.verified == true)
@@ -119,7 +135,9 @@ jobs:
                      | any(startswith("committer GitHub <noreply@github.com>")))
              then "github" else "elsewhere" end),
             (if (.parents | length) >= 2 then "merge" else "plain" end),
-            (.author.login // "<none>")
+            (.author.login // "<none>"),
+            .sha,
+            ([.parents[].sha] | join(" "))
           ] | join("|")'
           # The endpoint returns at most 250 commits and `--paginate` still exits 0, so
           # refuse rather than inspect part of the pull request.
@@ -136,8 +154,20 @@ jobs:
             echo "should_merge=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          git fetch --no-tags origin "+refs/pull/${PR_NUMBER}/head:refs/remotes/pr/head"
+          # Succeeds only for a commit with exactly two parents whose tree is the clean
+          # merge of them. merge-tree fails on a conflict, and so does a missing object.
+          mechanical() {
+            local sha=$1 first second extra clean
+            read -r first second extra <<< "$2"
+            if [ -z "$second" ] || [ -n "$extra" ]; then
+              return 1
+            fi
+            clean=$(git merge-tree --write-tree --no-messages "$first" "$second") || return 1
+            [ "$clean" = "$(git rev-parse --verify "${sha}^{tree}")" ]
+          }
           rejected=0
-          while IFS='|' read -r origin kind commit_author; do
+          while IFS='|' read -r origin kind commit_author sha parents; do
             [ -z "$origin" ] && continue
             if [ "$origin" != "github" ]; then
               echo "::warning::a commit was not created by GitHub; holding."
@@ -145,8 +175,8 @@ jobs:
             elif [ "$kind" != "merge" ] && [ "$commit_author" != "$AUTHOR" ]; then
               echo "::warning::non-merge commit authored by ${commit_author}; holding."
               rejected=$((rejected + 1))
-            elif [ "$kind" = "merge" ] && [[ "$commit_author" != *'[bot]' ]]; then
-              echo "::warning::merge commit authored by ${commit_author}, not a bot; holding."
+            elif [ "$kind" = "merge" ] && ! mechanical "$sha" "$parents"; then
+              echo "::warning::merge ${sha} is not a clean merge of two parents; holding."
               rejected=$((rejected + 1))
             fi
           done <<< "$rows"

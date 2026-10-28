@@ -83,7 +83,7 @@ while [[ $# -gt 0 ]]; do
       SHOULD_COMMIT=true
       # Only consume next arg if it's not a recognized option or --
       # This allows --commit to work with other options in any order
-      if [[ $# -gt 1 ]] && [[ -n "${2:-}" ]]; then
+      if [[ $# -gt 1 ]] && [[ -n ${2:-} ]]; then
         case "$2" in
           --)
             # -- separator: collect args until next recognized option
@@ -119,7 +119,7 @@ while [[ $# -gt 0 ]]; do
       fi
       ;;
     -l | --changelog)
-      if [[ -z "${2:-}" ]]; then
+      if [[ -z ${2:-} ]]; then
         echo "Error: --changelog requires a file path" >&2
         usage 1
       fi
@@ -128,7 +128,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     -C | --cliff-args)
       # Check if next arg is -- separator
-      if [[ $# -gt 1 ]] && [[ "${2:-}" == "--" ]]; then
+      if [[ $# -gt 1 ]] && [[ ${2:-} == "--" ]]; then
         # -- separator: collect args until next recognized option
         shift 2
         CLIFF_ARGS_ARRAY=()
@@ -142,7 +142,7 @@ while [[ $# -gt 0 ]]; do
         done
         # Continue parsing with the option we hit (if any)
         continue
-      elif [[ -z "${2:-}" ]]; then
+      elif [[ -z ${2:-} ]]; then
         echo "Error: --cliff-args requires arguments" >&2
         usage 1
       else
@@ -184,7 +184,7 @@ fi
 # An explicit GITHUB_REPO wins, which is also how a fork can point elsewhere.
 # Resolution additionally needs GITHUB_TOKEN; without it every author falls back to
 # a mailto link.
-if [[ -z "${GITHUB_REPO:-}" ]]; then
+if [[ -z ${GITHUB_REPO:-} ]]; then
   origin_url="$(git remote get-url origin 2> /dev/null || true)"
   # Normalise so the repository is the final path element.
   candidate="${origin_url%/}"
@@ -195,13 +195,13 @@ if [[ -z "${GITHUB_REPO:-}" ]]; then
   # unrelated owner/repo slug -- which it queries against api.github.com and then
   # exits on when that 404s, taking changelog generation down with it.
   github_remote_re='^(git@github\.com:|ssh://git@github\.com/|https://([^@/]*@)?github\.com/)([^/]+)/([^/]+)$'
-  if [[ "$candidate" =~ $github_remote_re ]]; then
+  if [[ $candidate =~ $github_remote_re ]]; then
     export GITHUB_REPO="${BASH_REMATCH[3]}/${BASH_REMATCH[4]}"
   fi
 fi
 
 # Check if changelog file exists
-if [[ ! -f "$CHANGELOG" ]]; then
+if [[ ! -f $CHANGELOG ]]; then
   echo "Error: $CHANGELOG does not exist" >&2
   exit 1
 fi
@@ -229,7 +229,7 @@ parse_shell_args() {
   local char
 
   while [[ $i -lt ${#input} ]]; do
-    char="${input:$i:1}"
+    char="${input:i:1}"
 
     if $escaped; then
       # Previous char was backslash - add current char literally
@@ -275,12 +275,12 @@ parse_shell_args() {
 # Convert string arguments to arrays for safe expansion
 # Arrays are initialized at the top, but may have been populated by -- separator parsing
 # If not populated and we have quoted string args, parse them now
-if [[ -n "$CLIFF_ARGS" ]] && [[ ${#CLIFF_ARGS_ARRAY[@]} -eq 0 ]]; then
+if [[ -n $CLIFF_ARGS ]] && [[ ${#CLIFF_ARGS_ARRAY[@]} -eq 0 ]]; then
   # Parse shell-quoted arguments safely without eval (backward compatibility)
   # This handles quoted strings like "--foo 'bar baz'" without code execution
   readarray -d '' CLIFF_ARGS_ARRAY < <(parse_shell_args "$CLIFF_ARGS")
 fi
-if [[ -n "$COMMIT" ]] && [[ ${#COMMIT_ARGS_ARRAY[@]} -eq 0 ]]; then
+if [[ -n $COMMIT ]] && [[ ${#COMMIT_ARGS_ARRAY[@]} -eq 0 ]]; then
   # Parse shell-quoted arguments safely without eval (backward compatibility)
   # This handles quoted strings like "-m 'Custom message'" without code execution
   readarray -d '' COMMIT_ARGS_ARRAY < <(parse_shell_args "$COMMIT")
@@ -293,14 +293,14 @@ STAGED_DIFFS_DIR=""
 
 # Helper to re-stage files, preserving partial staging
 restage_other_files() {
-  if [[ -z "$OTHER_STAGED_FILES" ]]; then
+  if [[ -z $OTHER_STAGED_FILES ]]; then
     return
   fi
   echo "Re-staging other files..."
   while IFS= read -r file; do
     local patch_file="${STAGED_DIFFS_DIR}/${file}.patch"
     # If we have a saved staged diff, apply it to preserve partial staging
-    if [[ -n "$STAGED_DIFFS_DIR" ]] && [[ -f "$patch_file" ]] && [[ -s "$patch_file" ]]; then
+    if [[ -n $STAGED_DIFFS_DIR ]] && [[ -f $patch_file ]] && [[ -s $patch_file ]]; then
       # Apply the saved staged diff to restore exact staging state
       if ! git apply --cached --allow-empty "$patch_file" 2> /dev/null; then
         # Fallback: if patch doesn't apply, try to be smarter about re-staging.
@@ -321,7 +321,7 @@ restage_other_files() {
     fi
   done <<< "$OTHER_STAGED_FILES"
   # Clean up temp directory after restaging
-  if [[ -n "$STAGED_DIFFS_DIR" ]] && [[ -d "$STAGED_DIFFS_DIR" ]]; then
+  if [[ -n $STAGED_DIFFS_DIR ]] && [[ -d $STAGED_DIFFS_DIR ]]; then
     rm -rf "$STAGED_DIFFS_DIR"
     STAGED_DIFFS_DIR=""
   fi
@@ -332,7 +332,7 @@ commit_changelog() {
   # Check if user provided -m or --message in commit args
   local has_message=false
   for arg in "${COMMIT_ARGS_ARRAY[@]}"; do
-    if [[ "$arg" == "-m" ]] || [[ "$arg" == "--message" ]]; then
+    if [[ $arg == "-m" ]] || [[ $arg == "--message" ]]; then
       has_message=true
       break
     fi
@@ -354,7 +354,7 @@ commit_changelog() {
 cleanup() {
   local exit_code=$?
   rm -f "$TEMP_FILE" "$CLIFF_OUTPUT" "$HEAD_CHANGELOG" "$EXPECTED_OUTPUT" "$STAGED_CONTENT"
-  if [[ $STASHED == true ]] && [[ -n "$STASH_REF" ]]; then
+  if [[ $STASHED == true ]] && [[ -n $STASH_REF ]]; then
     # Check if stash still exists before trying to pop
     if git stash list | grep -q "^${STASH_REF}"; then
       echo "Restoring stashed changes to ${CHANGELOG}..." >&2
@@ -363,7 +363,7 @@ cleanup() {
   fi
   restage_other_files
   # Clean up temp directory if it still exists
-  if [[ -n "$STAGED_DIFFS_DIR" ]] && [[ -d "$STAGED_DIFFS_DIR" ]]; then
+  if [[ -n $STAGED_DIFFS_DIR ]] && [[ -d $STAGED_DIFFS_DIR ]]; then
     rm -rf "$STAGED_DIFFS_DIR"
   fi
   exit $exit_code
@@ -376,7 +376,7 @@ CHANGELOG_ALREADY_STAGED=false
 OTHER_STAGED_FILES=""
 
 # If committing, check for conflicting staged changes
-if [[ "$SHOULD_COMMIT" == true ]]; then
+if [[ $SHOULD_COMMIT == true ]]; then
   # Check if CHANGELOG.md has staged changes
   if git diff --cached --name-only | grep -q "^${CHANGELOG}$"; then
     # CHANGELOG.md is staged - check if it matches what git cliff would generate
@@ -583,7 +583,7 @@ rm -f "$TEMP_FILE" "$CLIFF_OUTPUT"
 # Only check if file exists in HEAD - untracked files should always be updated
 if git cat-file -e "HEAD:${CHANGELOG}" 2> /dev/null && git diff --quiet HEAD -- "$CHANGELOG" 2> /dev/null; then
   # File exists in HEAD and matches - already up-to-date
-  if [[ $STASHED == true ]] && [[ -n "$STASH_REF" ]]; then
+  if [[ $STASHED == true ]] && [[ -n $STASH_REF ]]; then
     # Restore user's original uncommitted changes
     git stash pop --quiet "$STASH_REF" 2> /dev/null
     STASHED=false
@@ -600,7 +600,7 @@ fi
 
 # Git cliff produced changes. Handle stashed user edits if any.
 HAS_USER_EDITS=false
-if [[ $STASHED == true ]] && [[ -n "$STASH_REF" ]]; then
+if [[ $STASHED == true ]] && [[ -n $STASH_REF ]]; then
   # Check if stashed content matches current working tree (user already had same changes)
   # Use the tracked stash reference if available, otherwise fall back to stash@{0}
   STASH_TO_CHECK="${STASH_REF:-stash@{0}}"
@@ -623,13 +623,13 @@ trap - EXIT
 echo "Successfully updated Unreleased section in $CHANGELOG"
 
 # Stage and commit if requested
-if [[ "$SHOULD_COMMIT" == true ]]; then
+if [[ $SHOULD_COMMIT == true ]]; then
   git add "$CHANGELOG"
   commit_changelog
 fi
 
 # Now apply user's stashed edits on top (after the commit)
-if [[ $HAS_USER_EDITS == true ]] && [[ -n "$STASH_REF" ]]; then
+if [[ $HAS_USER_EDITS == true ]] && [[ -n $STASH_REF ]]; then
   # Use the tracked stash reference if available
   if git stash apply --quiet "$STASH_REF" 2> /dev/null; then
     # User's changes applied cleanly on top
@@ -647,7 +647,7 @@ if [[ $HAS_USER_EDITS == true ]] && [[ -n "$STASH_REF" ]]; then
     echo "Error: Your uncommitted changes conflict with the git cliff update." >&2
     # First, abort the failed stash apply (clear merge state)
     git reset --merge
-    if [[ "$SHOULD_COMMIT" == true ]]; then
+    if [[ $SHOULD_COMMIT == true ]]; then
       echo "Reverting the commit..." >&2
       git reset --soft HEAD~1
       git restore --staged "$CHANGELOG"

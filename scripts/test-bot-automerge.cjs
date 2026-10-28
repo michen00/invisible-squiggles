@@ -665,7 +665,8 @@ const MERGE_HOLD =
   'elif [ "$kind" = "merge" ] && ! mechanical "$sha" "$parents" &&\n' +
   '                 ! admin "$commit_author"; then';
 const TREE_MATCH = '[ "$clean" = "$(git rev-parse --verify "${sha}^{tree}")" ]';
-const IS_ADMIN = '[ "${permission[$login]}" = admin ]';
+const IS_ADMIN = 'if [ "$permission" = admin ]; then';
+const CACHED_ADMIN = 'case $admins in *" $login "*) return 0 ;; esac';
 expectError('every merge trusted', 'merge-not-held', (c) => {
   c.bot = c.bot.replace(MERGE_HOLD, 'elif false; then');
 });
@@ -682,16 +683,16 @@ expectError('merges held by their author again', 'trusted-merge-held', (c) => {
   );
 });
 expectError('admins no longer trusted', 'trusted-merge-held', (c) => {
-  c.bot = c.bot.replace(IS_ADMIN, 'false');
+  c.bot = c.bot.replace(IS_ADMIN, 'if false; then');
 });
 expectError('every author taken for an admin', 'merge-not-held', (c) => {
-  c.bot = c.bot.replace(IS_ADMIN, 'true');
+  c.bot = c.bot.replace(IS_ADMIN, 'if true; then');
 });
 expectError('a failed lookup read as admin', 'merge-not-held', (c) => {
-  c.bot = c.bot.replace('permission[$login]=unknown', 'permission[$login]=admin');
+  c.bot = c.bot.replace('|| permission=unknown', '|| permission=admin');
 });
 expectError('the lookup asked for every merge', 'lookup-count', (c) => {
-  c.bot = c.bot.replace('if [ -z "${permission[$login]+set}" ]; then', 'if true; then');
+  c.bot = c.bot.replace(CACHED_ADMIN, '');
 });
 
 // The kill switch.

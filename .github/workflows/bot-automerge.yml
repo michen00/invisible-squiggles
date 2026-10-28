@@ -173,18 +173,23 @@ jobs:
           }
           # Succeeds only when the repository reports `admin` for the login, which is
           # looked up once. A failed lookup, an empty login and `<none>` are not admin.
-          declare -A permission=()
+          admins=' '
+          others=' '
           admin() {
-            local login=$1
+            local login=$1 permission
             if [ -z "$login" ] || [ "$login" = "<none>" ]; then
               return 1
             fi
-            if [ -z "${permission[$login]+set}" ]; then
-              permission[$login]=$(gh api \
-                "repos/${GH_REPO}/collaborators/${login}/permission" --jq .permission) ||
-                permission[$login]=unknown
+            case $admins in *" $login "*) return 0 ;; esac
+            case $others in *" $login "*) return 1 ;; esac
+            permission=$(gh api "repos/${GH_REPO}/collaborators/${login}/permission" \
+              --jq .permission) || permission=unknown
+            if [ "$permission" = admin ]; then
+              admins="${admins}${login} "
+              return 0
             fi
-            [ "${permission[$login]}" = admin ]
+            others="${others}${login} "
+            return 1
           }
           rejected=0
           while IFS='|' read -r origin kind commit_author sha parents; do

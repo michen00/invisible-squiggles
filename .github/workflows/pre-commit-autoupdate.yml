@@ -87,7 +87,7 @@ jobs:
           echo "default_branch=$DEFAULT" >> "$GITHUB_OUTPUT"
       - name: Commit changes
         if: steps.autoupdate-pre-commit.outputs.has_updates == 'true'
-        uses: iarekylew00t/verified-bot-commit@v2
+        uses: iarekylew00t/verified-bot-commit@1ee4374942e5c5f814e9b3121d766cbe45cea360 # v2.3.6
         with:
           message: 'chore(pre-commit): bump hook versions'
           files: |

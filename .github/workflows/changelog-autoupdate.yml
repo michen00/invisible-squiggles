@@ -6,20 +6,21 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pull-requests: write
-  id-token: write
+  contents: read
 
 env:
   BRANCH_NAME: chore/changelog-autoupdate
 
 jobs:
-  changelog-autoupdate:
+  # Builds the changelog under a read-only token, so the tools it installs never
+  # run beside the write token that opening the pull request needs.
+  generate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # Full history needed for git cliff
+          persist-credentials: false
       - name: Install git-cliff
         uses: taiki-e/install-action@v2.87.21
         with:
@@ -48,8 +49,24 @@ jobs:
           fix: true
           globs: |
             CHANGELOG.md
+      - uses: actions/upload-artifact@v7
+        with:
+          name: changelog
+          path: CHANGELOG.md
+
+  pull-request:
+    needs: generate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: changelog
       - name: Push changes and create PR
-        uses: peter-evans/create-pull-request@v8
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           branch: '${{ env.BRANCH_NAME }}'
           sign-commits: true

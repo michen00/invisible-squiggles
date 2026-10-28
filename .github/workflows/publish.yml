@@ -40,19 +40,21 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  # Creating the draft release and attaching the VSIX to it.
-  contents: write
-  # Mints the OIDC token, used both for the provenance attestation and for
-  # Entra ID federated auth.
-  id-token: write
-  # Recording the build-provenance attestation.
-  attestations: write
+  contents: read
 
 jobs:
-  publish:
-    name: Publish extension
+  # Builds under the read-only token. `release` writes to the repository with
+  # GitHub's own attestation action and gh, and `registries` runs the npm tools
+  # that publish, with an OIDC token but no write access to this repository.
+  build:
+    name: Build extension
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      tag: ${{ steps.metadata.outputs.tag }}
+      targets: ${{ steps.metadata.outputs.targets }}
+      mode: ${{ steps.metadata.outputs.mode }}
+      vsix: ${{ steps.build.outputs.vsix }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -60,6 +62,7 @@ jobs:
           ref: >-
             ${{ github.event.release.tag_name || inputs.tag
             || github.ref_name }}
+          persist-credentials: false
 
       - name: Resolve release metadata
         id: metadata
@@ -154,7 +157,30 @@ jobs:
           fi
           echo "vsix=${vsix}" >> "$GITHUB_OUTPUT"
 
-      # Attests the exact file that the publish steps below ship.
+      - uses: actions/upload-artifact@v7
+        with:
+          name: vsix
+          path: ${{ steps.build.outputs.vsix }}
+          if-no-files-found: error
+
+  release:
+    name: Attest and draft
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      # Creating the draft release and attaching the VSIX to it.
+      contents: write
+      # Mints the OIDC token the provenance attestation is signed with.
+      id-token: write
+      # Recording the build-provenance attestation.
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: vsix
+
+      # Attests the exact file that the draft and the `registries` job ship.
       #
       # `make package-vsix` pins entry timestamps, Unix modes, and entry order, so
       # a rebuild of this tag produces byte-identical output
@@ -174,7 +200,7 @@ jobs:
       - name: Attest build provenance
         uses: actions/attest-build-provenance@v4
         with:
-          subject-path: ${{ steps.build.outputs.vsix }}
+          subject-path: ${{ needs.build.outputs.vsix }}
 
       # The draft half of the release, and the only point at which an asset can
       # be attached: immutable releases freeze assets when a release is
@@ -189,11 +215,12 @@ jobs:
       #
       # Nothing here can publish anything. `targets` is `none` on this path.
       - name: Draft the release with the VSIX attached
-        if: steps.metadata.outputs.mode == 'draft'
+        if: needs.build.outputs.mode == 'draft'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ steps.metadata.outputs.tag }}
-          VSIX: ${{ steps.build.outputs.vsix }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.build.outputs.tag }}
+          VSIX: ${{ needs.build.outputs.vsix }}
         run: |
           # `absent` on any read failure, so an unreadable release is treated as
           # one to create -- `gh release create` then fails loudly on a genuine
@@ -224,6 +251,41 @@ jobs:
               ;;
           esac
 
+  registries:
+    name: Publish extension
+    needs: [build, release]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      # Mints the OIDC token for Entra ID federated auth.
+      id-token: write
+    steps:
+      # vsce and ovsx run from this tag's lockfile.
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: >-
+            ${{ github.event.release.tag_name || inputs.tag
+            || github.ref_name }}
+          persist-credentials: false
+
+      # Same Node as `build`; nothing is built here.
+      - name: Setup Node.js
+        if: needs.build.outputs.targets != 'none'
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22.23.2
+          cache: npm
+
+      - name: Install dependencies
+        if: needs.build.outputs.targets != 'none'
+        run: npm ci
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: vsix
+
       # Azure DevOps retires global PATs on 2026-12-01, and a global PAT is the
       # only kind that can reach the Marketplace today. Setting the AZURE_*
       # repository variables switches this job to Entra ID federated auth, which
@@ -232,7 +294,7 @@ jobs:
         id: entra
         if: >-
           vars.AZURE_CLIENT_ID != '' &&
-          contains(fromJSON('["both", "vscode"]'), steps.metadata.outputs.targets)
+          contains(fromJSON('["both", "vscode"]'), needs.build.outputs.targets)
         uses: azure/login@v3
         # A failed login must not abort the job: the publish step below falls
         # back to VSCE_PAT when this step's outcome is not success, and that
@@ -258,11 +320,11 @@ jobs:
       - name: Publish to VS Code Marketplace
         id: vscode
         continue-on-error: true
-        if: contains(fromJSON('["both", "vscode"]'), steps.metadata.outputs.targets)
+        if: contains(fromJSON('["both", "vscode"]'), needs.build.outputs.targets)
         env:
           ENTRA: ${{ steps.entra.outcome }}
           VSCE_PAT: ${{ secrets['VSCE_PAT'] }}
-          VSIX: ${{ steps.build.outputs.vsix }}
+          VSIX: ${{ needs.build.outputs.vsix }}
         run: |
           if [ "${ENTRA}" = "success" ]; then
             echo "Publishing with Entra ID federated credentials."
@@ -283,10 +345,10 @@ jobs:
         continue-on-error: true
         if: >-
           !cancelled() &&
-          contains(fromJSON('["both", "openvsx"]'), steps.metadata.outputs.targets)
+          contains(fromJSON('["both", "openvsx"]'), needs.build.outputs.targets)
         env:
           OVSX_PAT: ${{ secrets['OVSX_PAT'] }}
-          VSIX: ${{ steps.build.outputs.vsix }}
+          VSIX: ${{ needs.build.outputs.vsix }}
         run: |
           if [ -z "${OVSX_PAT}" ]; then
             echo "Error: OVSX_PAT secret is not configured."

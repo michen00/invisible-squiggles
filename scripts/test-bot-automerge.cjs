@@ -12,6 +12,8 @@
 //     conflict resolved by hand, a merge with an extra edit, or an octopus merge by
 //     anyone else holds it, as does one whose author's permission lookup fails or who
 //     GitHub cannot name, and each author is looked up at most once;
+//   - a commit count that is not an integer fails the eligibility step, so nothing is
+//     armed;
 //   - the `do not auto-merge` label stops arming and disarms an armed pull request;
 //   - ecosystem names are Dependabot's slugs, not dependabot.yml keys. A comparison
 //     against a config key never matches, and every major falls through to a hold that
@@ -134,7 +136,9 @@ case "$*" in
     esac ;;
   "api repos/"*"/commits "*) printf '%s\\n' "$STUB_COMMITS" ;;
   "api repos/"*"/files "*) printf '%s\\n' $STUB_FILES ;;
-  "api repos/"*"/pulls/"*) printf '%s\\n' "$STUB_COMMITS" | grep -c . ;;
+  "api repos/"*"/pulls/"*)
+    if [ -n "\${STUB_COUNT+set}" ]; then printf '%s\\n' "$STUB_COUNT"
+    else printf '%s\\n' "$STUB_COMMITS" | grep -c .; fi ;;
   *"--json labels"*) printf '%s' "$STUB_LABELS" ;;
   *"--json reviewDecision"*) echo "$STUB_DECISION" ;;
   *"--json state"*) echo OPEN ;;
@@ -509,6 +513,20 @@ function analyze({ bot, disarm, dependabot }) {
         add('lookup-count', `${scenario.name}: ${lookupsIn(run)}`);
       }
     }
+
+    // Unguarded, a count that is not an integer makes the `-gt` and `-ne` tests error
+    // inside `if`, which reads as false and falls through to eligible.
+    for (const count of ['null', '3abc', '']) {
+      const run = runStep(decide, {
+        AUTHOR: 'dependabot[bot]',
+        UPDATE_TYPE: ELIGIBLE[0],
+        ECOSYSTEM: slugs[0] || '',
+        STUB_COUNT: count,
+      });
+      if (run.status === 0 || run.outputs.should_merge !== undefined) {
+        add('count-not-held', count || '(empty)');
+      }
+    }
   }
 
   // The steps run one at a time above, so the arming step's condition on the verdict is
@@ -693,6 +711,11 @@ expectError('a failed lookup read as admin', 'merge-not-held', (c) => {
 });
 expectError('the lookup asked for every merge', 'lookup-count', (c) => {
   c.bot = c.bot.replace(CACHED_ADMIN, '');
+});
+
+// The commit count.
+expectError('a count that is not an integer trusted', 'count-not-held', (c) => {
+  c.bot = c.bot.replace('if ! [[ "$total" =~ ^[0-9]+$ ]]; then', 'if false; then');
 });
 
 // The kill switch.

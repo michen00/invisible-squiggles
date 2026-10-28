@@ -129,8 +129,8 @@ jobs:
           # the base branch requires approval of the most recent push, the approval below
           # does not count on a commit github-actions pushed.
           #
-          # Fails closed: a failed query or fetch leaves `should_merge` unset, so nothing
-          # is armed.
+          # Fails closed: a failed query or fetch, or a commit count that is not an
+          # integer, leaves `should_merge` unset, so nothing is armed.
           set -euo pipefail
           jq_rows='.[] | [
             (if (.commit.verification.verified == true)
@@ -147,6 +147,12 @@ jobs:
           # The endpoint returns at most 250 commits and `--paginate` still exits 0, so
           # refuse rather than inspect part of the pull request.
           total=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}" --jq '.commits')
+          # A count that is not an integer would make the `-gt` and `-ne` tests below error
+          # inside `if`, which reads as false and falls through to trusting the pull request.
+          if ! [[ "$total" =~ ^[0-9]+$ ]]; then
+            echo "::error::could not read the PR's commit count; holding."
+            exit 1
+          fi
           if [ "$total" -gt 250 ]; then
             echo "::warning::${total} commits exceeds the 250 this API returns; holding."
             echo "should_merge=false" >> "$GITHUB_OUTPUT"

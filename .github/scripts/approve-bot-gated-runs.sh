@@ -18,7 +18,8 @@ approvable() {
 
 gated_runs() {
   # A held run has status completed and conclusion action_required, though the
-  # status=action_required filter is what selects it.
+  # status=action_required filter is what selects it. Its created_at and
+  # run_started_at differ only after approval, so they cannot identify it.
   gh api "repos/$REPO/actions/runs?head_sha=$1&status=action_required" \
     --jq '.workflow_runs[]
           | [ .id, .head_sha, .head_repository.full_name, .event, .actor.login,

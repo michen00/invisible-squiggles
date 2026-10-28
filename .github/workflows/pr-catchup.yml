@@ -5,10 +5,13 @@ name: PR catchup
 # POST /repos/{repo}/merges, unlike "Update branch", lets the merge commit take a
 # conventional subject.
 #
-# As of 2026-06-11, GitHub holds the runs that a github-actions[bot] push causes:
+# As of 2026-06-11, GitHub holds the runs that a github-actions[bot] push causes as
+# action_required:
 # https://github.blog/changelog/2026-06-11-bot-created-pull-requests-can-run-workflows-if-approved/
 # The approval step releases them. An App token (vars.APP_CLIENT_ID,
 # secrets.APP_PRIVATE_KEY) avoids the hold.
+# require_extra_approval_for_unattributed_changes does not treat a github-actions[bot]
+# merge commit as unattributed.
 
 on:
   push:

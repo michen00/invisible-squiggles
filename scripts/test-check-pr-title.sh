@@ -203,13 +203,13 @@ expect 2 'feat: a real feature' src/extension.ts
 # Policy changed rather than format outgrown: marking feat as skipped must also stop
 # the checker, because its expectations no longer describe the configuration.
 cp "$REPO_ROOT/cliff.toml" cliff.toml
-sed 's|{ message = "\^feat", group = "<!-- 00 -->✨ Features" },|{ message = "^feat", group = "<!-- 00 -->✨ Features", skip = true },|' \
+sed "s|{ message = '\\^feat', group = '<!-- 00 -->✨ Features' },|{ message = '^feat', group = '<!-- 00 -->✨ Features', skip = true },|" \
   cliff.toml > policy.toml
 mv policy.toml cliff.toml
 expect 2 'feat: a real feature' src/extension.ts
 
 # Sanity: the copy really was modified, so the two cases above tested what they claim.
-if grep -q '"\^feat", group = "<!-- 00 -->✨ Features" },' cliff.toml; then
+if grep -q "'\^feat', group = '<!-- 00 -->✨ Features' }," cliff.toml; then
   echo "FAIL: the cliff.toml copy was not modified; degradation cases proved nothing" >&2
   FAILURES=$((FAILURES + 1))
 fi

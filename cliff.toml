@@ -5,7 +5,6 @@
 breaking_always_bump_major = false
 
 [changelog]
-
 # header, body, and footer keys are Tera templates
 # https://keats.github.io/tera/docs/#introduction
 header = """
@@ -113,13 +112,13 @@ trim = true
 
 # RegEx-based postprocessors for modifying the changelog.
 postprocessors = [
-    # Replace the placeholder with a URL.
-    { pattern = '<REPO>', replace = "https://github.com/michen00/invisible-squiggles" },
-    { pattern = '\$REPO', replace = "https://github.com/michen00/invisible-squiggles" },
-    # Link commit hashes in scopes **(hash)** - preserve parentheses
-    { pattern = '\*\*\(([a-f0-9]{7,})\)\*\*', replace = "**([`${1}`](https://github.com/michen00/invisible-squiggles/commit/${1}))**" },
-    # Replace work email with personal email
-    { pattern = 'michael\.chen@aicadium\.ai', replace = "michael.chen.0@gmail.com" },
+  # Replace the placeholder with a URL.
+  { pattern = '<REPO>', replace = 'https://github.com/michen00/invisible-squiggles' },
+  { pattern = '\$REPO', replace = 'https://github.com/michen00/invisible-squiggles' },
+  # Link commit hashes in scopes **(hash)** - preserve parentheses
+  { pattern = '\*\*\(([a-f0-9]{7,})\)\*\*', replace = '**([`${1}`](https://github.com/michen00/invisible-squiggles/commit/${1}))**' },
+  # Replace work email with personal email
+  { pattern = 'michael\.chen@aicadium\.ai', replace = 'michael.chen.0@gmail.com' },
 ]
 
 # render body even when there are no releases to process
@@ -128,7 +127,6 @@ postprocessors = [
 # output = "test.md"
 
 [git]
-
 # Parse commits according to the conventional commits specification.
 # See https://www.conventionalcommits.org
 conventional_commits = true
@@ -145,38 +143,38 @@ split_commits = false
 
 # RegEx-based parsers for modifying commit messages prior to further processing.
 commit_preprocessors = [
-    # Link issue/PR numbers (#123) - GitHub uses same URL space for both
-    { pattern = '#([0-9]+)', replace = "[#${1}](<REPO>/issues/${1})" },
+  # Link issue/PR numbers (#123) - GitHub uses same URL space for both
+  { pattern = '#([0-9]+)', replace = '[#${1}](<REPO>/issues/${1})' },
 ]
 
 commit_parsers = [
-    # Existing skips (unchanged)
-    { message = "^\\d+\\.\\d+\\.\\d+$", skip = true },
-    { message = "^chore\\(release\\): prepare for", skip = true },
-    { message = "^chore\\(deps.*\\)", skip = true },
-    { message = "^chore\\(pr\\)", skip = true },
-    { message = "^chore\\(pull\\)", skip = true },
-    { message = "^chore: merge", skip = true },
-    { message = "^docs\\(blame\\)", skip = true },
-    { message = "^docs: update .git-blame-ignore-revs", skip = true },
+  # Existing skips (unchanged)
+  { message = "^\\d+\\.\\d+\\.\\d+$", skip = true },
+  { message = "^chore\\(release\\): prepare for", skip = true },
+  { message = "^chore\\(deps.*\\)", skip = true },
+  { message = "^chore\\(pr\\)", skip = true },
+  { message = "^chore\\(pull\\)", skip = true },
+  { message = '^chore: merge', skip = true },
+  { message = "^docs\\(blame\\)", skip = true },
+  { message = '^docs: update .git-blame-ignore-revs', skip = true },
 
-    # User-facing categories (KEEP)
-    { message = "^feat", group = "<!-- 00 -->✨ Features" },
-    { message = "^fix", group = "<!-- 01 -->🐛 Fixes" },
-    { message = "^perf", group = "<!-- 02 -->⚡ Performance" },
-    { message = "^revert", group = "<!-- 03 -->⏪️ Revert" },
+  # User-facing categories (KEEP)
+  { message = '^feat', group = '<!-- 00 -->✨ Features' },
+  { message = '^fix', group = '<!-- 01 -->🐛 Fixes' },
+  { message = '^perf', group = '<!-- 02 -->⚡ Performance' },
+  { message = '^revert', group = '<!-- 03 -->⏪️ Revert' },
 
-    # Internal categories (SKIP); breaking changes are allowed
-    { message = "^doc", group = "<!-- 04 -->📝 Documentation", skip = true },
-    { message = "^build", group = "<!-- 05 -->👷 Build", skip = true },
-    { message = "^ci", group = "<!-- 06 -->💚 Continuous Integration", skip = true },
-    { message = "^test", group = "<!-- 07 -->🧪 Tests", skip = true },
-    { message = "^refactor", group = "<!-- 08 -->♻️ Refactor", skip = true },
-    { message = "^style", group = "<!-- 09 -->🎨 Styling", skip = true },
-    { message = "^chore", group = "<!-- 10 -->⚙️ Miscellaneous Tasks", skip = true },
+  # Internal categories (SKIP); breaking changes are allowed
+  { message = '^doc', group = '<!-- 04 -->📝 Documentation', skip = true },
+  { message = '^build', group = '<!-- 05 -->👷 Build', skip = true },
+  { message = '^ci', group = '<!-- 06 -->💚 Continuous Integration', skip = true },
+  { message = '^test', group = '<!-- 07 -->🧪 Tests', skip = true },
+  { message = '^refactor', group = '<!-- 08 -->♻️ Refactor', skip = true },
+  { message = '^style', group = '<!-- 09 -->🎨 Styling', skip = true },
+  { message = '^chore', group = '<!-- 10 -->⚙️ Miscellaneous Tasks', skip = true },
 
-    # Catch-all for non-conventional commits
-    { message = "^.*", group = "<!-- 11 -->🔍 Other", skip = false },
+  # Catch-all for non-conventional commits
+  { message = '^.*', group = '<!-- 11 -->🔍 Other', skip = false },
 ]
 
 protect_breaking_commits = true
@@ -189,4 +187,4 @@ topo_order = true
 
 # Order of commits in each group/release within the changelog.
 # Allowed values: newest, oldest
-sort_commits = "newest"
+sort_commits = 'newest'

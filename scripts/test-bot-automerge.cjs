@@ -7,26 +7,20 @@
 //     dependabot.yml declares;
 //   - an unrecognized update type is held, and arming acts only on the eligibility
 //     verdict;
-//   - a merge leaves the pull request eligible when it is a clean merge of two parents,
-//     whoever authored it, or when a repository admin authored it, edits and all; a
-//     conflict resolved by hand, a merge with an extra edit, or an octopus merge by
-//     anyone else holds it, as does one whose author's permission lookup fails or who
-//     GitHub cannot name, and each author is looked up at most once;
-//   - a commit count that is not an integer fails the eligibility step, so nothing is
-//     armed;
+//   - a merge leaves the pull request eligible only when it is a clean merge of two
+//     parents or a repository admin authored it, and each author is looked up once;
+//   - a commit count that is not an integer fails the eligibility step;
 //   - the `do not auto-merge` label stops arming and disarms an armed pull request;
 //   - ecosystem names are Dependabot's slugs, not dependabot.yml keys. A comparison
 //     against a config key never matches, and every major falls through to a hold that
 //     logs like a deliberate one.
 //
-// Every step runs in a clone of a throwaway origin's main, as the checkout before the
-// eligibility step leaves the runner, and origin's refs/pull/<n>/head hold real commits,
-// so the step's fetch and `git merge-tree` are real. The stand-in lists those commits,
-// each GitHub-signed, and answers the permission lookup from ADMIN and FLAKY, with write
-// for anyone else. Unless a case picks a merge scenario, the pull request is one commit
-// by its author, so those cases test the decision, not the provenance guard.
-// `${{ }}` expressions are not evaluated: `if:` conditions are checked as text, and a
-// step whose script contains one is refused.
+// Every step runs in a clone of a throwaway origin's main whose refs/pull/<n>/head hold
+// real commits, so the step's fetch and `git merge-tree` are real. The stand-in lists
+// those commits, each GitHub-signed. Unless a case picks a merge scenario, the pull
+// request is one commit by its author, so those cases test the decision, not the
+// provenance guard. `${{ }}` expressions are not evaluated: `if:` conditions are
+// checked as text, and a step whose script contains one is refused.
 //
 // Narrow parsing, not a YAML library: this runs with nothing installed but git. Narrow
 // parsing fails open, so `analyze` also runs against broken copies of the real files
@@ -275,9 +269,8 @@ const resolvedMerge = (author) => () => {
   mustGit(DEV, ['commit', '-q', '--no-edit'], author);
 };
 
-// pr-catchup.yml merges as github-actions[bot] or as the App, and Update branch as the
-// person who clicked it; GitHub makes either only when the merge is clean, so neither
-// needs a lookup. An admin's merge passes edits and all, on one lookup per author.
+// A clean merge passes with no lookup, whoever made it; an admin's passes edits and
+// all, on one lookup per author.
 const TRUSTED_MERGES = [
   {
     name: 'a catch-up merge',
@@ -484,9 +477,7 @@ function analyze({ bot, disarm, dependabot }) {
       }
     }
 
-    // A merge resolved by hand in GitHub's conflict editor is GitHub-signed too and can
-    // carry anything, so only a mechanical merge, or an admin's, leaves an eligible
-    // update eligible.
+    // Only a clean two-parent merge, or an admin's, leaves an eligible update eligible.
     const withMerge = ({ number, rows }) =>
       runStep(decide, {
         AUTHOR: 'dependabot[bot]',
@@ -514,8 +505,7 @@ function analyze({ bot, disarm, dependabot }) {
       }
     }
 
-    // Unguarded, a count that is not an integer makes the `-gt` and `-ne` tests error
-    // inside `if`, which reads as false and falls through to eligible.
+    // A count that is not an integer fails the step, so nothing is armed.
     for (const count of ['null', '3abc', '']) {
       const run = runStep(decide, {
         AUTHOR: 'dependabot[bot]',

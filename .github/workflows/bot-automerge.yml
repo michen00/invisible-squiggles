@@ -88,6 +88,15 @@ jobs:
         run: |
           echo "::notice::No update-type for ${ECOSYSTEM:-unknown}; leaving this for a human."
 
+      # The default branch, never the pull request's head, so nothing from the pull
+      # request runs. The next step fetches its commits as objects for `git merge-tree`.
+      - name: Check out the default branch's history
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          persist-credentials: false
+
       - name: Decide eligibility
         id: eligible
         env:
@@ -97,15 +106,19 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           # The author login alone proves nothing: it is resolved from the author email,
-          # which any pusher can set. So every commit must also be created by GitHub.
+          # which any pusher can set. So every commit must also be created by GitHub, and
+          # every commit that is not a merge must be authored by the pull request's author.
           #
-          # Merges skip the author check so that Update branch and catch-up merges pass.
+          # A merge GitHub signs can still carry anything if someone resolved it by hand
+          # in the conflict editor. So a merge must also be a clean merge of two parents,
+          # as Update branch and catch-up merges are, or be authored by a repository admin.
+          #
           # GitHub also signs commits that an App or `GITHUB_TOKEN` creates through its API,
-          # with any tree and parents, so this trusts any holder of a write token. Where the
-          # base branch requires approval of the most recent push, the approval below does
-          # not count on a commit github-actions pushed.
+          # with any author, tree and parents, so this trusts any holder of a write token.
+          # Where the base branch requires approval of the most recent push, the approval
+          # below does not count on a commit github-actions pushed.
           #
-          # Fails closed: a failed query leaves `should_merge` unset, so nothing is armed.
+          # Fails closed: a failed query or fetch leaves `should_merge` unset, arming nothing.
           set -euo pipefail
           jq_rows='.[] | [
             (if (.commit.verification.verified == true)
@@ -115,11 +128,18 @@ jobs:
                      | any(startswith("committer GitHub <noreply@github.com>")))
              then "github" else "elsewhere" end),
             (if (.parents | length) >= 2 then "merge" else "plain" end),
-            (.author.login // "<none>")
+            (.author.login // "<none>"),
+            .sha,
+            ([.parents[].sha] | join(" "))
           ] | join("|")'
           # The endpoint returns at most 250 commits and `--paginate` still exits 0, so
           # refuse rather than inspect part of the pull request.
           total=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}" --jq '.commits')
+          # A non-integer count makes the tests below error, which `if` reads as false.
+          if ! [[ "$total" =~ ^[0-9]+$ ]]; then
+            echo "::error::could not read the PR's commit count; holding."
+            exit 1
+          fi
           if [ "$total" -gt 250 ]; then
             echo "::warning::${total} commits exceeds the 250 this API returns; holding."
             echo "should_merge=false" >> "$GITHUB_OUTPUT"
@@ -132,14 +152,49 @@ jobs:
             echo "should_merge=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          git fetch --no-tags origin "+refs/pull/${PR_NUMBER}/head:refs/remotes/pr/head"
+          # Succeeds for a commit with exactly two parents whose tree is their clean merge.
+          mechanical() {
+            local sha=$1 first second extra clean
+            read -r first second extra <<< "$2"
+            if [ -z "$second" ] || [ -n "$extra" ]; then
+              return 1
+            fi
+            clean=$(git merge-tree --write-tree --no-messages "$first" "$second") || return 1
+            [ "$clean" = "$(git rev-parse --verify "${sha}^{tree}")" ]
+          }
+          # Succeeds if the repository reports `admin` for the login, asked once per login.
+          admins=' '
+          others=' '
+          admin() {
+            local login=$1 permission
+            if [ -z "$login" ] || [ "$login" = "<none>" ]; then
+              return 1
+            fi
+            case $admins in *" $login "*) return 0 ;; esac
+            case $others in *" $login "*) return 1 ;; esac
+            permission=$(gh api "repos/${GH_REPO}/collaborators/${login}/permission" \
+              --jq .permission) || permission=unknown
+            if [ "$permission" = admin ]; then
+              admins="${admins}${login} "
+              return 0
+            fi
+            others="${others}${login} "
+            return 1
+          }
           rejected=0
-          while IFS='|' read -r origin kind commit_author; do
+          while IFS='|' read -r origin kind commit_author sha parents; do
             [ -z "$origin" ] && continue
             if [ "$origin" != "github" ]; then
               echo "::warning::a commit was not created by GitHub; holding."
               rejected=$((rejected + 1))
             elif [ "$kind" != "merge" ] && [ "$commit_author" != "$AUTHOR" ]; then
               echo "::warning::non-merge commit authored by ${commit_author}; holding."
+              rejected=$((rejected + 1))
+            elif [ "$kind" = "merge" ] && ! mechanical "$sha" "$parents" &&
+                 ! admin "$commit_author"; then
+              echo "::warning::merge ${sha} by ${commit_author} is neither a clean merge" \
+                   "of two parents nor an admin's; holding."
               rejected=$((rejected + 1))
             fi
           done <<< "$rows"

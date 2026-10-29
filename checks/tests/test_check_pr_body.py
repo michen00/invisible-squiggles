@@ -45,6 +45,12 @@ class TestCheckBody:
         found = check_body(body, _REQUIRED)
         assert not any("placeholder" in warning for warning in found.warnings)
 
+    def test_placeholder_scan_is_linear_on_a_run_of_open_brackets(self) -> None:
+        # Each "<" once restarted a scan to end of line, which is quadratic.
+        body = _valid_body("<" * 50_000 + "<slot>")
+        found = check_body(body, _REQUIRED)
+        assert any("<slot>" in warning for warning in found.warnings)
+
     @pytest.mark.parametrize("marker", ["TBD", "TODO"])
     def test_warns_on_a_tbd_or_todo_marker(self, marker: str) -> None:
         found = check_body(_valid_body(f"{marker}: fill in later"), _REQUIRED)

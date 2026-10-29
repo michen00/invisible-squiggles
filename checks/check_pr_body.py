@@ -24,7 +24,7 @@ from ._common import Findings
 _HTML_TAGS = frozenset(
     {"details", "summary", "br", "hr", "sub", "sup", "code", "kbd", "b", "i", "em"}
 )
-_PLACEHOLDER = re.compile(r"<([^>\n]+)>")
+_PLACEHOLDER = re.compile(r"<([^<>\n]+)>")
 _TBD = re.compile(r"\b(?:TBD|TODO)\b")
 _INLINE_CODE = re.compile(r"(?P<ticks>`+).+?(?P=ticks)")
 _MARKDOWNLINT = re.compile(

@@ -164,55 +164,37 @@ jobs:
           if [ -s "$state_dir/pr-catchup-refused.txt" ]; then
             stalled=1
             while read -r num branch reason; do
-              echo "::error::merging main into PR #$num was refused, so it stays" \
-                "behind main: $reason"
-              echo "  an empty body means the branch is already current and a 409 means it"
-              echo "  conflicts; neither is reported here, so this is a permission, rate-limit,"
-              echo "  or availability fault. Confirm what the endpoint says now, then re-run the"
-              echo "  catch-up once the cause clears:"
-              echo "    gh api --method POST repos/$REPO/merges -f base=$branch -f head=main \\"
-              echo "      -f commit_message='chore: merge main into #$num'"
-              echo "    gh workflow run pr-catchup.yml"
+              echo "::error::merging main into PR #$num was refused: $reason"
+              echo "  gh api --method POST repos/$REPO/merges -f base=$branch -f head=main \\"
+              echo "    -f commit_message='chore: merge main into #$num'"
             done < "$state_dir/pr-catchup-refused.txt"
           fi
 
           if [ -s "$state_dir/pr-catchup-blind.txt" ]; then
             stalled=1
             while read -r num sha; do
-              echo "::error::whether PR #$num cleared the approval gate at $sha is unknown:" \
-                "an Actions lookup failed during the approval pass"
-              echo "  the lookup printed nothing, which reads as an empty count and an empty run"
-              echo "  list, so this is unverified rather than clear. Check the head and approve"
-              echo "  anything held there:"
-              echo "    gh api repos/$REPO/actions/runs?head_sha=$sha"
+              echo "::error::the run lookup failed for PR #$num at $sha; approve anything" \
+                "held there:"
+              echo "  gh api repos/$REPO/actions/runs?head_sha=$sha"
             done < "$state_dir/pr-catchup-blind.txt"
           fi
 
           if [ -s "$state_dir/pr-catchup-gated.txt" ]; then
             stalled=1
             while read -r id num; do
-              echo "::error::run $id for PR #$num is still awaiting approval, so its" \
-                "required checks cannot report"
-              echo "  approve it now from the PR's checks tab, or run:"
-              echo "    gh api --method POST repos/$REPO/actions/runs/$id/approve"
+              echo "::error::run $id for PR #$num is still awaiting approval:"
+              echo "  gh api --method POST repos/$REPO/actions/runs/$id/approve"
             done < "$state_dir/pr-catchup-gated.txt"
-            echo "Approving unblocks the PR that is stuck right now. If every catch-up fails this"
-            echo "way, GITHUB_TOKEN is not permitted to approve runs here, and the durable fix is"
-            echo "to make the merge call with a GitHub App installation token: the push is"
-            echo "then not attributed to github-actions[bot], so GitHub never gates the runs at"
-            echo "all. No repository setting can relax this gate."
+            echo "If this recurs, merge with an App installation token: GitHub holds the runs"
+            echo "that github-actions[bot] pushes cause, not an App's."
           fi
 
           if [ -s "$state_dir/pr-catchup-silent.txt" ]; then
             stalled=1
             while read -r num sha; do
-              echo "::error::no pull_request run ever appeared for PR #$num at $sha, so" \
-                "its required checks cannot report"
-              echo "  see what does exist at that commit:"
-              echo "    gh api repos/$REPO/actions/runs?head_sha=$sha"
-              echo "  approve anything listed as action_required, or push to the PR branch to"
-              echo "  create fresh runs. This is queueing latency or suppression, not the"
-              echo "  approval gate, so there may be no run to approve at all."
+              echo "::error::no pull_request run appeared for PR #$num at $sha; approve any" \
+                "held run, or push to the branch:"
+              echo "  gh api repos/$REPO/actions/runs?head_sha=$sha"
             done < "$state_dir/pr-catchup-silent.txt"
           fi
 

@@ -67,6 +67,19 @@ jobs:
 
           state_dir="${PR_CATCHUP_DIR:-/tmp}"
 
+          # mergeable reads UNKNOWN until GitHub has computed it.
+          settled_mergeable() {
+            local state='' tries=0
+            while [ "$tries" -lt 5 ]; do
+              state="$(gh pr view "$1" --repo "$REPO" --json mergeable --jq .mergeable)" ||
+                state=''
+              [ "$state" = UNKNOWN ] || break
+              tries=$((tries + 1))
+              sleep 2
+            done
+            printf '%s\n' "$state"
+          }
+
           : > "$state_dir/pr-catchup-updated.txt"
           : > "$state_dir/pr-catchup-refused.txt"
           # --limit truncates silently, so keep it above any likely open-PR count.
@@ -103,13 +116,22 @@ jobs:
                 fi
               elif [ "$merge_rc" = "0" ]; then
                 echo "no update needed for #$num"
-              elif printf '%s' "$refusal" | grep -q '(HTTP 409)'; then
-                # A conflict gets here if mergeable read UNKNOWN when listed. Only the
-                # author can resolve it, so it does not fail the run.
-                echo "::notice::#$num conflicts with main, so it stays behind"
               else
-                # Any other refusal fails the run in the last step.
-                echo "$num $branch ${refusal//$'\n'/ }" >> "$state_dir/pr-catchup-refused.txt"
+                # A 409 also refuses a clean merge that would change a workflow file the
+                # token cannot write, so only GitHub's own mergeable says it conflicts.
+                mergeable=''
+                if printf '%s' "$refusal" | grep -q '(HTTP 409)'; then
+                  mergeable="$(settled_mergeable "$num")"
+                fi
+                if [ "$mergeable" = CONFLICTING ]; then
+                  # A conflict gets here if mergeable read UNKNOWN when listed. Only the
+                  # author can resolve it, so it does not fail the run.
+                  echo "::notice::#$num conflicts with main, so it stays behind"
+                else
+                  # Any other refusal fails the run in the last step.
+                  reason="${refusal//$'\n'/ }${mergeable:+ (GitHub reports it as $mergeable)}"
+                  echo "$num $branch $reason" >> "$state_dir/pr-catchup-refused.txt"
+                fi
               fi
               echo "::endgroup::"
             done

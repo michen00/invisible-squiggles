@@ -61,15 +61,12 @@ approve_bot_gated_runs_for_sha() {
   if [ "$seen" = "0" ]; then
     if [ "${APPROVE_BOT_GATED_MAIN:-}" = "1" ]; then
       if [ -n "$pr_label" ]; then
-        echo "::error::no pull_request run appeared for PR #$pr_label at $caused_sha, so its required checks cannot report at the rewritten head"
+        echo "::error::no pull_request run appeared for PR #$pr_label at $caused_sha"
       else
-        echo "::error::no pull_request run appeared at $caused_sha, so required checks cannot report there"
+        echo "::error::no pull_request run appeared at $caused_sha"
       fi
-      echo "  see what does exist at that commit:"
-      echo "    gh api repos/$REPO/actions/runs?head_sha=$caused_sha"
-      echo "  approve anything listed as action_required, or push to the branch to"
-      echo "  create fresh runs. The PR's newest check results still belong to the"
-      echo "  pre-rewrite head until something reports here."
+      echo "  approve any held run, or push to the branch:"
+      echo "  gh api repos/$REPO/actions/runs?head_sha=$caused_sha"
     fi
     return 2
   fi
@@ -96,9 +93,9 @@ approve_bot_gated_runs_for_sha() {
             fi
             continue
           fi
-          note="::warning::could not approve run $id; GITHUB_TOKEN may not be permitted to approve runs here"
+          note="::warning::could not approve run $id"
         else
-          note="out of scope, left for a human: run $id ($run_repo $run_event $run_actor $run_gate)"
+          note="left for a human: run $id ($run_repo $run_event $run_actor $run_gate)"
         fi
         echo "$id" >> "$seen_file"
         echo "$note"
@@ -117,17 +114,15 @@ approve_bot_gated_runs_for_sha() {
       echo "$id" >> "$out_file"
       if [ "${APPROVE_BOT_GATED_MAIN:-}" = "1" ]; then
         if [ -n "$pr_label" ]; then
-          echo "::error::run $id for PR #$pr_label is still awaiting approval at $caused_sha, so the PR's required checks cannot report at the rewritten head"
+          echo "::error::run $id for PR #$pr_label is still awaiting approval at $caused_sha"
         else
           echo "::error::run $id is still awaiting approval at $caused_sha"
         fi
-        echo "  approve it now from the PR's checks tab, or run:"
-        echo "    gh api --method POST repos/$REPO/actions/runs/$id/approve"
+        echo "  gh api --method POST repos/$REPO/actions/runs/$id/approve"
       fi
     done
     if [ "${APPROVE_BOT_GATED_MAIN:-}" = "1" ] && [ -n "$pr_label" ]; then
-      echo "Until those runs are approved, the PR's last check results belong to the"
-      echo "pre-rewrite head and must not be read as evidence for the rewritten one."
+      echo "Until then, the PR's checks still report on its previous head."
     fi
     return 1
   fi

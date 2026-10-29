@@ -18,10 +18,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# actions approves the held runs, contents merges main, pull-requests lists the PRs.
 permissions:
   actions: write
   contents: write
-  pull-requests: write
+  pull-requests: read
 
 concurrency:
   group: pr-catchup
@@ -54,7 +55,6 @@ jobs:
           client-id: ${{ vars.APP_CLIENT_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           permission-contents: write
-          permission-pull-requests: write
 
       - name: Update behind PR branches
         env:

@@ -76,7 +76,7 @@ repos:
     hooks:
       - id: shfmt
   - repo: https://github.com/tombi-toml/tombi-pre-commit
-    rev: v1.9.8
+    rev: v1.11.1
     hooks:
       - id: tombi-format
   # Before markdownlint, so its --fix sees the final text; nothing here rewraps prose.
@@ -106,7 +106,7 @@ repos:
       - id: check-toml
       - id: check-yaml
   - repo: https://github.com/tombi-toml/tombi-pre-commit
-    rev: v1.9.8
+    rev: v1.11.1
     hooks:
       - id: tombi-lint
   - repo: https://github.com/adrienverge/yamllint.git
@@ -115,7 +115,7 @@ repos:
       - id: yamllint
         args: [--strict]
   - repo: https://github.com/adhtruong/mirrors-typos
-    rev: v1.51.1
+    rev: v1.52.0
     hooks:
       - id: typos
   - repo: https://github.com/codespell-project/codespell

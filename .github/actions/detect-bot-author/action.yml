@@ -12,7 +12,7 @@ runs:
   steps:
     - name: detect bot author
       id: bot-author-check
-      uses: actions/github-script@v8
+      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
       with:
         result-encoding: string
         script: |

@@ -17,6 +17,7 @@ jobs:
   report:
     permissions:
       pull-requests: write
-    uses: michen00/markdown-prose-hooks/.github/workflows/unwrap-pr-body-check.yml@v0.5.1
+    # yamllint disable-line rule:line-length
+    uses: michen00/markdown-prose-hooks/.github/workflows/unwrap-pr-body-check.yml@aaf28782d46358d0de21b322c5dc7e68a6013cf9 # v0.5.1
     with:
       fail-on-wrapped: true

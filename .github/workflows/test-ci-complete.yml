@@ -30,7 +30,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # No OS matrix and no `npm ci`: the suite is string parsing over a file in the
       # tree, with no dependency and nothing platform-dependent to disagree about.
       - name: Test ci-complete

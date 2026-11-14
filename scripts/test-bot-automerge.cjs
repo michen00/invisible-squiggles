@@ -13,7 +13,9 @@
 //   - the `do not auto-merge` label stops arming and disarms an armed pull request;
 //   - ecosystem names are Dependabot's slugs, not dependabot.yml keys. A comparison
 //     against a config key never matches, and every major falls through to a hold that
-//     logs like a deliberate one.
+//     logs like a deliberate one;
+//   - a patch, minor or major update in a multi-ecosystem group, which is named
+//     `<group>-<digest>` in place of a slug, is eligible.
 //
 // Every step runs in a clone of a throwaway origin's main whose refs/pull/<n>/head hold
 // real commits, so the step's fetch and `git merge-tree` are real. The stand-in lists
@@ -53,12 +55,16 @@ const ELIGIBLE = [
 // later is equally unknown to the workflow.
 const UNKNOWN = ['', 'version-update:semver-unknown'];
 
-// dependabot.yml key -> the slug fetch-metadata reports, which it reads from the branch
-// name (`dependabot/npm_and_yarn/...`).
+// dependabot.yml key -> the slug fetch-metadata reads from the branch name
+// (`dependabot/npm_and_yarn/...`) of an update outside a multi-ecosystem group, such as
+// a security update.
 const ECOSYSTEM_SLUGS = {
   npm: 'npm_and_yarn',
   'github-actions': 'github_actions',
 };
+// A multi-ecosystem group's branch is `dependabot/<group>-<digest>`, so fetch-metadata
+// reports `<group>-<digest>`. The digest is ten hex digits that change per update.
+const GROUP_DIGEST = '0000000000';
 
 const indentOf = (line) => line.length - line.trimStart().length;
 const isBlank = (line) => /^\s*$/.test(line);
@@ -439,6 +445,14 @@ function analyze({ bot, disarm, dependabot }) {
   ].map((match) => match[1].replace(/^['"]|['"]$/g, ''));
   if (configured.length === 0) add('no-ecosystems', 'dependabot.yml declares none');
 
+  const grouped = [
+    ...new Set(
+      [...dependabot.matchAll(/^\s*multi-ecosystem-group:\s*(\S+)/gm)].map(
+        (match) => `${match[1].replace(/^['"]|['"]$/g, '')}-${GROUP_DIGEST}`
+      )
+    ),
+  ];
+
   const slugs = [];
   for (const key of configured) {
     // A configured ecosystem with no slug in the table: record its slug, never guess it.
@@ -462,7 +476,7 @@ function analyze({ bot, disarm, dependabot }) {
         UPDATE_TYPE: updateType,
         ECOSYSTEM: ecosystem,
       });
-    for (const ecosystem of slugs) {
+    for (const ecosystem of [...slugs, ...grouped]) {
       for (const updateType of ELIGIBLE) {
         const run = decideFor(updateType, ecosystem);
         if (run.status !== 0 || run.outputs.should_merge !== 'true') {
@@ -633,6 +647,17 @@ expectError('an ecosystem gate holding actions majors again', 'not-eligible', (c
   c.bot = c.bot.replace(
     MAJOR_NOTICE,
     'if [ "$ECOSYSTEM" = "github_actions" ]; then\n' +
+      '              echo "should_merge=false" >> "$GITHUB_OUTPUT"\n' +
+      '              exit 0\n' +
+      '            fi\n' +
+      `            ${MAJOR_NOTICE}`
+  );
+});
+expectError('an ecosystem gate that knows only the slugs', 'not-eligible', (c) => {
+  c.bot = c.bot.replace(
+    MAJOR_NOTICE,
+    'if [ "$ECOSYSTEM" != "npm_and_yarn" ] &&\n' +
+      '               [ "$ECOSYSTEM" != "github_actions" ]; then\n' +
       '              echo "should_merge=false" >> "$GITHUB_OUTPUT"\n' +
       '              exit 0\n' +
       '            fi\n' +

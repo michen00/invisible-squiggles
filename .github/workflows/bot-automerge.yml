@@ -234,9 +234,18 @@ jobs:
           # Assigned, so a failed listing fails the step. `^HEAD` leaves out the default
           # branch's commits, which a catch-up brings in but did not write.
           in_branch=$(git rev-list "$head" '^HEAD')
-          created=false
+          end=''
+          expected=$head
           while IFS='|' read -r change pusher before after; do
             [ -z "$change" ] && continue
+            # Each record must end where the next newer one began, or a change is missing.
+            if [ "$after" != "$expected" ]; then
+              echo "::warning::the branch's push history skips a change; holding."
+              rejected=$((rejected + 1))
+              end=gap
+              break
+            fi
+            expected=$before
             if [ "$pusher" != "$AUTHOR" ] && ! admin "$pusher"; then
               case $change in
                 push | force_push) range=("$after" "^${before}") ;;
@@ -269,11 +278,11 @@ jobs:
               fi
             fi
             if [ "$change" = branch_creation ]; then
-              created=true
+              end=creation
               break
             fi
           done <<< "$pushes"
-          if [ "$created" != true ]; then
+          if [ -z "$end" ]; then
             echo "::warning::the branch's push history does not reach its creation;" \
                  "holding."
             rejected=$((rejected + 1))

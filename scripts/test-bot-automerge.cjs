@@ -509,6 +509,15 @@ const HELD_HISTORIES = [
     reason: `${APP} changed the branch by pr_merge; holding.`,
   },
   {
+    name: 'a push history with a gap',
+    ...HELD_THEN_CLEAN,
+    pushes: [
+      pushed(APP, parent(HELD_THEN_CLEAN.head, 1), HELD_THEN_CLEAN.head),
+      creation(HELD_THEN_CLEAN.created),
+    ],
+    reason: "the branch's push history skips a change; holding.",
+  },
+  {
     name: 'a push history that does not reach the branch creation',
     ...PLAIN,
     pushes: [pushed('dependabot[bot]', 'e'.repeat(40), PLAIN.head)],
@@ -1001,8 +1010,8 @@ expectError('every pusher held', 'trusted-push-held', (c) => {
 });
 expectError('only the newest push checked', 'push-not-held', (c) => {
   c.bot = c.bot.replace(
-    'if [ "$change" = branch_creation ]; then\n              created=true',
-    'if true; then\n              created=true'
+    'if [ "$change" = branch_creation ]; then\n              end=creation',
+    'if true; then\n              end=creation'
   );
 });
 expectError(
@@ -1012,16 +1021,24 @@ expectError(
     c.bot = c.bot.replace('grep -qxF "$sha" <<< "$in_branch" || continue', 'true');
   }
 );
+expectError('a history with a gap trusted', 'push-not-held', (c) => {
+  c.bot = c.bot.replace('if [ "$after" != "$expected" ]; then', 'if false; then');
+});
 expectError(
   'a history that never reaches the creation trusted',
   'push-not-held',
   (c) => {
-    c.bot = c.bot.replace('if [ "$created" != true ]; then', 'if false; then');
+    c.bot = c.bot.replace('if [ -z "$end" ]; then', 'if false; then');
   }
 );
-expectError('a history that never reaches the head trusted', 'push-not-held', (c) => {
-  c.bot = c.bot.replace('if [ "${newest##*|}" != "$head" ]; then', 'if false; then');
-});
+// The chain check then holds it, under its own message.
+expectError(
+  'the check that the history reaches the head removed',
+  'held-for-another-reason',
+  (c) => {
+    c.bot = c.bot.replace('if [ "${newest##*|}" != "$head" ]; then', 'if false; then');
+  }
+);
 expectError("a head other than the event's trusted", 'push-not-held', (c) => {
   c.bot = c.bot.replace('if [ "$head" != "$EVENT_HEAD" ]; then', 'if false; then');
 });

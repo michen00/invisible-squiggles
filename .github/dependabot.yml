@@ -11,7 +11,7 @@ updates:
       minor-patch:
         update-types: [minor, patch]
     cooldown:
-      semver-major-days: 30
+      default-days: 7
     ignore:
       # Pinned to the engines.vscode floor on purpose. If this floats ahead,
       # vsce refuses to package and releases break. Bump both together.
@@ -21,13 +21,11 @@ updates:
       - /
       - /.github/actions/*
     schedule:
-      interval: cron
-      cronjob: '0 0 1,15 * *' # 1st and 15th monthly at midnight UTC
+      interval: weekly
     groups:
       actions:
         patterns: ['*']
     cooldown:
       # default-days only: GitHub rejects the semver-* keys for this ecosystem,
-      # and an invalid key silently drops this whole entry. The delay is long
-      # because majors merge with no other soak.
-      default-days: 30
+      # and an invalid key silently drops this whole entry.
+      default-days: 7

@@ -1,11 +1,9 @@
 ---
 name: Bot auto-merge disarm
 
-# Turns off auto-merge when a pull request is labeled `do not auto-merge`: armed
-# auto-merge lives server-side, so the label alone does not stop it.
-#
-# No branch, author or fork guard: disarming a pull request that was never armed does
-# nothing, and a guard could skip one that was.
+# Turns off auto-merge when a pull request is labeled `do not auto-merge`, since the
+# label alone does not stop an armed merge. No branch, author or fork guard: disarming
+# an unarmed pull request is a no-op.
 
 on:
   pull_request:
@@ -16,8 +14,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  # Keyed on the label as well as the number: a disarm must not be cancelled by a
-  # different label event arriving on the same pull request.
+  # Per label and never canceled, so another label event cannot cancel a disarm.
   group: bot-automerge-disarm-${{ github.event.pull_request.number }}-${{ github.event.label.name }}
   cancel-in-progress: false
 
@@ -31,7 +28,7 @@ jobs:
       GH_REPO: ${{ github.repository }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
     steps:
-      # Fails closed: anything short of a confirmed "off" leads to another disable.
+      # Fails closed: anything short of a confirmed "off" disables again.
       - name: Disarm auto-merge
         run: |
           state=$(gh pr view "$PR_NUMBER" --json state --jq .state || echo "")

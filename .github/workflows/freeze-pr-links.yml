@@ -42,6 +42,6 @@ jobs:
       github.event_name == 'workflow_dispatch'
       || github.event.pull_request.merged == true
     steps:
-      - uses: michen00/freeze-pr-links@9f723f326a9bf4c7f9996deb0fbd11e5ff57f605 # v0.1.0
+      - uses: michen00/freeze-pr-links@ab8b6a99af5e9d08596f02fd445a1ff7b8fc4e1f # v0.1.1
         with:
           pr-number: ${{ github.event.pull_request.number || inputs.pr_number }}

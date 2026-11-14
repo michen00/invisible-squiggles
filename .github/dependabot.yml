@@ -1,30 +1,36 @@
 ---
 version: 2
+# Version updates only: a security update still opens a pull request of its own.
+multi-ecosystem-groups:
+  deps:
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: build
+      include: scope
+# Each entry takes its schedule and commit message from the group above.
 updates:
   - package-ecosystem: npm
     directory: /
-    schedule:
-      interval: daily
-    groups:
-      major:
-        update-types: [major]
-      minor-patch:
-        update-types: [minor, patch]
+    patterns: ['*']
+    multi-ecosystem-group: deps
     cooldown:
       default-days: 7
     ignore:
       # Pinned to the engines.vscode floor on purpose. If this floats ahead,
       # vsce refuses to package and releases break. Bump both together.
       - dependency-name: '@types/vscode'
+      # typescript-eslint 8.x accepts typescript <6.1.0 only, and TypeScript 7.0
+      # ships no JavaScript API (typescript-eslint#10940).
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
   - package-ecosystem: github-actions
     directories:
       - /
       - /.github/actions/*
-    schedule:
-      interval: weekly
-    groups:
-      actions:
-        patterns: ['*']
+    patterns: ['*']
+    multi-ecosystem-group: deps
     cooldown:
       # default-days only: GitHub rejects the semver-* keys for this ecosystem,
       # and an invalid key silently drops this whole entry.

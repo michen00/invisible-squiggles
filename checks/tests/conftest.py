@@ -6,8 +6,6 @@ import pytest
 
 _CLEARED_ENV_VARS = (
     "GITHUB_ACTIONS",
-    "PR_TITLE",
-    "PR_BODY",
     "PR_WARNINGS_FILE",
     "PR_ERRORS_FILE",
     "SUBJECT_MAX_LENGTH",

@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com) and this p
 
 ## [Unreleased]
 
+### 🐛 Fixes
+
+- drop the unused typos word exemption ([#292](https://github.com/michen00/invisible-squiggles/issues/292)) - ([477235c](https://github.com/michen00/invisible-squiggles/commit/477235c04c9e81953724dfa640c232a3734d2978)) - [@michen00](https://github.com/michen00)
+
+### 👥 Contributors
+
+- [@michen00](https://github.com/michen00) | [Michael I Chen](mailto:michen00.github@gmail.com)
+
 ## [0.4.3](https://github.com/michen00/invisible-squiggles/compare/v0.4.2..v0.4.3) - 2026-08-26
 
 No functional changes. The extension behaves exactly as it did in 0.4.2. This release exists to correct the marketplace listings, which can only be updated by publishing a version.

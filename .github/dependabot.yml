@@ -4,27 +4,37 @@ updates:
   - package-ecosystem: npm
     directory: /
     schedule:
-      interval: daily
+      interval: weekly
+      day: monday
     groups:
-      major:
-        update-types: [major]
-      minor-patch:
-        update-types: [minor, patch]
+      deps:
+        patterns: ['*']
+    commit-message:
+      prefix: build
+      include: scope
     cooldown:
       default-days: 7
     ignore:
       # Pinned to the engines.vscode floor on purpose. If this floats ahead,
       # vsce refuses to package and releases break. Bump both together.
       - dependency-name: '@types/vscode'
+      # typescript-eslint 8.x accepts typescript <6.1.0 only, and TypeScript 7.0
+      # ships no JavaScript API (typescript-eslint#10940).
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
   - package-ecosystem: github-actions
     directories:
       - /
       - /.github/actions/*
     schedule:
       interval: weekly
+      day: monday
     groups:
       actions:
         patterns: ['*']
+    commit-message:
+      prefix: build
+      include: scope
     cooldown:
       # default-days only: GitHub rejects the semver-* keys for this ecosystem,
       # and an invalid key silently drops this whole entry.

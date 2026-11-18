@@ -44,7 +44,7 @@ Make targets mirror these (`make help`). Use `make build-vsix` / `make install-v
 
 - CI runs `npm run test:unit` on Node 20/22 and E2E on VSCode (min version from package.json)/stable.
 - Integration/E2E need VSCode runtime; they will fail headless—expected.
-- Pre-commit hooks (optional): gitleaks, prettier, markdownlint, shfmt, typos, codespell, shellcheck, JSON/YAML/TOML checks (`make enable-pre-commit-only` to install).
+- Pre-commit hooks (optional): gitleaks, prettier, markdownlint, shfmt, typos, codespell, shellcheck, JSON/YAML/TOML checks (`make enable-pre-commit` to install).
 
 ## Common Fixes
 

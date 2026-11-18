@@ -1,11 +1,8 @@
 ---
 name: Bot auto-merge
 
-# Arms native auto-merge (squash) on eligible Dependabot and pre-commit-ci pull requests
-# and approves them. scripts/test-bot-automerge.cjs tests this workflow.
-#
-# No check polling: `gh pr checks --watch` fails when it runs before CI has registered
-# its checks, and auto-merge waits for required checks anyway.
+# Arms squash auto-merge on eligible Dependabot and pre-commit-ci pull requests and
+# approves them. Auto-merge waits for required checks, so nothing here polls them.
 
 on:
   pull_request:
@@ -21,8 +18,7 @@ concurrency:
 
 jobs:
   bot-automerge:
-    # The guard reads `pull_request.user.login`, not `github.actor`: the actor is whoever
-    # caused this event, so a later push by anyone else would skip the job.
+    # The author, not `github.actor`: a catch-up push makes its pusher the actor.
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       (github.event.pull_request.user.login == 'dependabot[bot]' ||
@@ -35,10 +31,8 @@ jobs:
       GH_REPO: ${{ github.repository }}
       PR_URL: ${{ github.event.pull_request.html_url }}
     steps:
-      # Optional App identity for arming: auto-merge completes as whoever armed it, and a
-      # merge under `GITHUB_TOKEN` starts no workflows, so pr-catchup.yml would not run.
-      # Dependabot-triggered runs read only the Dependabot secret store, so the key must be
-      # in both stores.
+      # Auto-merge completes as whoever armed it, and a merge as `GITHUB_TOKEN` triggers
+      # no workflows, hence the App. Dependabot's runs read only Dependabot secrets.
       - name: Detect App credentials
         id: creds
         env:
@@ -65,7 +59,7 @@ jobs:
           permission-contents: write
           permission-pull-requests: write
 
-      # `continue-on-error` records a failed mint as a success, so report it here.
+      # `continue-on-error` hides a failed mint.
       - name: Report a mint that failed
         if: >-
           steps.creds.outputs.available == 'true' &&
@@ -88,8 +82,8 @@ jobs:
         run: |
           echo "::notice::No update-type for ${ECOSYSTEM:-unknown}; leaving this for a human."
 
-      # The default branch, never the pull request's head, so nothing from the pull
-      # request runs. The next step fetches its commits as objects for `git merge-tree`.
+      # Never the head, so nothing from the pull request runs. The next step fetches the
+      # head's commits as objects only.
       - name: Check out the default branch's history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -110,11 +104,10 @@ jobs:
           # - a non-merge commit is by the pull request's author;
           # - a merge is a clean merge of two parents or an admin's, since GitHub also
           #   signs a conflict resolved by hand;
-          # - every commit that anyone but the author or an admin pushed, in any push
-          #   since the branch was created, is a clean merge of two parents, since
-          #   GitHub also signs whatever an App or `GITHUB_TOKEN` creates through its API.
-          # Every check reads the one head commit that a trusted verdict names in `head`,
-          # which must be the head this run's event brought.
+          # - every commit anyone but the author or an admin pushed since the branch was
+          #   created is a clean merge of two parents, since GitHub also signs whatever
+          #   an App or `GITHUB_TOKEN` creates through its API.
+          # Every check reads the one head commit that a trusted verdict names in `head`.
           # Fails closed: a failed query or fetch leaves `trusted` unset.
           set -euo pipefail
           head=$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}" --jq '.head.sha')
@@ -212,9 +205,8 @@ jobs:
               rejected=$((rejected + 1))
             fi
           done <<< "$rows"
-          # Every push since the branch was last created, newest first, as GitHub
-          # records it. A held push's commits stay in the branch, so the push that
-          # started this run cannot vouch for the branch alone.
+          # A held push's commits stay in the branch, so every push since the branch's
+          # creation is checked, not only the newest.
           for attempt in 1 2 3; do
             pushes=$(gh api -X GET "repos/${GH_REPO}/activity" -f ref="refs/heads/${HEAD_REF}" \
               -f direction=desc -F per_page=100 --paginate \
@@ -231,14 +223,13 @@ jobs:
             echo "trusted=false" >>"$GITHUB_OUTPUT"
             exit 0
           fi
-          # Assigned, so a failed listing fails the step. `^HEAD` leaves out the default
-          # branch's commits, which a catch-up brings in but did not write.
+          # `^HEAD` leaves out the default branch's commits, which a catch-up brings in
+          # but did not write. Assigned, so a failed listing fails the step.
           in_branch=$(git rev-list "$head" '^HEAD')
           end=''
           expected=$head
           while IFS='|' read -r change pusher before after; do
             [ -z "$change" ] && continue
-            # Each record must end where the next newer one began, or a change is missing.
             if [ "$after" != "$expected" ]; then
               echo "::warning::the branch's push history skips a change; holding."
               rejected=$((rejected + 1))
@@ -311,9 +302,6 @@ jobs:
             echo "::notice::Dependabot ${UPDATE_TYPE}; eligible for auto-merge."
             echo "should_merge=true" >> "$GITHUB_OUTPUT"
           elif [ "$UPDATE_TYPE" = "version-update:semver-major" ]; then
-            # CI exercises only code a pull request runs, so a major used only by a workflow
-            # that no pull request starts, or on a path CI does not cover such as publishing,
-            # merges untested.
             echo "::notice::${ECOSYSTEM:-unknown} major; eligible on green CI."
             echo "should_merge=true" >> "$GITHUB_OUTPUT"
           else
@@ -321,8 +309,8 @@ jobs:
             echo "should_merge=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # Re-read the label: one applied during this run is not in the event payload, and the
-      # disarm run may already have finished.
+      # A label applied during this run is not in the payload, and its disarm run may
+      # have finished already.
       - name: Re-check the kill switch, then arm, and approve
         if: steps.eligible.outputs.should_merge == 'true'
         env:
@@ -331,7 +319,7 @@ jobs:
           ARM_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
           VERIFIED_HEAD: ${{ steps.provenance.outputs.head }}
         run: |
-          # Read into a variable under `set -e`, so a failed query is not read as "no label".
+          # Assigned under `set -e`, so a failed query does not read as no label.
           set -euo pipefail
           if ! [[ "$VERIFIED_HEAD" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]]; then
             echo "::error::no verified head commit to approve; not arming."
@@ -343,15 +331,11 @@ jobs:
             echo "::warning::do not auto-merge applied since this run started; not arming."
             exit 0
           fi
-          # Arm before approving: the disarm workflow does not dismiss reviews, so an
-          # approval must not outlive an arm that failed.
-          #
-          # Approve as github-actions, never as the App: where the base branch requires
-          # approval of the most recent push, the last pusher's approval does not count,
-          # and pr-catchup.yml pushes as the App.
-          #
-          # Both name the verified head, so a later push leaves the approval stale and
-          # arming refused.
+          # Arms first, since the disarm workflow leaves an approval in place and a failed
+          # arm ends the step. The approval is github-actions', not the App's: a catch-up
+          # pushes as the App, and a ruleset can discount the last pusher's approval. Both
+          # name the verified head, so a later push leaves the approval stale and arming
+          # refused.
           GH_TOKEN="$ARM_TOKEN" gh pr merge --auto --squash \
             --match-head-commit "$VERIFIED_HEAD" "$PR_URL"
           decision=$(gh pr view "$PR_NUMBER" --json reviewDecision --jq .reviewDecision)

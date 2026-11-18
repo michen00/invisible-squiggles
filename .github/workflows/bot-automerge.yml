@@ -362,3 +362,19 @@ jobs:
               -f event=APPROVE -f commit_id="$VERIFIED_HEAD" >/dev/null ||
               echo "::warning::approval refused; auto-merge will wait for a reviewer."
           fi
+
+      # Turns off what an earlier run armed when this run errored or did not trust the
+      # head. A hold for eligibility leaves it: a person may have armed the update.
+      - name: Disarm auto-merge unless this run vouched for the head
+        if: always() && steps.provenance.outputs.trusted != 'true'
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
+        run: |
+          set -euo pipefail
+          armed=$(gh pr view "$PR_NUMBER" --json autoMergeRequest \
+            --jq '.autoMergeRequest != null')
+          if [ "$armed" = true ]; then
+            gh pr merge --disable-auto "$PR_NUMBER"
+            echo "::warning::auto-merge disarmed: this run did not vouch for the head."
+          fi

@@ -17,6 +17,8 @@
 //     arming and approving name the verified head;
 //   - a commit count that is not an integer fails the provenance step;
 //   - the `do not auto-merge` label stops arming and disarms an armed pull request;
+//   - a run that leaves the head untrusted, by a hold or by failing before its verdict,
+//     ends by disarming an armed pull request, and a hold for eligibility does not;
 //   - ecosystem names are Dependabot's slugs, not dependabot.yml keys. A comparison
 //     against a config key never matches, and every major falls through to a hold that
 //     logs like a deliberate one.
@@ -49,6 +51,7 @@ const PROVENANCE_STEP = 'Verify every commit was created by GitHub';
 const ELIGIBILITY_STEP = 'Decide eligibility';
 const ARM_STEP = 'Re-check the kill switch, then arm, and approve';
 const DISARM_STEP = 'Disarm auto-merge';
+const UNVOUCHED_STEP = 'Disarm auto-merge unless this run vouched for the head';
 const KILL_SWITCH = 'do not auto-merge';
 
 const ELIGIBLE = [
@@ -108,6 +111,15 @@ function stepKey(text, name, key, depth = 1) {
     if (match) return match[1].trim();
   }
   return null;
+}
+
+/** The name of each step of the file's one job, in order, or '' for an unnamed one. */
+function stepNames(text) {
+  return text
+    .split('\n')
+    .map((line) => /^ {6}- (?:name: (.*))?/.exec(line))
+    .filter(Boolean)
+    .map((match) => (match[1] || '').trim());
 }
 
 /** The text of a job's `if:` condition, folded onto one line. */
@@ -854,6 +866,36 @@ function analyze({ bot, disarm, dependabot }) {
     }
   }
 
+  // --- A head this run did not vouch for ------------------------------------------
+  // A push by anyone with write access leaves an earlier arm in place. A step that
+  // fails before the verdict skips the steps after it and leaves `trusted` empty,
+  // hence `always()` and `!= 'true'`. An eligibility hold leaves an arm a person may
+  // have made.
+  const steps = stepNames(bot);
+  if (steps[steps.length - 1] !== UNVOUCHED_STEP) {
+    add('unvouched-not-last', steps[steps.length - 1] || '(none)');
+  }
+  const unvouchedIf = stepKey(bot, UNVOUCHED_STEP, 'if');
+  if (unvouchedIf !== "always() && steps.provenance.outputs.trusted != 'true'") {
+    add('unvouched-not-gated', unvouchedIf || '(none)');
+  }
+  const unvouchedToken = stepKey(bot, UNVOUCHED_STEP, 'GH_TOKEN', 2);
+  if (unvouchedToken !== '${{ steps.app-token.outputs.token || github.token }}') {
+    add('unvouched-token', unvouchedToken || '(none)');
+  }
+  // runStep supplies a PR_NUMBER the job does not set, so the step's own is pinned.
+  const unvouchedNumber = stepKey(bot, UNVOUCHED_STEP, 'PR_NUMBER', 2);
+  if (unvouchedNumber !== '${{ github.event.pull_request.number }}') {
+    add('unvouched-pr-number', unvouchedNumber || '(none)');
+  }
+  const unvouched = runnable(bot, UNVOUCHED_STEP, 'bot-automerge.yml', add);
+  if (unvouched !== null) {
+    const run = runStep(unvouched, {}, { armed: true });
+    if (run.status !== 0 || run.armed) {
+      add('unvouched-not-disarmed', `exit ${run.status}, armed ${run.armed}`);
+    }
+  }
+
   return errors;
 }
 
@@ -1134,6 +1176,61 @@ expectError('disarm listens for another label', 'disarm-wrong-label', (c) => {
 });
 expectError('disarm no longer fires on labeled', 'disarm-not-on-labeled', (c) => {
   c.disarm = c.disarm.replace('types: [labeled]', 'types: [opened]');
+});
+
+// Disarming a head this run did not vouch for.
+const UNVOUCHED_IF = "if: always() && steps.provenance.outputs.trusted != 'true'";
+/** `text` split where the unvouched disarm starts, or whole when it has none. */
+const atUnvouched = (text) => {
+  const at = text.indexOf(`      - name: ${UNVOUCHED_STEP}\n`);
+  return at === -1 ? [text, ''] : [text.slice(0, at), text.slice(at)];
+};
+expectError('the unvouched disarm removed', 'step-missing', (c) => {
+  [c.bot] = atUnvouched(c.bot);
+});
+expectError('the unvouched disarm moved before arming', 'unvouched-not-last', (c) => {
+  const [rest, step] = atUnvouched(c.bot);
+  const armAt = rest.indexOf(`      - name: ${ARM_STEP}\n`);
+  if (step) c.bot = `${rest.slice(0, armAt)}${step}\n${rest.slice(armAt)}`;
+});
+expectError(
+  'the unvouched disarm skipped after a failure before the verdict',
+  'unvouched-not-gated',
+  (c) => {
+    c.bot = c.bot.replace(UNVOUCHED_IF, UNVOUCHED_IF.replace('always() && ', ''));
+  }
+);
+expectError(
+  'the unvouched disarm only on an explicit hold',
+  'unvouched-not-gated',
+  (c) => {
+    c.bot = c.bot.replace(
+      UNVOUCHED_IF,
+      UNVOUCHED_IF.replace("!= 'true'", "== 'false'")
+    );
+  }
+);
+expectError('an eligibility hold disarming too', 'unvouched-not-gated', (c) => {
+  c.bot = c.bot.replace(
+    UNVOUCHED_IF,
+    "if: always() && steps.eligible.outputs.should_merge != 'true'"
+  );
+});
+expectError('the unvouched disarm never disables', 'unvouched-not-disarmed', (c) => {
+  c.bot = c.bot.replace('gh pr merge --disable-auto "$PR_NUMBER"', 'true');
+});
+expectError('the unvouched disarm under the default token', 'unvouched-token', (c) => {
+  c.bot = c.bot.replace(
+    'GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}',
+    'GH_TOKEN: ${{ github.token }}'
+  );
+});
+expectError('the unvouched disarm without a PR_NUMBER', 'unvouched-pr-number', (c) => {
+  const [rest, step] = atUnvouched(c.bot);
+  c.bot = `${rest}${step.replace(
+    '          PR_NUMBER: ${{ github.event.pull_request.number }}\n',
+    ''
+  )}`;
 });
 
 // Config keys in place of slugs, and a slug nobody recorded.

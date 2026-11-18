@@ -1,17 +1,20 @@
 ---
 version: 2
-updates:
-  - package-ecosystem: npm
-    directory: /
+# Version updates only: a security update still opens a pull request of its own,
+# in the commit style Dependabot detects, since a grouped entry cannot set one.
+multi-ecosystem-groups:
+  deps:
     schedule:
       interval: weekly
       day: monday
-    groups:
-      deps:
-        patterns: ['*']
     commit-message:
       prefix: build
       include: scope
+updates:
+  - package-ecosystem: npm
+    directory: /
+    patterns: ['*']
+    multi-ecosystem-group: deps
     cooldown:
       default-days: 7
     ignore:
@@ -22,6 +25,13 @@ updates:
       # ships no JavaScript API (typescript-eslint#10940).
       - dependency-name: typescript
         update-types: ['version-update:semver-major']
+  # requirements-dev.txt, and requirements-hooks.txt with its uv pip compile source.
+  - package-ecosystem: uv
+    directory: /
+    patterns: ['*']
+    multi-ecosystem-group: deps
+    cooldown:
+      default-days: 7
   - package-ecosystem: github-actions
     directories:
       - /

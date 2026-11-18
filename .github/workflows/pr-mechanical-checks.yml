@@ -2,10 +2,9 @@
 name: PR mechanical checks
 
 # The deterministic gate on a pull request's title, commit subjects, and body.
-# Errors block; warnings print as annotations and do not fail
-#
-# Bot-authored pull requests are exempt from the title and body checks: a
-# generated title keeps its own format.
+# Errors block; warnings print as annotations and do not fail. michen00/pr-checks
+# checks the title and body, and skips a bot's pull request; the commit-subject
+# check is this repository's own.
 
 on:
   pull_request:
@@ -38,14 +37,13 @@ jobs:
         with:
           check-latest: true
 
-      - name: Check the title
-        id: title
+      - name: Check the title and body
+        id: pr
         continue-on-error: true
-        if: ${{ !endsWith(github.event.pull_request.user.login, '[bot]') }}
-        env:
-          PR_TITLE: ${{ github.event.pull_request.title }}
-          PR_ERRORS_FILE: ${{ runner.temp }}/pr-errors/title.txt
-        run: python -m checks.check_pr_title
+        uses: michen00/pr-checks@db89b15bfdb59cf850f498b56d9e3aaba0b2c005 # v0.1.0
+        with:
+          max-length: ${{ env.SUBJECT_MAX_LENGTH }}
+          upload-findings: 'false'
 
       - name: Check commit subjects
         id: commits
@@ -57,49 +55,27 @@ jobs:
           git fetch --quiet origin "$BASE_REF"
           python -m checks.check_commit_messages "origin/${BASE_REF}..HEAD"
 
-      - name: Check the body
-        id: body
-        continue-on-error: true
-        if: ${{ !endsWith(github.event.pull_request.user.login, '[bot]') }}
-        env:
-          PR_BODY: ${{ github.event.pull_request.body }}
-          PR_ERRORS_FILE: ${{ runner.temp }}/pr-errors/body.txt
-        run: printf '%s' "$PR_BODY" | python -m checks.check_pr_body --require
-
-      # continue-on-error above lets all three run; this is what makes the job red.
-      # Each outcome is measured against `success` rather than against `failure`,
-      # because a step held back by an earlier hard failure reports `skipped`, and
-      # comparing against `failure` alone would call that a clean gate over nothing.
+      # continue-on-error above lets both run; this is what makes the job red. Each
+      # outcome is measured against `success`, because a step held back by an earlier
+      # hard failure reports `skipped`.
       - name: Fail if any check did not pass
         if: always()
         env:
-          AUTHOR_IS_HUMAN: ${{ !endsWith(github.event.pull_request.user.login, '[bot]') }}
-          TITLE_OUTCOME: ${{ steps.title.outcome }}
+          PR_OUTCOME: ${{ steps.pr.outcome }}
           COMMITS_OUTCOME: ${{ steps.commits.outcome }}
-          BODY_OUTCOME: ${{ steps.body.outcome }}
-          TITLE_ERRORS_FILE: ${{ runner.temp }}/pr-errors/title.txt
           COMMITS_ERRORS_FILE: ${{ runner.temp }}/pr-errors/commit-subjects.txt
-          BODY_ERRORS_FILE: ${{ runner.temp }}/pr-errors/body.txt
         run: |
           set -eu
-          detail() {
-            if [ -s "$1" ]; then
-              printf ': %s' "$(awk 'NR>1{printf "; "} {printf "%s", $0}' "$1")"
-            fi
-          }
           bad=""
-          if [ "$TITLE_OUTCOME" != success ]; then
-            if [ "$TITLE_OUTCOME" != skipped ] || [ "$AUTHOR_IS_HUMAN" = true ]; then
-              bad="$bad title=$TITLE_OUTCOME$(detail "$TITLE_ERRORS_FILE")"
-            fi
+          if [ "$PR_OUTCOME" != success ]; then
+            bad="$bad title-and-body=$PR_OUTCOME"
           fi
           if [ "$COMMITS_OUTCOME" != success ]; then
-            bad="$bad commit-subjects=$COMMITS_OUTCOME$(detail "$COMMITS_ERRORS_FILE")"
-          fi
-          if [ "$BODY_OUTCOME" != success ]; then
-            if [ "$BODY_OUTCOME" != skipped ] || [ "$AUTHOR_IS_HUMAN" = true ]; then
-              bad="$bad body=$BODY_OUTCOME$(detail "$BODY_ERRORS_FILE")"
+            detail=""
+            if [ -s "$COMMITS_ERRORS_FILE" ]; then
+              detail=": $(awk 'NR>1{printf "; "} {printf "%s", $0}' "$COMMITS_ERRORS_FILE")"
             fi
+            bad="$bad commit-subjects=$COMMITS_OUTCOME$detail"
           fi
           if [ -n "$bad" ]; then
             echo "::error::these checks did not pass:$bad"

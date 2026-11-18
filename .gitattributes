@@ -9,6 +9,7 @@
 *.css           text diff=css
 *.htm           text diff=html
 *.html          text diff=html
+*.in            text
 *.java          text diff=java
 *.js            text
 *.json          text
@@ -28,4 +29,4 @@
 CODEOWNERS      text
 Dockerfile      text
 
-
+requirements-hooks.txt  linguist-generated=true

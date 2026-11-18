@@ -67,6 +67,7 @@ const UNKNOWN = ['', 'version-update:semver-unknown'];
 // name (`dependabot/npm_and_yarn/...`).
 const ECOSYSTEM_SLUGS = {
   npm: 'npm_and_yarn',
+  uv: 'uv',
   'github-actions': 'github_actions',
 };
 

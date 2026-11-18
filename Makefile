@@ -373,19 +373,15 @@ clean: ## Remove build artifacts and temporary files
 ######################
 
 # pre-commit refuses to install when core.hooksPath is set, even to the
-# default .git/hooks. Checks pre-commit is present first, so a hooks
-# framework without it gets the plain warning below rather than a hard
-# error. Auto-unsets only the no-op default (matched by absolute path too,
-# since --git-common-dir is relative outside a worktree); anything else is
-# a real hooks framework, reported rather than overridden.
+# default .git/hooks. Auto-unsets only the no-op default (matched by absolute
+# path too, since --git-common-dir is relative outside a worktree); anything
+# else is a real hooks framework, reported rather than overridden.
+#
+# Every worktree shares these hooks, so they run from an environment in the
+# common git directory rather than whichever pre-commit is first on PATH.
 .PHONY: enable-pre-commit
 enable-pre-commit: ## Enable pre-commit hooks (along with commit-msg and pre-push hooks)
-	@if ! command -v pre-commit >/dev/null 2>&1; then \
-        echo "$(YELLOW)Warning: pre-commit is not installed. Skipping hook installation.$(_COLOR)"; \
-        echo "Install it with: pip install pre-commit (or brew install pre-commit on macOS)"; \
-        exit 0; \
-    fi; \
-    hookspath="$$(git config --local --get core.hooksPath 2>/dev/null || true)"; \
+	@hookspath="$$(git config --local --get core.hooksPath 2>/dev/null || true)"; \
     common_hooks_dir="$$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)/hooks"; \
     if [ -n "$$hookspath" ]; then \
         case "$$hookspath" in \
@@ -403,7 +399,11 @@ enable-pre-commit: ## Enable pre-commit hooks (along with commit-msg and pre-pus
                 ;; \
         esac; \
     fi; \
-    pre-commit install --hook-type commit-msg --hook-type pre-commit --hook-type pre-push --hook-type prepare-commit-msg
+    common_dir="$$(git rev-parse --path-format=absolute --git-common-dir)" || exit 1; \
+    hooks_venv="$$common_dir/pre-commit-venv"; \
+    python3 -m venv "$$hooks_venv" && \
+    "$$hooks_venv/bin/python" -m pip install --require-hashes -r requirements-hooks.txt && \
+    "$$hooks_venv/bin/pre-commit" install --hook-type commit-msg --hook-type pre-commit --hook-type pre-push --hook-type prepare-commit-msg
 
 .PHONY: run-pre-commit
 run-pre-commit: ## Run the pre-commit checks

@@ -1,20 +1,17 @@
 ---
 version: 2
-# Version updates only: a security update still opens a pull request of its own.
-multi-ecosystem-groups:
-  deps:
-    schedule:
-      interval: weekly
-      day: monday
-    commit-message:
-      prefix: build
-      include: scope
-# Each entry takes its schedule and commit message from the group above.
 updates:
   - package-ecosystem: npm
     directory: /
-    patterns: ['*']
-    multi-ecosystem-group: deps
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      deps:
+        patterns: ['*']
+    commit-message:
+      prefix: build
+      include: scope
     cooldown:
       default-days: 7
     ignore:
@@ -29,8 +26,15 @@ updates:
     directories:
       - /
       - /.github/actions/*
-    patterns: ['*']
-    multi-ecosystem-group: deps
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ['*']
+    commit-message:
+      prefix: build
+      include: scope
     cooldown:
       # default-days only: GitHub rejects the semver-* keys for this ecosystem,
       # and an invalid key silently drops this whole entry.

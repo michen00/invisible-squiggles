@@ -24,8 +24,8 @@
 *.ts            text
 *.txt           text
 *.xml           text
-*.yaml          text
-*.yml           text
+*.yaml          text eol=lf
+*.yml           text eol=lf
 CODEOWNERS      text
 Dockerfile      text
 

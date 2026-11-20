@@ -37,6 +37,7 @@ jobs:
               default_files:
                 - .github/release.yml
                 - .prettierignore
+                - .yamllint
                 - tombi.toml
           github-token: ${{ github.token }}
           fail-on-error: 'true'

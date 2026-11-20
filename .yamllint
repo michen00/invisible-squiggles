@@ -2,6 +2,7 @@
 extends: default
 
 yaml-files:
+  - .prettierrc
   - .yamllint
   - '*.yaml'
   - '*.yml'

@@ -1,0 +1,69 @@
+---
+name: Sync template files
+
+# Opens or updates a pull request when michen00/template changes one of these files,
+# which this repository keeps identical to the template's.
+
+on:
+  schedule:
+    - cron: '17 13 * * 2' # Tuesdays at 13:17 UTC; GitHub delays runs at the top of the hour
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: sync-template
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    # A dispatch runs this file from the dispatched ref, so allow only the default branch.
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read # read michen00/template
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Sync files
+        id: sync
+        uses: michen00/boilerplate-sync@0e9141c0e4cba19be30565e78b0afdb29e470635 # v1.1.0
+        with:
+          sources: |
+            - source: michen00/template
+              default_files:
+                - .github/release.yml
+                - .prettierignore
+                - tombi.toml
+          github-token: ${{ github.token }}
+          fail-on-error: 'true'
+
+      # The App's pull request starts the required checks, which GITHUB_TOKEN's would not.
+      - name: Mint an App token
+        id: app-token
+        if: steps.sync.outputs.has-changes == 'true'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Open or update the pull request
+        if: steps.sync.outputs.has-changes == 'true'
+        uses: peter-evans/create-pull-request@3ffccacd46053766916f087ce41d627c0b8cf2d1 # v8.1.3
+        with:
+          base: ${{ github.event.repository.default_branch }}
+          branch: chore/sync-template
+          title: 'chore: sync files from michen00/template'
+          commit-message: 'chore: sync files from michen00/template'
+          body: >-
+            Brings files back in line with
+            [michen00/template](https://github.com/michen00/template).
+            `.github/workflows/sync-template.yml` lists them.
+          sign-commits: true
+          token: ${{ steps.app-token.outputs.token }}
+          delete-branch: true

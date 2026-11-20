@@ -12,7 +12,6 @@ rules:
   line-length:
     ignore: |
       .github/workflows/greet-new-contributors.yml
-      .github/workflows/pre-commit-autoupdate.yml
     max: 100
     allow-non-breakable-words: true
     allow-non-breakable-inline-mappings: true
